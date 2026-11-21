@@ -4,6 +4,11 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "../../out-tsc/web-app",
+    // Workspace packages are TypeScript source: compile them with the app rather than
+    // as prebuilt node_modules (the dev server cannot prebundle extensionless .ts imports).
+    "paths": {
+      "@pracstack/*": ["../../packages/*/src/index.ts"]
+    },
     "types": []
   },
   "include": [

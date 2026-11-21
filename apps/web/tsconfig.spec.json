@@ -4,6 +4,9 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "../../out-tsc/web-spec",
+    "paths": {
+      "@pracstack/*": ["../../packages/*/src/index.ts"]
+    },
     "types": [
       "vitest/globals"
     ]
