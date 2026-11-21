@@ -1,20 +1,119 @@
 :host {
-  display: block;
-  max-width: 1200px;
+  display: grid;
+  gap: var(--space-4);
+  /* SQL questions use the full width; other formats stay readable. */
+  max-width: 1600px;
 }
 
-.layout {
+.classic {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--space-5);
-  align-items: start;
+  gap: var(--space-4);
+  max-width: 960px;
 }
 
-.main,
-.aside {
-  display: grid;
-  gap: var(--space-5);
-  min-width: 0;
+/* ------------------------------------------------ progress bar */
+
+.progress-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-6, 32px);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.stat-label {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.mastery .meter {
+  width: 160px;
+}
+
+.tier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.tier-steps {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.tier-step {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-border-divider);
+}
+
+.tier-step.on {
+  background: var(--color-primary);
+}
+
+.explain {
+  padding: 2px;
+}
+
+.session {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 0 auto;
+}
+
+.session div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.session dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.session dd {
+  margin: 0;
+  font-weight: var(--font-weight-bold);
+}
+
+.explainer {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-info);
+  background: var(--color-info-bg);
+  font-size: var(--font-size-sm);
+}
+
+.explainer p + p {
+  margin-top: var(--space-2);
+}
+
+.selection-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.small {
+  font-size: var(--font-size-sm);
+}
+
+.sql-actions .actions {
+  margin-top: 0;
 }
 
 .question {
@@ -22,6 +121,8 @@
 }
 
 .question-meta {
+  display: flex;
+  gap: var(--space-1);
   margin-bottom: var(--space-3);
 }
 
@@ -135,34 +236,9 @@
   margin-bottom: var(--space-3);
 }
 
-.meter-note {
-  margin-top: var(--space-2);
-  font-size: var(--font-size-sm);
-}
-
-.session {
-  grid-template-columns: 1fr 1fr;
-}
-
-.session dd {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-}
-
-@media (max-width: 1023px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  /* The question comes first; progress follows it. */
-  .aside {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 @media (max-width: 599px) {
-  .aside {
-    grid-template-columns: minmax(0, 1fr);
+  .session {
+    margin-left: 0;
   }
 
   .shortcut {

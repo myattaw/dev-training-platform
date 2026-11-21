@@ -204,6 +204,7 @@ export function validateTracks(tracks: readonly TrackSource[]): ValidationIssue[
           );
         }
         for (const q of skill.questions) validateQuestion(issues, `${skillPath}/${q.id}`, q);
+        validateFamilies(issues, skillPath, skill.questions);
       }
     }
   }
@@ -302,4 +303,54 @@ function validateDatabase(issues: Issues, path: string, db: SqlDatabase): void {
       });
     }
   });
+}
+
+/**
+ * Families group variants of one concept. Their variants must share a format,
+ * and no two questions in a skill may be the same exercise: a "variant" that
+ * only renames things without changing the prompt, code, data or answer is
+ * a duplicate, not new practice.
+ */
+function validateFamilies(
+  issues: Issues,
+  skillPath: string,
+  questions: readonly QuestionSource[],
+): void {
+  const formats = new Map<string, string>();
+  const seen = new Map<string, string>();
+  for (const q of questions) {
+    const family = q.family ?? q.id;
+    if (q.family !== undefined) checkId(issues, `${skillPath}/${q.id}`, q.family);
+    const format = formats.get(family);
+    if (format && format !== q.format) {
+      issues.error(
+        `${skillPath}/${q.id}`,
+        `family "${family}" mixes ${format} and ${q.format} questions`,
+      );
+    }
+    formats.set(family, q.format);
+
+    const fingerprint = contentFingerprint(q);
+    const twin = seen.get(fingerprint);
+    if (twin)
+      issues.error(
+        `${skillPath}/${q.id}`,
+        `same exercise as ${twin} (prompt, code, data and answer are identical)`,
+      );
+    seen.set(fingerprint, q.id);
+  }
+}
+
+/** Everything a learner sees or is graded on, without ids, versions, hints or explanations. */
+function contentFingerprint(q: QuestionSource): string {
+  const { id, version, family, hints, explanation, difficulty, ...rest } = q as QuestionSource & {
+    family?: string;
+  };
+  void id;
+  void version;
+  void family;
+  void hints;
+  void explanation;
+  void difficulty;
+  return JSON.stringify(rest).replace(/\s+/g, ' ');
 }

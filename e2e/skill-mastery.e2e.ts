@@ -30,30 +30,37 @@ test.describe('Skill Mastery', () => {
     await page.goto('/skills/typescript/ts-primitive-types/practice');
     await expect(page).toHaveTitle('Practice: Primitive types · PracStack');
 
-    // Score 0 → the server offers the difficulty-1 question.
-    await expect(page.getByText('Level 1 of 5')).toBeVisible();
+    // A new learner starts at the Beginner tier; difficulty is not the mastery score.
+    const progress = page.getByRole('region', { name: 'Progress' });
+    await expect(progress).toContainText('Beginner');
+    await expect(progress).toContainText('tier 1 of 5');
+    await expect(page.locator('.question-meta')).toHaveText('Beginner');
     await expect(page.getByText('What type does TypeScript infer for')).toBeVisible();
     await page.getByRole('radio', { name: 'number', exact: true }).check();
     await page.getByRole('button', { name: 'Submit answer' }).click();
 
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
-    await expect(page.getByText('Score 0 → 9')).toBeVisible();
+    await expect(page.getByText('Mastery 0 → 6')).toBeVisible();
     await expect(page.locator('app-panel.feedback')).toContainText('TypeScript infers');
 
-    // Next: the difficulty-1 question was just answered, so the nearest level (2) is served.
+    // Next: no new Beginner question is left, so the nearest tier is served, with a note.
     await page.getByRole('button', { name: 'Next question' }).click();
-    await expect(page.getByText('Level 2 of 5')).toBeVisible();
+    await expect(page.locator('.question-meta')).toHaveText('Elementary');
+    await expect(page.locator('.selection-note')).toContainText('No new Beginner questions');
     await page.getByRole('textbox', { name: 'Blank 1 of 1' }).fill('boolean');
     await page.keyboard.press('ControlOrMeta+Enter');
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
-    await expect(page.getByText('Score 9 → 20')).toBeVisible();
+    await expect(page.getByText('Mastery 6 → 13')).toBeVisible();
+    // Two first-time correct answers in a row: up a tier.
+    await expect(page.locator('.score-change')).toContainText('Up to Elementary');
+    await expect(progress).toContainText('tier 2 of 5');
 
     // Results page shows the history; XP is in the top bar.
     await page.getByRole('link', { name: 'End practice' }).last().click();
     await expect(page).toHaveURL('/skills/typescript/ts-primitive-types');
     await expect(page.getByRole('meter', { name: 'Primitive types mastery' })).toHaveAttribute(
       'aria-valuenow',
-      '20',
+      '13',
     );
     await expect(page.locator('tbody tr')).toHaveCount(2);
     // Total XP of the shared local user: other tests running in parallel may add to it.
@@ -77,7 +84,7 @@ test.describe('Skill Mastery', () => {
     await page.goto('/skills/typescript/ts-union-types/practice');
     await expect(page.getByText('Which value can not be assigned to')).toBeVisible();
 
-    await page.getByRole('button', { name: 'Get a hint (1 left)' }).click();
+    await page.getByRole('button', { name: 'Hint (1 left)' }).click();
     await expect(
       page.getByText('A union accepts a value of any one of its member types.'),
     ).toBeVisible();
@@ -98,7 +105,7 @@ test.describe('Skill Mastery', () => {
     await page.goto('/skills/typescript/ts-typeof-narrowing/practice');
     const prompt = page.locator('app-instruction-blocks.prompt');
     await expect(prompt).toContainText('Inside the');
-    await page.getByRole('button', { name: /Get a hint/ }).click();
+    await page.getByRole('button', { name: /^Hint/ }).click();
     await expect(page.locator('.hints')).toContainText('narrows the union');
 
     await page.reload();
@@ -111,9 +118,27 @@ test.describe('Skill Mastery', () => {
     await expect(page.getByRole('link', { name: 'View PostgreSQL skills' })).toBeVisible();
 
     await page.goto('/skills/postgresql/pg-select-where/practice');
-    await expect(page.locator('.schema')).toContainText('CREATE TABLE employees');
-    await expect(page.locator('.samples')).toContainText('Ada Lovelace');
+    // Database explorer: tables with columns and keys, sample rows one table at a time.
+    const explorer = page.locator('app-database-explorer');
+    // The first table starts expanded; others open on click.
+    await expect(explorer.getByRole('button', { name: /departments/ })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    );
+    const employees = explorer.getByRole('button', { name: /employees/ });
+    await expect(employees).toHaveAttribute('aria-expanded', 'false');
+    await employees.click();
+    await expect(employees).toHaveAttribute('aria-expanded', 'true');
+    await expect(explorer.locator('.columns').last()).toContainText('salary');
+    await expect(explorer.locator('.columns').last()).toContainText('FK → departments.id');
+    await explorer.getByRole('tab', { name: 'Sample data' }).click();
+    await explorer.getByRole('button', { name: 'employees', exact: true }).click();
+    await expect(explorer).toContainText('Ada Lovelace');
     await waitForEditor(page);
+    // The editor is large, and visible without scrolling.
+    const box = await page.locator('app-code-editor').boundingBox();
+    expect(box?.height).toBeGreaterThan(200);
+    expect((box?.y ?? 9999) + 100).toBeLessThan(page.viewportSize()!.height);
 
     // A typo: Run shows PostgreSQL's error, nothing is scored.
     await replaceCode(page, 'SELECT nme, salary FROM employees');
@@ -127,8 +152,13 @@ test.describe('Skill Mastery', () => {
 
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
+    // Feedback opens in the output panel, with a correct query.
+    await expect(page.getByRole('tab', { name: 'Feedback' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     await expect(page.locator('pre.reference')).toContainText('SELECT name, salary FROM employees');
-    await expect(page.getByText('Score 0 → 9')).toBeVisible();
+    await expect(page.getByText('Mastery 0 → 6')).toBeVisible();
   });
 
   test('PostgreSQL: answers hard-coded from the sample data are caught by hidden data', async ({

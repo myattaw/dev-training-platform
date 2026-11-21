@@ -19,6 +19,7 @@ describe('FillInBlank', () => {
     id: 'q',
     version: 1,
     skillId: 's',
+    familyId: 'q',
     difficulty: 1,
     format: 'fill-in-blank',
     prompt: [],

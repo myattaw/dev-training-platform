@@ -12,8 +12,10 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import type { AnswerPayload, AnswerResponse, NextQuestionResponse } from '@pracstack/api-contracts';
+import { tierLabel } from '@pracstack/scoring';
 import { ApiClientError } from '../../../../core/api/api-client';
 import { NotFound } from '../../../../core/not-found/not-found';
 import { asyncResource, errorMessage } from '../../../../shared/async/async-state';
@@ -47,6 +49,8 @@ interface SessionTally {
   readonly answered: number;
   readonly correct: number;
   readonly xp: number;
+  /** Correct answers in a row in this session. */
+  readonly streak: number;
   readonly startScore: number | undefined;
 }
 
@@ -61,6 +65,7 @@ const RESULT_DISPLAY: Readonly<
 @Component({
   selector: 'app-practice-page',
   imports: [
+    NgTemplateOutlet,
     RouterLink,
     NotFound,
     InstructionBlocks,
@@ -113,8 +118,11 @@ export class PracticePage {
     answered: 0,
     correct: 0,
     xp: 0,
+    streak: 0,
     startScore: undefined,
   });
+  protected readonly explainOpen = signal(false);
+  protected readonly tierSteps = [1, 2, 3, 4, 5] as const;
 
   protected readonly served = computed(() => {
     const phase = this.phase();
@@ -138,6 +146,14 @@ export class PracticePage {
   protected readonly score = computed(
     () => this.feedback()?.scoreAfter ?? this.served()?.skill.score ?? 0,
   );
+  /** The learner's difficulty tier: after this answer when one was just given. */
+  protected readonly tier = computed(
+    () => this.feedback()?.tierAfter ?? this.served()?.skill.tier ?? 1,
+  );
+  protected readonly tierName = computed(() => tierLabel(this.tier()));
+  protected readonly scoreChange = computed(
+    () => this.score() - (this.session().startScore ?? this.score()),
+  );
   protected readonly hintsLeft = computed(
     () => (this.served()?.question.hintCount ?? 0) - this.hints().length,
   );
@@ -157,7 +173,7 @@ export class PracticePage {
     effect(() => {
       this.skillId();
       untracked(() => {
-        this.session.set({ answered: 0, correct: 0, xp: 0, startScore: undefined });
+        this.session.set({ answered: 0, correct: 0, xp: 0, streak: 0, startScore: undefined });
         void this.loadNext();
       });
     });
@@ -194,6 +210,7 @@ export class PracticePage {
         answered: s.answered + 1,
         correct: s.correct + (response.result === 'correct' ? 1 : 0),
         xp: s.xp + response.xpAwarded,
+        streak: response.result === 'correct' ? s.streak + 1 : 0,
       }));
       afterNextRender(() => this.feedbackHeading()?.nativeElement.focus(), {
         injector: this.injector,
@@ -243,6 +260,14 @@ export class PracticePage {
       event.preventDefault();
       void this.submit();
     }
+  }
+
+  protected difficultyName(tier: number): string {
+    return tierLabel(tier);
+  }
+
+  protected resultHeading(response: AnswerResponse): string {
+    return RESULT_DISPLAY[response.result].heading;
   }
 
   private actionMessage(err: unknown): { message: string; stale: boolean } {

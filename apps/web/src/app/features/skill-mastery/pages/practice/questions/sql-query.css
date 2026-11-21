@@ -1,21 +1,98 @@
 :host {
-  display: block;
-}
-
-.schema {
-  margin-bottom: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  /* Fill the viewport below the page header and progress bar. */
+  height: calc(100vh - var(--sql-workspace-offset, 230px));
+  min-height: 520px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
 }
 
-.schema summary {
+.workspace {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.scroll {
+  overflow: auto;
+}
+
+.question-area {
+  padding: var(--space-3) var(--space-4);
+}
+
+.explorer {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.editor-area {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-3);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
+  border-bottom: 1px solid var(--color-border-divider);
 }
 
-.schema-body {
-  padding: 0 var(--space-3) var(--space-3);
+.field-label {
+  font-weight: var(--font-weight-bold);
+}
+
+.dialect {
+  margin-left: var(--space-1);
+  font-weight: normal;
+}
+
+.run-note {
+  font-size: var(--font-size-xs);
+}
+
+.editor {
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+.actions-area {
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.output-area {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.output-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.result .field-label {
+  margin: 0 0 var(--space-2);
 }
 
 .code {
@@ -28,71 +105,23 @@
   line-height: 20px;
 }
 
-/* One table per row: wide tables need the full width. */
-.samples {
-  display: grid;
-  gap: var(--space-3);
-}
-
-.table-name {
-  margin-bottom: var(--space-1);
-}
-
-.note {
-  margin-top: var(--space-3);
-  font-size: var(--font-size-sm);
-}
-
-.editor-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-
-.dialect {
-  font-weight: var(--font-weight-normal);
-}
-
-.hint {
-  font-size: var(--font-size-sm);
-}
-
-.editor {
-  height: 180px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.run-bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin-top: var(--space-2);
-}
-
-.run-note {
-  font-size: var(--font-size-sm);
-}
-
-.result {
-  margin-top: var(--space-3);
-}
-
 .reference-label {
   margin-top: var(--space-4);
 }
 
-.reference {
-  border-color: var(--color-success);
-  background: var(--color-success-bg);
+/* Narrow screens: one area at a time. */
+.mobile-pane {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
 }
 
-@media (max-width: 599px) {
-  .hint {
-    display: none;
-  }
+.mobile-pane[hidden] {
+  display: none;
+}
+
+.mobile-editor .editor {
+  min-height: 280px;
 }

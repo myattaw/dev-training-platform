@@ -19,12 +19,12 @@ test.describe('Oracle SQL track', () => {
 
   test('practise: DUAL, then write a row-limiting query and run it on Oracle', async ({ page }) => {
     await page.goto('/skills/oracle-sql/ora-row-limiting/practice');
-    // Level 1: a question that needs no database.
+    // Beginner: a question that needs no database.
     await page.getByLabel('Output').fill('1');
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
 
-    // Level 2: write SQL, run it on the sample data, then submit.
+    // Then: write SQL, run it on the sample data, and submit.
     await page.getByRole('button', { name: 'Next question' }).click();
     await expect(page.getByText('three highest-paid employees')).toBeVisible();
     await expect(page.locator('.dialect')).toHaveText('Oracle');

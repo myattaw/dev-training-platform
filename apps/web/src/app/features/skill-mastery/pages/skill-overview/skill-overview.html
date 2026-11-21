@@ -51,6 +51,10 @@
             <dd><app-skill-status [progress]="h.value.skill" /></dd>
           </div>
           <div>
+            <dt>Difficulty</dt>
+            <dd>{{ tierName(h.value.skill.tier) }} (tier {{ h.value.skill.tier }} of 5)</dd>
+          </div>
+          <div>
             <dt>Questions answered</dt>
             <dd>{{ h.value.skill.attempts }}</dd>
           </div>
@@ -79,7 +83,7 @@
               <thead>
                 <tr>
                   <th scope="col">When</th>
-                  <th scope="col">Level</th>
+                  <th scope="col">Difficulty</th>
                   <th scope="col">Result</th>
                   <th scope="col">Hints</th>
                   <th scope="col">Score</th>
@@ -90,7 +94,7 @@
                 @for (row of rows(); track row.attemptId) {
                   <tr>
                     <td>{{ row.when }}</td>
-                    <td>{{ row.difficulty }}</td>
+                    <td>{{ row.difficultyName }}</td>
                     <td>
                       <app-status-indicator [type]="row.display.type">{{
                         row.display.label

@@ -38,7 +38,14 @@ describe('practice flow', () => {
     for (const secret of ['correct', 'explanation', 'It is the first one.', 'A is right.']) {
       expect(json).not.toContain(secret);
     }
-    expect(served.skill).toEqual({ skillId: 'demo-skill', score: 0, mastered: false, attempts: 0 });
+    expect(served.skill).toEqual({
+      skillId: 'demo-skill',
+      score: 0,
+      tier: 1,
+      mastered: false,
+      attempts: 0,
+    });
+    expect(served.selection).toEqual({ reason: 'new' });
   });
 
   it('scores a correct answer on the server and reveals the explanation', async () => {
@@ -52,12 +59,16 @@ describe('practice flow', () => {
     expect(res.body).toMatchObject({
       result: 'correct',
       scoreBefore: 0,
-      scoreAfter: 9,
+      scoreAfter: 6, // a Beginner question is worth 6 (docs/scoring.md)
       xpAwarded: 10,
       masteredNow: false,
+      tierBefore: 1,
+      tierAfter: 1,
+      repeat: false,
+      cappedByTier: false,
       correctAnswer: { format: 'multiple-choice', correct: ['a'] },
       explanation: [{ kind: 'paragraph', text: 'A is right.' }],
-      skill: { skillId: 'demo-skill', score: 9, attempts: 1 },
+      skill: { skillId: 'demo-skill', score: 6, tier: 1, attempts: 1 },
     });
 
     const me = (await api.call('GET', '/api/me')).body as MeResponse;
@@ -65,7 +76,7 @@ describe('practice flow', () => {
     const progress = (await api.call('GET', '/api/skill-mastery/progress?technologyId=demo'))
       .body as ProgressResponse;
     expect(progress.skills).toEqual([
-      expect.objectContaining({ skillId: 'demo-skill', score: 9, attempts: 1 }),
+      expect.objectContaining({ skillId: 'demo-skill', score: 6, attempts: 1 }),
     ]);
   });
 
@@ -146,7 +157,7 @@ describe('hints', () => {
     const answer = (
       await api.call('POST', '/api/skill-mastery/practice/answer', { token, answer: pickA })
     ).body as AnswerResponse;
-    expect(answer.scoreAfter).toBe(3); // 9 × 0.3 with two hints
+    expect(answer.scoreAfter).toBe(2); // 6 × 0.3 with two hints
     const history = (await api.call('GET', '/api/skill-mastery/skills/demo-skill/history'))
       .body as HistoryResponse;
     expect(history.attempts[0]!.hintsUsed).toBe(2);
@@ -271,6 +282,61 @@ describe('validation and errors', () => {
   });
 });
 
+describe('adaptive practice', () => {
+  /** Answers the served question with its key (the fixture keys are known to the tests). */
+  const answerServed = async (api: ReturnType<typeof testApi>, served: NextQuestionResponse) => {
+    const key = api.content.findQuestion(served.question.id)!.grading.answer;
+    const answer =
+      key.format === 'multiple-choice'
+        ? { format: key.format, selected: key.correct }
+        : key.format === 'predict-output'
+          ? { format: key.format, output: key.output }
+          : key.format === 'fill-in-blank'
+            ? {
+                format: key.format,
+                blanks: Object.fromEntries(
+                  Object.entries(key.blanks).map(([k, b]) => [
+                    k,
+                    (b as { accepted: string[] }).accepted[0] ?? '',
+                  ]),
+                ),
+              }
+            : { format: 'sql-query' as const, query: 'SELECT 1' };
+    return (
+      await api.call('POST', '/api/skill-mastery/practice/answer', { token: served.token, answer })
+    ).body as AnswerResponse;
+  };
+
+  it('moves up a tier after two first-time correct answers, and reports it', async () => {
+    const api = testApi();
+    const first = await answerServed(api, await next(api));
+    expect(first).toMatchObject({ tierBefore: 1, tierAfter: 1, repeat: false });
+    const second = await answerServed(api, await next(api));
+    expect(second).toMatchObject({ tierBefore: 1, tierAfter: 2, skill: { tier: 2 } });
+    expect((await next(api)).skill.tier).toBe(2);
+  });
+
+  it('serves every question before repeating, then marks repeats and gives them reduced credit', async () => {
+    const api = testApi();
+    const total = api.content.questions('demo-skill').length;
+    const served: string[] = [];
+    let last: AnswerResponse | undefined;
+    for (let i = 0; i < total; i++) {
+      const q = await next(api);
+      expect(q.selection.reason, `answer ${i}`).toBe('new');
+      served.push(q.question.id);
+      last = await answerServed(api, q);
+    }
+    expect(new Set(served).size).toBe(total);
+    expect(last?.repeat).toBe(false);
+    const again = await next(api);
+    expect(again.selection.reason).toBe('repeat');
+    expect(again.selection.note).toContain('repeat');
+    const repeated = await answerServed(api, again);
+    expect(repeated.repeat).toBe(true);
+  });
+});
+
 describe('concurrency', () => {
   it('recomputes and retries when another answer changed mastery first', async () => {
     const store = new InMemoryProgressStore();
@@ -287,7 +353,7 @@ describe('concurrency', () => {
       answer: pickA,
     });
     expect(res.status).toBe(200);
-    expect((res.body as AnswerResponse).scoreAfter).toBe(9);
+    expect((res.body as AnswerResponse).scoreAfter).toBe(6);
   });
 });
 

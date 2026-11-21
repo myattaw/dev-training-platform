@@ -9,14 +9,25 @@ interface NavItem {
   readonly exact: boolean;
 }
 
+interface NavGroup {
+  /** Visible group heading; the first group has none. */
+  readonly heading?: string;
+  readonly items: readonly NavItem[];
+}
+
 /**
  * Primary navigation. Only areas that actually work are listed; My Progress
  * and Profile are added as they are built.
  */
-const ITEMS: readonly NavItem[] = [
-  { label: 'Dashboard', link: '/', icon: 'dashboard', exact: true },
-  { label: 'Skill Mastery', link: '/skills', icon: 'target', exact: false },
-  { label: 'Coding Challenges', link: '/challenges', icon: 'code', exact: false },
+const GROUPS: readonly NavGroup[] = [
+  { items: [{ label: 'Dashboard', link: '/', icon: 'dashboard', exact: true }] },
+  {
+    heading: 'Practice',
+    items: [
+      { label: 'Skill Mastery', link: '/skills', icon: 'target', exact: false },
+      { label: 'Coding Challenges', link: '/challenges', icon: 'code', exact: false },
+    ],
+  },
 ];
 
 @Component({
@@ -25,21 +36,27 @@ const ITEMS: readonly NavItem[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav aria-label="Primary">
-      <ul>
-        @for (item of items; track item.link) {
-          <li>
-            <a
-              [routerLink]="item.link"
-              routerLinkActive="active"
-              ariaCurrentWhenActive="page"
-              [routerLinkActiveOptions]="{ exact: item.exact }"
-            >
-              <app-icon [name]="item.icon" />
-              {{ item.label }}
-            </a>
-          </li>
+      @for (group of groups; track $index) {
+        @if (group.heading) {
+          <h2 class="group-heading" [id]="'nav-group-' + $index">{{ group.heading }}</h2>
         }
-      </ul>
+        <ul [attr.aria-labelledby]="group.heading ? 'nav-group-' + $index : null">
+          @for (item of group.items; track item.link) {
+            <li>
+              <a
+                [routerLink]="item.link"
+                routerLinkActive="active"
+                ariaCurrentWhenActive="page"
+                [routerLinkActiveOptions]="{ exact: item.exact }"
+                [title]="item.label"
+              >
+                <app-icon [name]="item.icon" />
+                <span class="label">{{ item.label }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      }
     </nav>
   `,
   styles: `
@@ -50,16 +67,35 @@ const ITEMS: readonly NavItem[] = [
       background: var(--color-surface);
       overflow-y: auto;
     }
+    nav {
+      padding: var(--space-3) 0;
+    }
+    .group-heading {
+      margin: var(--space-4) 0 var(--space-1);
+      padding: 0 var(--space-5);
+      color: var(--color-text-secondary);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
     ul {
       margin: 0;
-      padding: var(--space-3) 0;
+      padding: 0;
       list-style: none;
+    }
+    .label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     a {
       position: relative;
       display: flex;
       align-items: center;
-      gap: var(--space-2);
+      gap: var(--space-3);
+      min-height: 36px;
       padding: 6px var(--space-5);
       color: var(--color-text-secondary);
     }
@@ -88,7 +124,7 @@ const ITEMS: readonly NavItem[] = [
   `,
 })
 export class SideNav {
-  protected readonly items = ITEMS;
+  protected readonly groups = GROUPS;
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   focusFirstLink(): void {

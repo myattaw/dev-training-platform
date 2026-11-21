@@ -3,7 +3,7 @@ import type { UserInfo } from '@pracstack/api-contracts';
 import { splitTrack, type TrackSource } from '@pracstack/content-model';
 import { type ApiDeps, createApi } from '../app';
 import type { Authenticator } from '../auth';
-import { createContentSource } from '../content/content-source';
+import { type ContentSource, createContentSource } from '../content/content-source';
 import type { ApiRequest, ApiResponse } from '../http';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { InMemoryProgressStore } from '../store/memory-store';
@@ -153,6 +153,8 @@ export interface TestApi {
     user?: 'alice' | 'bob',
   ) => Promise<ApiResponse>;
   readonly store: InMemoryProgressStore;
+  /** The content the API serves (to answer questions with their keys in tests). */
+  readonly content: ContentSource;
   /** Moves the fake clock forward. */
   readonly advance: (ms: number) => void;
   readonly errors: unknown[];
@@ -162,9 +164,10 @@ export function testApi(overrides: Partial<ApiDeps> = {}): TestApi {
   let now = new Date('2026-11-21T12:00:00Z').getTime();
   const store = new InMemoryProgressStore();
   const errors: unknown[] = [];
+  const content = overrides.content ?? fixtureContent();
   const api = createApi({
     auth: testAuth,
-    content: fixtureContent(),
+    content,
     store,
     rateLimiter: new SlidingWindowRateLimiter(1000, 60_000),
     now: () => new Date(now),
@@ -175,6 +178,7 @@ export function testApi(overrides: Partial<ApiDeps> = {}): TestApi {
   });
   return {
     store,
+    content,
     errors,
     advance: (ms) => {
       now += ms;

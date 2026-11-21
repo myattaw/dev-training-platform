@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { AnswerResult } from '@pracstack/api-contracts';
+import { tierLabel } from '@pracstack/scoring';
 import { NotFound } from '../../../../core/not-found/not-found';
 import { asyncResource } from '../../../../shared/async/async-state';
 import { InlineText } from '../../../../shared/content/inline-text/inline-text';
@@ -67,10 +68,15 @@ export class SkillOverview {
     return state.value.attempts.map((a) => ({
       ...a,
       when: formatRelativeTime(a.answeredAt),
+      difficultyName: tierLabel(a.difficulty),
       display: RESULTS[a.result],
       change: a.scoreAfter - a.scoreBefore,
     }));
   });
+
+  protected tierName(tier: number): string {
+    return tierLabel(tier);
+  }
 
   protected readonly accuracy = computed(() => {
     const rows = this.rows();

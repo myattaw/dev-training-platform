@@ -44,8 +44,14 @@ export interface MeResponse {
 
 export interface SkillProgress {
   readonly skillId: string;
-  /** 0–100. */
+  /** 0–100: demonstrated proficiency. */
   readonly score: number;
+  /**
+   * Difficulty tier (1 Beginner … 5 Expert) of the questions this learner gets
+   * next. Separate from the score: it moves up after two first-time correct
+   * answers in a row, and down after two misses in a row (docs/scoring.md).
+   */
+  readonly tier: number;
   readonly mastered: boolean;
   readonly attempts: number;
   /** ISO timestamp of the last answer, if any. */
@@ -73,6 +79,19 @@ export interface NextQuestionResponse {
   readonly hintsRevealed: readonly string[];
   /** ISO timestamp after which the token can no longer be answered. */
   readonly expiresAt: string;
+  /** Why this question was chosen. */
+  readonly selection: QuestionSelection;
+}
+
+/**
+ * `new`: not answered before. `review`: answered wrongly earlier, back for
+ * review. `repeat`: every question in the skill has been answered; repeats earn
+ * reduced credit and don't count toward mastery.
+ */
+export interface QuestionSelection {
+  readonly reason: 'new' | 'review' | 'repeat';
+  /** A sentence for the learner when the choice needs explaining. */
+  readonly note?: string;
 }
 
 /** POST /api/skill-mastery/practice/hint */
@@ -126,6 +145,13 @@ export interface AnswerResponse {
   readonly masteredNow: boolean;
   readonly checkpointReached?: number;
   readonly skill: SkillProgress;
+  /** Difficulty tier before and after this answer. */
+  readonly tierBefore: number;
+  readonly tierAfter: number;
+  /** This question had been answered correctly before (reduced credit). */
+  readonly repeat: boolean;
+  /** The score did not rise (fully) because this question's tier caps it lower. */
+  readonly cappedByTier: boolean;
 }
 
 export interface AttemptSummary {

@@ -115,6 +115,7 @@ export function splitQuestion(source: QuestionSource, skillId: string): SplitQue
     id: source.id,
     version: source.version,
     skillId,
+    familyId: source.family ?? source.id,
     difficulty: source.difficulty,
     prompt: source.prompt,
     hintCount: source.hints.length,

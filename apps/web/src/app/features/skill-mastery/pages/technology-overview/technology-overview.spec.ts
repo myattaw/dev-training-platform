@@ -19,8 +19,8 @@ async function setup(api: FakeApiClient, technologyId = 'typescript') {
 const progress: ProgressResponse = {
   technologyId: 'typescript',
   skills: [
-    { skillId: 'primitives', score: 100, mastered: true, attempts: 20 },
-    { skillId: 'unions', score: 42, mastered: false, attempts: 6 },
+    { skillId: 'primitives', score: 100, tier: 5, mastered: true, attempts: 20 },
+    { skillId: 'unions', score: 42, tier: 3, mastered: false, attempts: 6 },
   ],
 };
 

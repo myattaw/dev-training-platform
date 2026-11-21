@@ -6,6 +6,7 @@ const question: SqlQueryQuestion = {
   id: 'q',
   version: 1,
   skillId: 's',
+  familyId: 'q',
   difficulty: 1,
   format: 'sql-query',
   dialect: 'postgresql',
@@ -39,12 +40,50 @@ async function setup() {
 }
 
 describe('SqlQuery', () => {
-  it('shows the schema and the sample rows, with NULL marked', async () => {
+  it('shows the schema in the database explorer: tables, columns and types', async () => {
     const { el } = await setup();
-    expect(el.querySelector('.schema pre')?.textContent).toContain('CREATE TABLE items');
-    const cells = [...el.querySelectorAll('.samples td')].map((td) => td.textContent?.trim());
+    const explorer = el.querySelector('app-database-explorer')!;
+    expect(explorer.querySelector('.table-toggle')?.textContent).toContain('items');
+    expect(explorer.querySelector('.table-toggle')?.textContent).toContain('2 columns');
+    const columns = [...explorer.querySelectorAll('.columns tbody tr')].map((tr) =>
+      [...tr.querySelectorAll('td')].slice(0, 2).map((td) => td.textContent?.trim()),
+    );
+    expect(columns).toEqual([
+      ['id', 'int'],
+      ['name', 'text'],
+    ]);
+    expect(explorer.querySelector('.ddl pre')?.textContent).toContain('CREATE TABLE items');
+  });
+
+  it('shows the sample rows, with NULL marked, on the Sample data tab', async () => {
+    const { fixture, el } = await setup();
+    const tab = [
+      ...el.querySelectorAll<HTMLButtonElement>('app-database-explorer [role="tab"]'),
+    ].find((b) => b.textContent?.includes('Sample data'))!;
+    tab.click();
+    await fixture.whenStable();
+    const cells = [...el.querySelectorAll('app-database-explorer td')].map((td) =>
+      td.textContent?.trim(),
+    );
     expect(cells).toEqual(['1', 'Tea', '2', 'NULL']);
-    expect(el.querySelector('.samples td.null')).not.toBeNull();
+    expect(el.querySelector('app-database-explorer td.null')).not.toBeNull();
+  });
+
+  it('places the editor and the Results / Feedback panel in the workspace', async () => {
+    const { fixture, el } = await setup();
+    expect(el.querySelector('app-code-editor')).not.toBeNull();
+    const outputTabs = () =>
+      [...el.querySelectorAll('.output-area [role="tab"]')].map((t) => ({
+        label: t.textContent?.trim(),
+        selected: t.getAttribute('aria-selected'),
+      }));
+    expect(outputTabs()).toEqual([
+      { label: 'Results', selected: 'true' },
+      { label: 'Feedback', selected: 'false' },
+    ]);
+    fixture.componentRef.setInput('hasFeedback', true);
+    await fixture.whenStable();
+    expect(outputTabs()[1]).toEqual({ label: 'Feedback', selected: 'true' });
   });
 
   it('runs the current query (from the answer) and disables Run when empty', async () => {

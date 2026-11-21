@@ -96,4 +96,18 @@ test.describe('navigation and catalog', () => {
     await page.getByRole('button', { name: 'Open navigation' }).click();
     await expect(nav).toBeVisible();
   });
+
+  test('the sidebar is wide enough for its labels, and groups practice areas', async ({ page }) => {
+    await page.goto('/');
+    const nav = page.getByRole('navigation', { name: 'Primary' });
+    const box = await page.locator('app-side-nav').boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(250);
+    expect(box?.width).toBeLessThanOrEqual(260);
+    await expect(nav.getByRole('heading', { name: 'Practice' })).toBeVisible();
+    await expect(nav.getByRole('list', { name: 'Practice' })).toContainText('Coding Challenges');
+    // No label is cut off.
+    for (const label of await nav.locator('.label').all()) {
+      expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
+  });
 });

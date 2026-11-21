@@ -39,7 +39,11 @@ const track = (q: QuestionSource): TrackSource => ({
           id: 'select',
           name: 'Select',
           description: 'Select.',
-          questions: [q, { ...q, id: 'sql-q2' }, { ...q, id: 'sql-q3' }],
+          questions: [
+            q,
+            { ...q, id: 'sql-q2', prompt: [{ kind: 'paragraph', text: 'A second task.' }] },
+            { ...q, id: 'sql-q3', prompt: [{ kind: 'paragraph', text: 'Another task.' }] },
+          ],
         },
       ],
     },
