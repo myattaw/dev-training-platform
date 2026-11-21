@@ -45,6 +45,19 @@ export function isBalanced(text: string): boolean {
 }
 `,
       },
+      java: {
+        entryPoint: 'isBalanced',
+        starterCode: `class Solution {
+    /**
+     * Returns true if every bracket in text is matched and correctly nested.
+     */
+    static boolean isBalanced(String text) {
+        // TODO: implement me
+        throw new UnsupportedOperationException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(text: string) => boolean>([
       { description: 'empty string', input: [''], expected: true },

@@ -54,6 +54,23 @@ export const source: ChallengeSource = {
 }
 `,
       },
+      java: {
+        entryPoint: 'LRUCache',
+        starterCode: `class LRUCache {
+    LRUCache(int capacity) {
+        // TODO: set up your storage
+    }
+
+    int get(int key) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    void put(int key, int value) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+}
+`,
+      },
     },
     visibleTests: operationTests<typeof LRUCache>([
       {

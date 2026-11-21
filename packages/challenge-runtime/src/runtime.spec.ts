@@ -1,6 +1,17 @@
 import { callTests, type ChallengeTest, operationTests } from '@pracstack/content-model';
 import { describe, expect, it } from 'vitest';
-import { deepEqual, describeTest, formatValue, runInSandbox, runTests } from './runtime';
+import {
+  decodeValue,
+  deepEqual,
+  describeTest,
+  encodeValue,
+  executeTests,
+  formatValue,
+  gradeOutcomes,
+  runInSandbox,
+  runTests,
+  toTestInput,
+} from './index';
 
 class Counter {
   private n: number;
@@ -188,5 +199,65 @@ describe('formatValue', () => {
     expect(formatValue([1, 'a'])).toBe('[1,"a"]');
     expect(formatValue(Infinity)).toBe('Infinity');
     expect(formatValue(10n)).toBe('10n');
+  });
+});
+
+describe('encodeValue / decodeValue', () => {
+  it('round-trips values JSON cannot represent', () => {
+    const values = [
+      undefined,
+      NaN,
+      Infinity,
+      -Infinity,
+      12n,
+      [1, undefined],
+      { a: NaN },
+      'x',
+      null,
+      true,
+    ];
+    const restored = JSON.parse(JSON.stringify(values.map((v) => encodeValue(v)))).map(decodeValue);
+    expect(restored[0]).toBeUndefined();
+    expect(restored[1]).toBeNaN();
+    expect(restored.slice(2)).toEqual([
+      Infinity,
+      -Infinity,
+      12n,
+      [1, undefined],
+      { a: NaN },
+      'x',
+      null,
+      true,
+    ]);
+  });
+});
+
+describe('executeTests + gradeOutcomes (the split used by server-side grading)', () => {
+  const tests = callTests<(s: string) => string>([
+    { description: 'reverses', input: ['ab'], expected: 'ba' },
+  ]);
+
+  it('executes with inputs only: expected values are not part of what is sent', () => {
+    const inputs = tests.map(toTestInput);
+    expect(JSON.stringify(inputs)).not.toContain('"ba"');
+    expect(inputs).toEqual([{ kind: 'call', input: ['ab'] }]);
+  });
+
+  it('grades outcomes that crossed a process boundary as JSON', () => {
+    const executed = executeTests(
+      { f: (s: string) => [...s].reverse().join('') },
+      'f',
+      tests.map(toTestInput),
+    );
+    if (executed.kind !== 'completed') throw new Error('load error');
+    const transported = JSON.parse(JSON.stringify(executed.outcomes)) as typeof executed.outcomes;
+    expect(gradeOutcomes(tests, transported, 'f')).toEqual([
+      { description: 'reverses', passed: true, input: '"ab"', expected: '"ba"', actual: '"ba"' },
+    ]);
+  });
+
+  it('cannot be fooled by a forged outcome without the right value', () => {
+    const forged = [{ kind: 'call' as const, value: 'anything' }];
+    expect(gradeOutcomes(tests, forged, 'f')[0]?.passed).toBe(false);
   });
 });

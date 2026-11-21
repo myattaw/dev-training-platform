@@ -56,6 +56,7 @@ describe('Dashboard', () => {
     );
     expect(values).toEqual({
       Available: '4',
+      Solved: '0',
       'Visible tests passed': '1',
       'In progress': '0',
       'Not started': '3',

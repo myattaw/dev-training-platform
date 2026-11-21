@@ -1,0 +1,65 @@
+:host {
+  display: block;
+}
+
+.panel {
+  padding: var(--space-3) var(--space-4);
+}
+
+.verdict-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.solved-now {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: var(--space-3) 0 0;
+}
+
+.counts dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.counts dd {
+  margin: 0;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.hint {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.intro {
+  font-size: var(--font-size-sm);
+}
+
+.history-title {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--font-size-base);
+}
+
+.history td,
+.history th {
+  padding-left: 0;
+}
+
+.empty {
+  font-size: var(--font-size-sm);
+}

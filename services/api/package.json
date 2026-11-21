@@ -14,7 +14,9 @@
     "@pracstack/api-contracts": "*",
     "@pracstack/content-model": "*",
     "@pracstack/scoring": "*",
-    "@pracstack/sql-engine": "*"
+    "@pracstack/sql-engine": "*",
+    "@pracstack/code-runner": "*",
+    "@pracstack/challenge-runtime": "*"
   },
   "devDependencies": {
     "@pracstack/content": "*"

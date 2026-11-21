@@ -1,4 +1,9 @@
-import type { AnswerResponse, AnswerResult } from '@pracstack/api-contracts';
+import type {
+  AnswerResponse,
+  AnswerResult,
+  ChallengeProgress,
+  SubmissionSummary,
+} from '@pracstack/api-contracts';
 import type { MasteryState } from '@pracstack/scoring';
 
 /*
@@ -65,6 +70,16 @@ export type RecordAnswerOutcome =
   /** Mastery changed meanwhile (another answer); recompute and retry. */
   | { readonly kind: 'conflict' };
 
+/** A stored coding-challenge submission, including the learner's code. */
+export interface SubmissionRecord extends SubmissionSummary {
+  readonly userId: string;
+  readonly code: string;
+}
+
+export interface ChallengeProgressRecord extends ChallengeProgress {
+  readonly userId: string;
+}
+
 export interface ProgressStore {
   getMastery(userId: string, skillId: string): Promise<MasteryRecord | undefined>;
   listMastery(userId: string): Promise<readonly MasteryRecord[]>;
@@ -84,4 +99,17 @@ export interface ProgressStore {
 
   /** Atomically: mark the token answered, store the attempt, update mastery and XP. */
   recordAnswer(input: RecordAnswer): Promise<RecordAnswerOutcome>;
+
+  /**
+   * Atomically stores a submission and updates the challenge progress
+   * (attempt count; "solved" is sticky once set). Returns the new progress.
+   */
+  recordSubmission(submission: SubmissionRecord): Promise<ChallengeProgressRecord>;
+  /** Most recent first. */
+  listSubmissions(
+    userId: string,
+    challengeId: string,
+    limit: number,
+  ): Promise<readonly SubmissionRecord[]>;
+  listChallengeProgress(userId: string): Promise<readonly ChallengeProgressRecord[]>;
 }

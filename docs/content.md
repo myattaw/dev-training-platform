@@ -58,7 +58,9 @@ string value. It is unit-tested with planted leaks (`content/src/leak-check.spec
 1. Create `content/src/challenges/<id>/challenge.ts` exporting `source: ChallengeSource`:
    the public `challenge` plus `hiddenTests` (and optional `limits`).
 2. Create `content/src/challenges/<id>/reference.ts` with a working solution that exports the
-   entry point (a function, or a class for operations tests).
+   entry point (a function, or a class for operations tests), and `Reference.java` if the
+   challenge offers Java. Java references are verified through the real Java runner
+   (`services/api/src/challenges/challenge-grading.spec.ts`).
 3. Register both in `content/src/challenges/index.ts`.
 4. Run `npm run content:build`.
 

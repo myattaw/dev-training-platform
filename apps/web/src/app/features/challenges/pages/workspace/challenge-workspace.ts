@@ -21,7 +21,16 @@ import { type TabItem, Tabs } from '../../../../shared/ui/tabs/tabs';
 import { ChallengeCatalogService } from '../../data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../../data-access/challenge-progress.service';
 import { describeTest } from '@pracstack/challenge-runtime';
-import { LANGUAGE_LABELS, type LanguageId, supportedLanguages } from '@pracstack/content-model';
+import type { SubmissionResponse } from '@pracstack/api-contracts';
+import {
+  BROWSER_LANGUAGES,
+  LANGUAGE_LABELS,
+  type LanguageId,
+  supportedLanguages,
+} from '@pracstack/content-model';
+import { errorMessage } from '../../../../shared/async/async-state';
+import { ChallengeSubmissions } from '../../data-access/challenge-submissions';
+import { SubmissionPanel } from './submission-panel/submission-panel';
 import { asyncResource } from '../../../../shared/async/async-state';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { LoadingState } from '../../../../shared/ui/loading-state/loading-state';
@@ -31,7 +40,7 @@ import { DifficultyBadge } from '../../ui/difficulty-badge';
 import { TestResults } from './test-results/test-results';
 
 type ProblemTab = 'description' | 'tests';
-type ResultsTab = 'results' | 'console';
+type ResultsTab = 'results' | 'console' | 'submissions';
 type MobileTab = 'problem' | 'code' | 'results';
 
 @Component({
@@ -50,6 +59,7 @@ type MobileTab = 'problem' | 'code' | 'results';
     Tabs,
     DifficultyBadge,
     TestResults,
+    SubmissionPanel,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './challenge-workspace.html',
@@ -62,6 +72,7 @@ export class ChallengeWorkspace {
   private readonly catalog = inject(ChallengeCatalogService);
   private readonly progress = inject(ChallengeProgressService);
   private readonly runner = inject(LocalRunnerService);
+  private readonly submissions = inject(ChallengeSubmissions);
   private readonly editor = viewChild(CodeEditor);
 
   protected readonly isNarrow = mediaQuery('(max-width: 899px)');
@@ -75,14 +86,27 @@ export class ChallengeWorkspace {
     const state = this.loaded.state();
     return state.status === 'ready' ? state.value : undefined;
   });
-  protected readonly language = computed<LanguageId | undefined>(() => {
+  protected readonly languages = computed(() => {
     const challenge = this.challenge();
-    return challenge ? supportedLanguages(challenge)[0] : undefined;
+    return challenge ? supportedLanguages(challenge) : [];
   });
-  protected readonly languageLabel = computed(() => {
+  /** The selected language: last used for this challenge, else the first offered. */
+  protected readonly language = linkedSignal<LanguageId | undefined>(() => {
+    const challenge = this.challenge();
+    const offered = this.languages();
+    if (!challenge) return undefined;
+    const preferred = this.progress.preferredLanguage(challenge.id);
+    return preferred && offered.includes(preferred) ? preferred : offered[0];
+  });
+  protected readonly languageLabels = LANGUAGE_LABELS;
+  /** Java runs only on the server; TypeScript runs in the browser. */
+  protected readonly runsInBrowser = computed(() => {
     const lang = this.language();
-    return lang ? LANGUAGE_LABELS[lang] : '';
+    return lang !== undefined && BROWSER_LANGUAGES.includes(lang);
   });
+  protected readonly fileName = computed(() =>
+    this.language() === 'java' ? 'Solution.java' : 'solution.ts',
+  );
   private readonly setup = computed(() => {
     const lang = this.language();
     return lang ? this.challenge()?.languages[lang] : undefined;
@@ -117,9 +141,23 @@ export class ChallengeWorkspace {
   });
 
   protected readonly outcome = linkedSignal<unknown, RunOutcome | null>({
+    source: () => [this.challenge(), this.language()],
+    computation: () => null,
+  });
+
+  protected readonly submitting = signal(false);
+  protected readonly lastSubmission = linkedSignal<unknown, SubmissionResponse | null>({
     source: this.challenge,
     computation: () => null,
   });
+  protected readonly submitError = linkedSignal<unknown, string | null>({
+    source: this.challenge,
+    computation: () => null,
+  });
+  protected readonly history = asyncResource(
+    () => this.id(),
+    async (id) => (await this.submissions.history(id)).submissions,
+  );
   protected readonly running = signal(false);
 
   protected readonly logText = computed(() => {
@@ -139,6 +177,7 @@ export class ChallengeWorkspace {
     return [
       { id: 'results', label: 'Test results' },
       { id: 'console', label: 'Console', count: lines > 0 ? lines : undefined },
+      { id: 'submissions', label: 'Submissions' },
     ];
   });
 
@@ -184,10 +223,20 @@ export class ChallengeWorkspace {
     this.resultsTab.set('results');
     if (this.isNarrow()) this.mobileTab.set('results');
     try {
-      const compiled = await editor.compile();
-      const outcome: RunOutcome = compiled.ok
-        ? await this.runner.run(compiled.js, setup.entryPoint, challenge.visibleTests)
-        : { status: 'compile-error', diagnostics: compiled.diagnostics };
+      let outcome: RunOutcome;
+      if (this.runsInBrowser()) {
+        const compiled = await editor.compile();
+        outcome = compiled.ok
+          ? await this.runner.run(compiled.js, setup.entryPoint, challenge.visibleTests)
+          : { status: 'compile-error', diagnostics: compiled.diagnostics };
+      } else {
+        // Languages the browser cannot run are run on the server (visible tests only).
+        try {
+          outcome = await this.submissions.run(challenge.id, { language: lang, code: this.code() });
+        } catch (err) {
+          outcome = { status: 'load-error', message: errorMessage(err), logs: [] };
+        }
+      }
 
       // Ignore stale results if the learner navigated away mid-run.
       if (this.challenge() === challenge) {
@@ -197,6 +246,37 @@ export class ChallengeWorkspace {
     } finally {
       this.running.set(false);
     }
+  }
+
+  /** Grades on the server against visible and hidden tests. */
+  protected async submit(): Promise<void> {
+    const challenge = this.challenge();
+    const lang = this.language();
+    if (!challenge || !lang || this.submitting() || this.running()) return;
+    this.submitting.set(true);
+    this.submitError.set(null);
+    this.resultsTab.set('submissions');
+    if (this.isNarrow()) this.mobileTab.set('results');
+    try {
+      const response = await this.submissions.submit(challenge.id, {
+        language: lang,
+        code: this.code(),
+      });
+      if (this.challenge() === challenge) this.lastSubmission.set(response);
+    } catch (err) {
+      if (this.challenge() === challenge) this.submitError.set(errorMessage(err));
+    } finally {
+      this.submitting.set(false);
+      this.history.reload();
+    }
+  }
+
+  protected selectLanguage(event: Event): void {
+    const challenge = this.challenge();
+    const lang = (event.target as HTMLSelectElement).value as LanguageId;
+    if (!challenge || !this.languages().includes(lang)) return;
+    this.progress.setPreferredLanguage(challenge.id, lang);
+    this.language.set(lang);
   }
 
   protected reset(): void {

@@ -1,12 +1,14 @@
 import {
   ANSWER_LIMITS,
   type AnswerPayload,
+  type ChallengeCodeRequest,
+  CODE_LIMITS,
   type AnswerRequest,
   type HintRequest,
   type NextQuestionRequest,
   type RunSqlRequest,
 } from '@pracstack/api-contracts';
-import { ID_PATTERN } from '@pracstack/content-model';
+import { ID_PATTERN, LANGUAGE_LABELS, type LanguageId } from '@pracstack/content-model';
 import { badRequest } from './http';
 
 /*
@@ -60,6 +62,17 @@ export function parseHintRequest(body: unknown): HintRequest {
 export function parseAnswerRequest(body: unknown): AnswerRequest {
   const o = asObject(body, 'Request body');
   return { token: parseToken(o['token']), answer: parseAnswer(o['answer']) };
+}
+
+export function parseChallengeCodeRequest(body: unknown): ChallengeCodeRequest {
+  const o = asObject(body, 'Request body');
+  const language = o['language'];
+  if (typeof language !== 'string' || !(language in LANGUAGE_LABELS)) {
+    throw badRequest(`"language" must be one of: ${Object.keys(LANGUAGE_LABELS).join(', ')}.`);
+  }
+  const code = parseString(o['code'], 'code', CODE_LIMITS.maxCodeLength);
+  if (code.trim() === '') throw badRequest('Write some code first.');
+  return { language: language as LanguageId, code };
 }
 
 export function parseRunSqlRequest(body: unknown): RunSqlRequest {

@@ -1,0 +1,90 @@
+<div class="panel" aria-live="polite">
+  @if (submitting()) {
+    <app-loading-state label="Grading on the server: visible and hidden tests…" />
+  } @else if (error(); as message) {
+    <app-alert type="error" heading="Your submission could not be graded">{{ message }}</app-alert>
+  } @else if (verdict(); as v) {
+    <div class="verdict">
+      <p class="verdict-title">
+        <app-status-indicator [type]="v.type">{{ v.label }}</app-status-indicator>
+        @if (latest()?.solvedNow) {
+          <span class="solved-now">Challenge solved</span>
+        }
+      </p>
+      <dl class="counts">
+        <div>
+          <dt>Visible tests</dt>
+          <dd>{{ v.s.visiblePassed }} / {{ v.s.visibleTotal }}</dd>
+        </div>
+        <div>
+          <dt>Hidden tests</dt>
+          <dd>{{ v.s.hiddenPassed }} / {{ v.s.hiddenTotal }}</dd>
+        </div>
+        <div>
+          <dt>Language</dt>
+          <dd>{{ languageLabels[v.s.language] }}</dd>
+        </div>
+        <div>
+          <dt>Time</dt>
+          <dd>{{ v.s.durationMs }} ms</dd>
+        </div>
+      </dl>
+      @if (v.s.status === 'failed' && v.s.visiblePassed === v.s.visibleTotal) {
+        <p class="hint text-secondary">
+          All visible tests pass, but some hidden tests fail. Think about edge cases the visible
+          tests do not cover. Hidden test details are not shown.
+        </p>
+      }
+    </div>
+    @if (visibleOutcome(); as outcome) {
+      @if (v.s.status !== 'accepted') {
+        <app-test-results [outcome]="outcome" [testCount]="v.s.visibleTotal" />
+      }
+    }
+  } @else {
+    <p class="intro text-secondary">
+      <strong>Submit</strong> grades your solution on the server against the visible tests and
+      hidden tests. A challenge is solved when every test passes.
+    </p>
+  }
+
+  <h3 class="history-title">Your submissions</h3>
+  @let h = history();
+  @if (h.status === 'loading') {
+    <app-loading-state label="Loading submissions…" />
+  } @else if (h.status === 'error') {
+    <app-alert type="warning">
+      {{ h.error }}
+      <button alertAction type="button" class="btn btn--sm" (click)="retryHistory.emit()">
+        Try again
+      </button>
+    </app-alert>
+  } @else if (h.value.length === 0) {
+    <p class="text-secondary empty">No submissions yet.</p>
+  } @else {
+    <table class="table history">
+      <thead>
+        <tr>
+          <th scope="col">When</th>
+          <th scope="col">Result</th>
+          <th scope="col">Language</th>
+          <th scope="col">Tests</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of h.value; track s.id) {
+          <tr>
+            <td>{{ ago(s.submittedAt) }}</td>
+            <td>
+              <app-status-indicator [type]="statusOf(s.status).type">{{
+                statusOf(s.status).label
+              }}</app-status-indicator>
+            </td>
+            <td>{{ languageLabels[s.language] }}</td>
+            <td>{{ s.visiblePassed + s.hiddenPassed }} / {{ s.visibleTotal + s.hiddenTotal }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>

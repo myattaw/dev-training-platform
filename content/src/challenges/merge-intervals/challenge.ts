@@ -41,6 +41,19 @@ export function merge(intervals: Interval[]): Interval[] {
 }
 `,
       },
+      java: {
+        entryPoint: 'merge',
+        starterCode: `class Solution {
+    /**
+     * Each interval is a pair {start, end}. Return the merged intervals, sorted by start.
+     */
+    static int[][] merge(int[][] intervals) {
+        // TODO: implement me
+        throw new UnsupportedOperationException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(intervals: Interval[]) => Interval[]>([
       { description: 'no intervals', input: [[]], expected: [] },

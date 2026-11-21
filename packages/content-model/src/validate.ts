@@ -103,11 +103,18 @@ function validateChallenge(issues: Issues, source: ChallengeSource): void {
   if (languages.length === 0) issues.error(path, 'at least one language is required');
   for (const [lang, setup] of languages) {
     if (!setup) continue;
-    const exportPattern = new RegExp(
-      `export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${setup.entryPoint}\\b`,
-    );
-    if (!exportPattern.test(setup.starterCode)) {
-      issues.error(`${path}/languages/${lang}`, `starter code must export "${setup.entryPoint}"`);
+    const e = setup.entryPoint;
+    const pattern =
+      lang === 'java'
+        ? new RegExp(`\\bclass\\s+${e}\\b|\\bstatic\\s+[\\w<>\\[\\],\\s]+\\s${e}\\s*\\(`)
+        : new RegExp(`export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${e}\\b`);
+    if (!pattern.test(setup.starterCode)) {
+      issues.error(
+        `${path}/languages/${lang}`,
+        lang === 'java'
+          ? `starter code must declare a class or static method "${e}"`
+          : `starter code must export "${e}"`,
+      );
     }
   }
 

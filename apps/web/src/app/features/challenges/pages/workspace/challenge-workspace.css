@@ -186,3 +186,12 @@
   display: inline-block;
   white-space: pre-wrap;
 }
+
+.select--sm {
+  height: var(--control-height-sm);
+}
+
+.run-where {
+  margin-left: var(--space-3);
+  font-size: var(--font-size-xs);
+}

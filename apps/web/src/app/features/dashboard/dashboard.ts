@@ -9,6 +9,7 @@ import { PageHeader } from '../../shared/ui/page-header/page-header';
 import { Panel } from '../../shared/ui/panel/panel';
 import { ChallengeCatalogService } from '../challenges/data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../challenges/data-access/challenge-progress.service';
+import { ChallengeSubmissions } from '../challenges/data-access/challenge-submissions';
 import { DifficultyBadge } from '../challenges/ui/difficulty-badge';
 import { PracticeApi } from '../skill-mastery/data-access/practice-api';
 import { SkillCatalog } from '../skill-mastery/data-access/skill-catalog';
@@ -38,6 +39,7 @@ const RECENT_SKILLS_LIMIT = 4;
 export class Dashboard {
   protected readonly catalog = inject(ChallengeCatalogService);
   private readonly progress = inject(ChallengeProgressService);
+  private readonly submissions = inject(ChallengeSubmissions);
   private readonly skillCatalog = inject(SkillCatalog);
   private readonly practiceApi = inject(PracticeApi);
 
@@ -105,6 +107,7 @@ export class Dashboard {
     const count = (status: string): number => rows.filter((r) => r.record.status === status).length;
     return {
       total: rows.length,
+      solved: [...this.submissions.progress().values()].filter((p) => p.solved).length,
       passed: count('visible-passed'),
       inProgress: count('in-progress'),
       notStarted: count('not-started'),

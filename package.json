@@ -28,7 +28,8 @@
     "format": "prettier --write \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"services/*/src/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\"",
     "format:check": "prettier --check \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"services/*/src/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\"",
     "e2e": "playwright test",
-    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run e2e"
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run e2e",
+    "runners:build": "npm run build-images -w @pracstack/code-runner"
   },
   "dependencies": {
     "@angular/common": "^21.2.0",

@@ -20,6 +20,7 @@ import type { ApiResponse } from '../http';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { FileProgressStore } from '../store/file-store';
 import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
+import { DockerCodeRunner } from '@pracstack/code-runner';
 
 const MAX_BODY_BYTES = 16 * 1024;
 const HOST = '127.0.0.1';
@@ -31,6 +32,11 @@ const { values: args } = parseArgs({
     data: { type: 'string', default: join(repoRoot, '.local', 'progress.json') },
     content: { type: 'string', default: join(repoRoot, 'content', 'dist') },
     static: { type: 'string' },
+    // Per-user rate limits (requests per minute). The defaults match production;
+    // automated tests raise them because every test runs as the same local user.
+    'requests-per-minute': { type: 'string', default: '120' },
+    'sql-per-minute': { type: 'string', default: '30' },
+    'code-per-minute': { type: 'string', default: '10' },
   },
 });
 
@@ -42,13 +48,26 @@ const stop = () => {
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
 
+// Coding-challenge submissions run in throwaway Docker containers (see docs/runners.md).
+const codeRunner = new DockerCodeRunner();
+void codeRunner.check().then((status) => {
+  if (!status.ok) {
+    console.warn(
+      `Code runner unavailable: ${status.message} Submissions will return 503 until it is fixed.`,
+    );
+  }
+});
+
 const api = createApi({
   sqlEngine,
+  codeRunner,
   auth: new LocalDevAuthenticator(),
   allowLocalDevUser: true,
   content: loadContentSource(resolve(args.content)),
   store: new FileProgressStore(resolve(args.data)),
-  rateLimiter: new SlidingWindowRateLimiter(120, 60_000),
+  rateLimiter: new SlidingWindowRateLimiter(Number(args['requests-per-minute']), 60_000),
+  sqlRateLimiter: new SlidingWindowRateLimiter(Number(args['sql-per-minute']), 60_000),
+  codeRateLimiter: new SlidingWindowRateLimiter(Number(args['code-per-minute']), 60_000),
   now: () => new Date(),
   random: Math.random,
   newId: randomUUID,

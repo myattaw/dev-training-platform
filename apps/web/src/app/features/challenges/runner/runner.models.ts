@@ -25,4 +25,5 @@ export type RunOutcome =
     }
   | { readonly status: 'compile-error'; readonly diagnostics: readonly CompileDiagnostic[] }
   | { readonly status: 'load-error'; readonly message: string; readonly logs: readonly string[] }
-  | { readonly status: 'timeout'; readonly timeoutMs: number };
+  | { readonly status: 'timeout'; readonly timeoutMs: number }
+  | { readonly status: 'resource-limit'; readonly message: string };

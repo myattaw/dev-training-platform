@@ -27,6 +27,16 @@ export const source: ChallengeSource = {
 }
 `,
       },
+      java: {
+        entryPoint: 'reverse',
+        starterCode: `class Solution {
+    static String reverse(String input) {
+        // TODO: implement me
+        throw new UnsupportedOperationException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(input: string) => string>([
       { description: 'an empty string', input: [''], expected: '' },

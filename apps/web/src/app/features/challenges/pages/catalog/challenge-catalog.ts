@@ -8,6 +8,7 @@ import { PageHeader } from '../../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../../shared/ui/panel/panel';
 import { ChallengeCatalogService } from '../../data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../../data-access/challenge-progress.service';
+import { ChallengeSubmissions } from '../../data-access/challenge-submissions';
 import {
   CATEGORY_LABELS,
   type ChallengeCategory,
@@ -51,6 +52,7 @@ export class ChallengeCatalog {
 
   protected readonly catalog = inject(ChallengeCatalogService);
   private readonly progress = inject(ChallengeProgressService);
+  private readonly submissions = inject(ChallengeSubmissions);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -97,7 +99,9 @@ export class ChallengeCatalog {
         challenge,
         categoryLabel: CATEGORY_LABELS[challenge.category],
         languages: challenge.languages.map((id) => LANGUAGE_LABELS[id]).join(', '),
-        status: this.progress.record(challenge.id).status,
+        status: this.submissions.progress().get(challenge.id)?.solved
+          ? ('solved' as const)
+          : this.progress.record(challenge.id).status,
       }));
   });
 

@@ -1,6 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  type Challenge,
+  challengeFile,
+  type ChallengeGrading,
   MANIFEST_FILE,
   type PublicManifest,
   type Skill,
@@ -19,13 +22,22 @@ export interface ContentSource {
   findSkill(skillId: string): { readonly technologyId: string; readonly skill: Skill } | undefined;
   questions(skillId: string): readonly SplitQuestion[];
   findQuestion(questionId: string): SplitQuestion | undefined;
+  /** A coding challenge with its private grading data (hidden tests). */
+  findChallenge(challengeId: string): ChallengeWithGrading | undefined;
+}
+
+export interface ChallengeWithGrading {
+  readonly challenge: Challenge;
+  readonly grading: ChallengeGrading;
 }
 
 export function createContentSource(
   contentVersion: string,
   catalogs: readonly TrackCatalog[],
   questionsBySkill: Readonly<Record<string, readonly SplitQuestion[]>>,
+  challenges: readonly ChallengeWithGrading[] = [],
 ): ContentSource {
+  const challengeMap = new Map(challenges.map((c) => [c.challenge.id, c]));
   const skills = new Map<string, { technologyId: string; skill: Skill }>();
   for (const catalog of catalogs) {
     for (const skill of catalog.skills) {
@@ -44,6 +56,7 @@ export function createContentSource(
     findSkill: (id) => skills.get(id),
     questions: (skillId) => questionsBySkill[skillId] ?? [],
     findQuestion: (id) => questions.get(id),
+    findChallenge: (id) => challengeMap.get(id),
   };
 }
 
@@ -72,5 +85,13 @@ export function loadContentSource(contentDist: string): ContentSource {
       );
     }
   }
-  return createContentSource(manifest.contentVersion, catalogs, questionsBySkill);
+  const challenges = manifest.challenges.map((summary) => ({
+    challenge: read<Challenge>('public', challengeFile(summary.id, summary.version)),
+    grading: read<ChallengeGrading>(
+      'private',
+      'challenges',
+      `${summary.id}@${summary.version}.grading.json`,
+    ),
+  }));
+  return createContentSource(manifest.contentVersion, catalogs, questionsBySkill, challenges);
 }

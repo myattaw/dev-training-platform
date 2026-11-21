@@ -1,10 +1,12 @@
 import type {
   AttemptRecord,
+  ChallengeProgressRecord,
   MasteryRecord,
   ProgressStore,
   QuestionToken,
   RecordAnswer,
   RecordAnswerOutcome,
+  SubmissionRecord,
 } from './progress-store';
 
 /** Serializable snapshot of all store data. */
@@ -14,6 +16,8 @@ export interface StoreData {
   tokens: Record<string, QuestionToken>;
   attempts: Record<string, AttemptRecord>;
   xp: Record<string, number>;
+  submissions: Record<string, SubmissionRecord>;
+  challengeProgress: Record<string, ChallengeProgressRecord>;
 }
 
 export const emptyStoreData = (): StoreData => ({
@@ -22,6 +26,8 @@ export const emptyStoreData = (): StoreData => ({
   tokens: {},
   attempts: {},
   xp: {},
+  submissions: {},
+  challengeProgress: {},
 });
 
 const masteryKey = (userId: string, skillId: string): string => `${userId}#${skillId}`;
@@ -113,5 +119,46 @@ export class InMemoryProgressStore implements ProgressStore {
     this.data.xp[userId] = (this.data.xp[userId] ?? 0) + input.attempt.xpAwarded;
     await this.persist();
     return { kind: 'recorded' };
+  }
+
+  async recordSubmission(submission: SubmissionRecord): Promise<ChallengeProgressRecord> {
+    const key = masteryKey(submission.userId, submission.challengeId);
+    const before = this.data.challengeProgress[key];
+    const accepted = submission.status === 'accepted';
+    const languagesSolved = new Set(before?.languagesSolved ?? []);
+    if (accepted) languagesSolved.add(submission.language);
+    const solvedAt = before?.solvedAt ?? (accepted ? submission.submittedAt : undefined);
+    const progress: ChallengeProgressRecord = {
+      userId: submission.userId,
+      challengeId: submission.challengeId,
+      solved: Boolean(before?.solved) || accepted,
+      ...(solvedAt ? { solvedAt } : {}),
+      attempts: (before?.attempts ?? 0) + 1,
+      lastSubmittedAt: submission.submittedAt,
+      languagesSolved: [...languagesSolved],
+    };
+    this.data.submissions[submission.id] = submission;
+    this.data.challengeProgress[key] = progress;
+    await this.persist();
+    return progress;
+  }
+
+  listSubmissions(
+    userId: string,
+    challengeId: string,
+    limit: number,
+  ): Promise<readonly SubmissionRecord[]> {
+    return Promise.resolve(
+      Object.values(this.data.submissions)
+        .filter((s) => s.userId === userId && s.challengeId === challengeId)
+        .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt) || b.id.localeCompare(a.id))
+        .slice(0, limit),
+    );
+  }
+
+  listChallengeProgress(userId: string): Promise<readonly ChallengeProgressRecord[]> {
+    return Promise.resolve(
+      Object.values(this.data.challengeProgress).filter((p) => p.userId === userId),
+    );
   }
 }

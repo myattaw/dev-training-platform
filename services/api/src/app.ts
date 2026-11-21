@@ -1,10 +1,13 @@
 import type { MeResponse } from '@pracstack/api-contracts';
 import type { Authenticator } from './auth';
 import { ApiError, type ApiRequest, type ApiResponse, notFound } from './http';
+import { ChallengeService } from './challenges/challenge-service';
 import { PracticeService, type PracticeDeps } from './practice/practice-service';
+import type { CodeRunner } from '@pracstack/code-runner';
 import { type RateLimiter, SlidingWindowRateLimiter } from './rate-limit';
 import {
   parseAnswerRequest,
+  parseChallengeCodeRequest,
   parseHintRequest,
   parseId,
   parseNextQuestionRequest,
@@ -19,6 +22,10 @@ export interface ApiDeps extends PracticeDeps {
    * cost far more than other requests.
    */
   readonly sqlRateLimiter?: RateLimiter;
+  /** Runs challenge submissions in isolated containers. Without it, server-side runs return 503. */
+  readonly codeRunner?: CodeRunner;
+  /** Limit for code runs and submissions, each of which starts a container. */
+  readonly codeRateLimiter?: RateLimiter;
   /** Must be set to use the unauthenticated local developer user. */
   readonly allowLocalDevUser?: boolean;
   /** Receives unexpected errors (never shown to the client). */
@@ -39,6 +46,14 @@ export function createApi(deps: ApiDeps): ApiHandler {
   }
   const practice = new PracticeService(deps);
   const sqlRateLimiter = deps.sqlRateLimiter ?? new SlidingWindowRateLimiter(30, 60_000);
+  const codeRateLimiter = deps.codeRateLimiter ?? new SlidingWindowRateLimiter(10, 60_000);
+  const challenges = new ChallengeService({
+    content: deps.content,
+    store: deps.store,
+    now: deps.now,
+    newId: deps.newId,
+    ...(deps.codeRunner ? { runner: deps.codeRunner } : {}),
+  });
   const limit = (limiter: RateLimiter, key: string): void => {
     const wait = limiter.hit(key, deps.now().getTime());
     if (wait > 0) {
@@ -86,6 +101,25 @@ export function createApi(deps: ApiDeps): ApiHandler {
         return ok(
           await practice.history(user, parseId(decodeURIComponent(history[1] ?? ''), 'skillId')),
         );
+      }
+      if (method === 'GET' && path === '/api/challenges/progress') {
+        return ok(await challenges.progress(user));
+      }
+      const challengeRoute = /^\/api\/challenges\/([^/]+)\/(run|submissions)$/.exec(path);
+      if (challengeRoute) {
+        const id = parseId(decodeURIComponent(challengeRoute[1] ?? ''), 'challengeId');
+        const action = challengeRoute[2];
+        if (method === 'GET' && action === 'submissions')
+          return ok(await challenges.history(user, id));
+        if (method === 'POST') {
+          const codeRequest = parseChallengeCodeRequest(request.body);
+          limit(codeRateLimiter, user.id);
+          return ok(
+            action === 'run'
+              ? await challenges.run(user, id, codeRequest)
+              : await challenges.submit(user, id, codeRequest),
+          );
+        }
       }
       throw notFound('No such API route.');
     } catch (err) {

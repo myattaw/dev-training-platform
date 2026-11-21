@@ -20,11 +20,15 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 | POST   | `/api/skill-mastery/practice/hint`           | `{ token }`                | the next hint          |
 | POST   | `/api/skill-mastery/practice/answer`         | `{ token, answer }`        | verdict, explanation, new score |
 | POST   | `/api/skill-mastery/practice/run-sql`        | `{ token, query }`         | result on sample data (not graded) |
+| POST   | `/api/challenges/:id/run`                    | `{ language, code }`       | visible tests on the server (not stored) |
+| POST   | `/api/challenges/:id/submissions`            | `{ language, code }`       | verdict: visible details, hidden counts |
+| GET    | `/api/challenges/:id/submissions`            |                            | last 20 submissions    |
+| GET    | `/api/challenges/progress`                   |                            | solved status per challenge |
 | GET    | `/api/skill-mastery/skills/:skillId/history` |                            | last 50 attempts       |
 
 Errors use `{ "error": { "code", "message" } }`. Codes: `bad-request` 400, `unauthorized`
 401, `not-found` 404, `conflict` 409, `token-expired` 410, `rate-limited` 429 (with
-`Retry-After`), `internal` 500. Messages are safe to show; internal errors are logged, never
+`Retry-After`), `internal` 500, `unavailable` 503 (e.g. the code runner is down). Messages are safe to show; internal errors are logged, never
 returned.
 
 ## Rules that keep scores honest
@@ -63,6 +67,8 @@ multiple-selection question. SQL answers are graded by running them; see [sql.md
 | Requests per user          | 120 per minute (sliding window) | `SlidingWindowRateLimiter` |
 | SQL runs and answers       | 30 per minute per user        | `sqlRateLimiter`       |
 | SQL query text             | 5,000 characters              | `ANSWER_LIMITS`        |
+| Code runs and submissions  | 10 per minute per user        | `codeRateLimiter`      |
+| Submitted code             | 64 KB                         | `CODE_LIMITS`          |
 | Request body               | 16 KB (413 above)             | local server           |
 | Predict-output answer      | 2,000 characters              | `ANSWER_LIMITS`        |
 | Fill-in-blank answer       | 200 characters per blank      | `ANSWER_LIMITS`        |
@@ -102,4 +108,6 @@ npm run api        # API only
 The Angular dev server proxies `/api` to `127.0.0.1:3100` (`apps/web/proxy.conf.json`).
 The server reads generated content from `content/dist/`; run `npm run content:build` after
 editing content. Options: `--port`, `--data <file>`, `--content <dir>`, `--static <dir>`
-(serve a built web app too; the end-to-end tests use this).
+(serve a built web app too; the end-to-end tests use this), and per-user rate limits
+`--requests-per-minute`, `--sql-per-minute`, `--code-per-minute` (defaults 120 / 30 / 10).
+Submissions run in Docker containers; see [runners.md](runners.md).

@@ -38,7 +38,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run build && npx tsx services/api/src/local/server.ts --port ${PORT} --static dist/web/browser --data "${DATA_FILE}"`,
+    // Rate limits are raised: every test runs as the same local user, in parallel.
+    command: `npm run build && npx tsx services/api/src/local/server.ts --port ${PORT} --static dist/web/browser --data "${DATA_FILE}" --requests-per-minute 100000 --sql-per-minute 100000 --code-per-minute 100000`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,

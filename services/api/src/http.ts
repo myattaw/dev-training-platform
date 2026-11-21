@@ -29,6 +29,7 @@ const STATUS: Readonly<Record<ApiErrorCode, number>> = {
   'token-expired': 410,
   'rate-limited': 429,
   internal: 500,
+  unavailable: 503,
 };
 
 /** An error whose message is safe to show to the learner. */

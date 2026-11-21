@@ -47,12 +47,23 @@
         </dl>
       </app-panel>
 
-      <app-panel heading="Your progress" description="Saved in this browser only.">
+      <app-panel heading="Your progress">
         <dl class="kv-list">
           <div>
             <dt>Status</dt>
-            <dd><app-challenge-status [status]="v.record.status" /></dd>
+            <dd><app-challenge-status [status]="v.status" /></dd>
           </div>
+          @if (v.server; as s) {
+            <div>
+              <dt>Submissions</dt>
+              <dd>
+                {{ s.attempts }}
+                @if (s.solved) {
+                  · solved in {{ s.languagesSolved.join(', ') }}
+                }
+              </dd>
+            </div>
+          }
           @if (v.record.lastRun; as run) {
             <div>
               <dt>Last run</dt>

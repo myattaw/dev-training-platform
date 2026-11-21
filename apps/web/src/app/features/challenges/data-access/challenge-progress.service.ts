@@ -43,12 +43,14 @@ const isLastRun = (v: unknown): v is LastRun =>
   typeof (v as LastRun).total === 'number' &&
   typeof (v as LastRun).at === 'string';
 
+const isLanguage = (v: unknown): v is LanguageId => v === 'typescript' || v === 'java';
+
 const draftKey = (id: string, lang: LanguageId): string => `challenge:${id}:${lang}:draft`;
 const lastRunKey = (id: string, lang: LanguageId): string => `challenge:${id}:${lang}:last-run`;
 /** Drafts saved before the PracStack rename (TypeScript only, raw string). */
 const legacyDraftKey = (id: string): string => `typexercise:solution:${id}`;
 
-const LANGUAGES: readonly LanguageId[] = ['typescript'];
+const LANGUAGES: readonly LanguageId[] = ['typescript', 'java'];
 
 /**
  * Drafts and last visible-test results, stored in localStorage.
@@ -108,6 +110,16 @@ export class ChallengeProgressService {
     }
     // Only notify on add/remove; status does not change while typing in an existing draft.
     if (exists !== (code !== starterCode)) this.revision.update((n) => n + 1);
+  }
+
+  /** The language last used for a challenge in this browser. */
+  preferredLanguage(challengeId: string): LanguageId | null {
+    const value = readJson(`challenge:${challengeId}:language`, isLanguage);
+    return value ?? null;
+  }
+
+  setPreferredLanguage(challengeId: string, lang: LanguageId): void {
+    writeJson(`challenge:${challengeId}:language`, lang);
   }
 
   recordRun(challengeId: string, lang: LanguageId, outcome: RunOutcome, testCount: number): void {

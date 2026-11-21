@@ -47,6 +47,19 @@ export function isPangram(sentence: string): boolean {
 }
 `,
       },
+      java: {
+        entryPoint: 'isPangram',
+        starterCode: `class Solution {
+    /**
+     * Returns true if sentence contains every letter of the alphabet at least once.
+     */
+    static boolean isPangram(String sentence) {
+        // TODO: implement me
+        throw new UnsupportedOperationException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(sentence: string) => boolean>([
       { description: 'empty sentence', input: [''], expected: false },

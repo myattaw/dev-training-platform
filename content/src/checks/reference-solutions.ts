@@ -3,15 +3,17 @@ import type { ValidationIssue } from '@pracstack/content-model';
 import type { ChallengeEntry } from '../challenges';
 
 /**
- * Every challenge's reference solution must pass every visible and hidden
+ * Every challenge's TypeScript reference solution must pass every visible and hidden
  * test. This proves the expected values in the tests are right.
  */
 export function checkReferenceSolutions(entries: readonly ChallengeEntry[]): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
   for (const { source, reference } of entries) {
     const path = `challenge:${source.challenge.id}`;
+    // Only the TypeScript reference can run in-process. Java references are verified
+    // through the real Java runner (services/api/src/challenges/challenge-grading.spec.ts).
     for (const [lang, setup] of Object.entries(source.challenge.languages)) {
-      if (!setup) continue;
+      if (!setup || lang !== 'typescript') continue;
       const tests = [...source.challenge.visibleTests, ...source.hiddenTests];
       const outcome = runTests(reference, setup.entryPoint, tests);
       if (outcome.kind === 'load-error') {

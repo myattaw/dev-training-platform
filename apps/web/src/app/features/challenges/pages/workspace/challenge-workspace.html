@@ -18,9 +18,20 @@
         <app-difficulty-badge [difficulty]="ch.difficulty" />
       </div>
       <div class="actions">
-        <span class="language text-secondary" title="Language"
-          ><app-icon name="code" />{{ languageLabel() }}</span
-        >
+        <label class="language">
+          <span class="sr-only">Language</span>
+          <select
+            class="select select--sm"
+            [disabled]="running() || submitting() || languages().length < 2"
+            (change)="selectLanguage($event)"
+          >
+            @for (lang of languages(); track lang) {
+              <option [value]="lang" [selected]="lang === language()">
+                {{ languageLabels[lang] }}
+              </option>
+            }
+          </select>
+        </label>
         <button
           type="button"
           class="btn btn--sm"
@@ -31,11 +42,19 @@
         </button>
         <button
           type="button"
-          class="btn btn--sm btn--primary"
-          [disabled]="running()"
+          class="btn btn--sm"
+          [disabled]="running() || submitting()"
           (click)="runTests()"
         >
           <app-icon name="play" [size]="14" />{{ running() ? 'Running…' : 'Run tests' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn--sm btn--primary"
+          [disabled]="running() || submitting()"
+          (click)="submit()"
+        >
+          {{ submitting() ? 'Submitting…' : 'Submit' }}
         </button>
       </div>
     </div>
@@ -177,14 +196,18 @@
 
   <ng-template #editorTpl>
     <div class="file-bar">
-      <span class="file-name">solution.ts</span>
+      <span class="file-name">{{ fileName() }}</span>
+      @if (!runsInBrowser()) {
+        <span class="run-where text-secondary">Runs on the server</span>
+      }
       <span class="hint text-secondary"
         ><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to run</span
       >
     </div>
     <app-code-editor
       class="editor"
-      [fileName]="ch.id"
+      [language]="language() === 'java' ? 'java' : 'typescript'"
+      [fileName]="ch.id + '-' + language()"
       [code]="code()"
       (codeChange)="updateCode($event)"
       (runRequested)="runTests()"
@@ -212,6 +235,14 @@
           [outcome]="outcome()"
           [running]="running()"
           [testCount]="ch.visibleTests.length"
+        />
+      } @else if (resultsTab() === 'submissions') {
+        <app-submission-panel
+          [latest]="lastSubmission()"
+          [submitting]="submitting()"
+          [error]="submitError()"
+          [history]="history.state()"
+          (retryHistory)="history.reload()"
         />
       } @else if (logText()) {
         <pre class="console">{{ logText() }}</pre>

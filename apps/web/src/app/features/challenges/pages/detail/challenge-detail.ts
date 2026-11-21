@@ -8,6 +8,7 @@ import { PageHeader } from '../../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../../shared/ui/panel/panel';
 import { ChallengeCatalogService } from '../../data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../../data-access/challenge-progress.service';
+import { ChallengeSubmissions } from '../../data-access/challenge-submissions';
 import { CATEGORY_LABELS, LANGUAGE_LABELS, supportedLanguages } from '@pracstack/content-model';
 import { asyncResource } from '../../../../shared/async/async-state';
 import { Alert } from '../../../../shared/ui/alert/alert';
@@ -39,6 +40,7 @@ export class ChallengeDetail {
 
   private readonly catalog = inject(ChallengeCatalogService);
   private readonly progress = inject(ChallengeProgressService);
+  private readonly submissions = inject(ChallengeSubmissions);
 
   protected readonly loaded = asyncResource(
     () => this.id(),
@@ -52,6 +54,7 @@ export class ChallengeDetail {
     const challenge = state.value;
     if (!challenge) return undefined;
     const record = this.progress.record(challenge.id);
+    const server = this.submissions.progress().get(challenge.id);
     return {
       challenge,
       record,
@@ -62,6 +65,8 @@ export class ChallengeDetail {
       category: CATEGORY_LABELS[challenge.category],
       languages: supportedLanguages(challenge).map((id) => LANGUAGE_LABELS[id]),
       lastRunAgo: record.lastRun ? formatRelativeTime(record.lastRun.at) : '',
+      server,
+      status: server?.solved ? ('solved' as const) : record.status,
     };
   });
 }

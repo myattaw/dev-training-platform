@@ -6,7 +6,7 @@
  * All routes are under `/api`. Errors use {@link ApiErrorBody} with a
  * non-2xx status.
  */
-import type { InstructionBlock, PublicQuestion } from '@pracstack/content-model';
+import type { InstructionBlock, LanguageId, PublicQuestion } from '@pracstack/content-model';
 
 export interface ApiErrorBody {
   readonly error: {
@@ -24,6 +24,8 @@ export type ApiErrorCode =
   | 'token-expired'
   | 'rate-limited'
   | 'conflict'
+  /** A dependency (e.g. the code runner) is not available right now. */
+  | 'unavailable'
   | 'internal';
 
 export interface UserInfo {
@@ -175,4 +177,97 @@ export const ANSWER_LIMITS = {
   maxBlankLength: 200,
   maxSelected: 10,
   maxQueryLength: 5000,
+} as const;
+
+/* ---------------- Coding challenges ---------------- */
+
+/** One graded test, as shown to the learner (visible tests only). */
+export interface ChallengeTestResult {
+  readonly description: string;
+  readonly passed: boolean;
+  readonly input: string;
+  readonly expected: string;
+  readonly actual?: string;
+  readonly error?: string;
+}
+
+export interface CodeDiagnostic {
+  readonly line: number;
+  readonly column: number;
+  readonly message: string;
+}
+
+/** POST /api/challenges/:id/run and /api/challenges/:id/submissions */
+export interface ChallengeCodeRequest {
+  readonly language: LanguageId;
+  readonly code: string;
+}
+
+/** Outcome of executing code on the server, before or without hidden tests. */
+export type ExecutionDetail =
+  | { readonly status: 'passed' | 'failed'; readonly results: readonly ChallengeTestResult[] }
+  | { readonly status: 'compile-error'; readonly diagnostics: readonly CodeDiagnostic[] }
+  | { readonly status: 'runtime-error'; readonly message: string }
+  | { readonly status: 'timeout'; readonly timeoutMs: number }
+  | { readonly status: 'resource-limit'; readonly message: string };
+
+/** POST /api/challenges/:id/run: visible tests only; nothing is stored. */
+export interface ChallengeRunResponse {
+  readonly detail: ExecutionDetail;
+  /** Console output of the run (visible tests only). */
+  readonly logs: readonly string[];
+  readonly durationMs: number;
+}
+
+export type SubmissionStatus =
+  'accepted' | 'failed' | 'compile-error' | 'runtime-error' | 'timeout' | 'resource-limit';
+
+export interface SubmissionSummary {
+  readonly id: string;
+  readonly challengeId: string;
+  readonly challengeVersion: number;
+  readonly language: LanguageId;
+  readonly status: SubmissionStatus;
+  readonly visiblePassed: number;
+  readonly visibleTotal: number;
+  readonly hiddenPassed: number;
+  readonly hiddenTotal: number;
+  readonly durationMs: number;
+  readonly submittedAt: string;
+}
+
+/**
+ * POST /api/challenges/:id/submissions: visible and hidden tests. Visible
+ * tests are reported in full; hidden tests only as counts.
+ */
+export interface SubmissionResponse {
+  readonly submission: SubmissionSummary;
+  /** Visible-test details, compile errors, or the reason the run stopped. */
+  readonly detail: ExecutionDetail;
+  /** True the first time this challenge is solved. */
+  readonly solvedNow: boolean;
+}
+
+/** GET /api/challenges/:id/submissions */
+export interface SubmissionListResponse {
+  /** Most recent first. */
+  readonly submissions: readonly SubmissionSummary[];
+}
+
+export interface ChallengeProgress {
+  readonly challengeId: string;
+  readonly solved: boolean;
+  readonly solvedAt?: string;
+  readonly attempts: number;
+  readonly lastSubmittedAt: string;
+  readonly languagesSolved: readonly LanguageId[];
+}
+
+/** GET /api/challenges/progress: only challenges with at least one submission. */
+export interface ChallengeProgressResponse {
+  readonly challenges: readonly ChallengeProgress[];
+}
+
+export const CODE_LIMITS = {
+  maxCodeLength: 64 * 1024,
 } as const;

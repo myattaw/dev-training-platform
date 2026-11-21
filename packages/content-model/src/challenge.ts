@@ -23,20 +23,24 @@ export const CATEGORY_LABELS: Readonly<Record<ChallengeCategory, string>> = {
 };
 
 /**
- * Languages a challenge can be solved in. Java is added together with a
- * server-side runner; the browser can only run TypeScript.
+ * Languages a challenge can be solved in. TypeScript can also run in the
+ * learner's browser; Java runs only in the server-side runner.
  */
-export type LanguageId = 'typescript';
+export type LanguageId = 'typescript' | 'java';
 
 export const LANGUAGE_LABELS: Readonly<Record<LanguageId, string>> = {
   typescript: 'TypeScript',
+  java: 'Java',
 };
+
+/** Languages whose visible tests can run in the browser. */
+export const BROWSER_LANGUAGES: readonly LanguageId[] = ['typescript'];
 
 export interface LanguageSetup {
   readonly starterCode: string;
   /**
-   * Name of the export the solution must provide: a function for `call`
-   * tests, a class for `operations` tests.
+   * What the solution must provide: for `call` tests an exported function
+   * (TypeScript) or static method (Java); for `operations` tests a class.
    */
   readonly entryPoint: string;
 }

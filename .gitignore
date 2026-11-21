@@ -54,3 +54,6 @@ Thumbs.db
 
 # Local API data (progress of the local developer user)
 /.local/
+
+# Generated runner bundle
+/packages/code-runner/docker/typescript/execute.mjs
