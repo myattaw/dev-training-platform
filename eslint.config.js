@@ -5,7 +5,7 @@ const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
 
 module.exports = defineConfig([
-  { ignores: ['dist/', '.angular/', 'playwright-report/', 'test-results/'] },
+  { ignores: ['**/dist/', '.angular/', 'playwright-report/', 'test-results/', 'out-tsc/'] },
   {
     files: ['**/*.ts'],
     extends: [

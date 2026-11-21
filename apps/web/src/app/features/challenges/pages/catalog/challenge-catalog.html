@@ -1,0 +1,98 @@
+<app-page-header
+  heading="Coding Challenges"
+  description="Solve complete programming problems. Write a solution in the editor and run the visible tests in your browser."
+/>
+
+<app-panel heading="Challenges" headingId="challenges-heading" [counter]="total()" [flush]="true">
+  <div class="filters" role="search" aria-label="Filter challenges">
+    <label class="search">
+      <span class="sr-only">Search challenges</span>
+      <app-icon name="search" class="search-icon" />
+      <input
+        class="input"
+        type="search"
+        placeholder="Find challenges by name, summary or tag"
+        [value]="query()"
+        (input)="setFilter('q', $event)"
+      />
+    </label>
+
+    <label>
+      <span class="sr-only">Difficulty</span>
+      <select class="select" (change)="setFilter('difficulty', $event)">
+        <option value="" [selected]="difficultyFilter() === null">Any difficulty</option>
+        @for (d of difficulties; track d) {
+          <option [value]="d" [selected]="difficultyFilter() === d">
+            {{ difficultyLabels[d] }}
+          </option>
+        }
+      </select>
+    </label>
+
+    <label>
+      <span class="sr-only">Category</span>
+      <select class="select" (change)="setFilter('category', $event)">
+        <option value="" [selected]="categoryFilter() === null">Any category</option>
+        @for (c of categories(); track c) {
+          <option [value]="c" [selected]="categoryFilter() === c">{{ categoryLabels[c] }}</option>
+        }
+      </select>
+    </label>
+
+    @if (hasFilters()) {
+      <button type="button" class="btn btn--link" (click)="clearFilters()">Clear filters</button>
+    }
+
+    <p class="match-count text-secondary" aria-live="polite">
+      @if (total() !== undefined) {
+        {{ rows().length }} {{ rows().length === 1 ? 'match' : 'matches' }}
+      }
+    </p>
+  </div>
+
+  @let state = catalog.summaries();
+  @if (state.status === 'loading') {
+    <app-loading-state label="Loading challenges…" />
+  } @else if (state.status === 'error') {
+    <div class="state">
+      <app-alert type="error" heading="Challenges could not be loaded">
+        {{ state.error }}
+        <button alertAction type="button" class="btn btn--sm" (click)="catalog.reload()">
+          Try again
+        </button>
+      </app-alert>
+    </div>
+  } @else if (rows().length > 0) {
+    <div class="table-scroll">
+      <table class="table" aria-labelledby="challenges-heading">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Category</th>
+            <th scope="col">Difficulty</th>
+            <th scope="col">Languages</th>
+            <th scope="col">Status in this browser</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.challenge.id) {
+            <tr>
+              <td class="name">
+                <a [routerLink]="[row.challenge.id]">{{ row.challenge.title }}</a>
+                <span class="summary text-secondary">{{ row.challenge.summary }}</span>
+              </td>
+              <td>{{ row.categoryLabel }}</td>
+              <td><app-difficulty-badge [difficulty]="row.challenge.difficulty" /></td>
+              <td>{{ row.languages }}</td>
+              <td><app-challenge-status [status]="row.status" /></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <app-empty-state heading="No matches" message="No challenges match the current filters.">
+      <button type="button" class="btn" (click)="clearFilters()">Clear filters</button>
+    </app-empty-state>
+  }
+</app-panel>

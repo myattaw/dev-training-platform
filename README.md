@@ -2,9 +2,10 @@
 
 A developer learning platform with two product areas:
 
-- **Coding Challenges**: complete programming problems solved in a Monaco editor, with tests. _(Available.)_
-- **Skill Mastery**: adaptive practice for individual concepts (PostgreSQL, Oracle SQL,
-  TypeScript, Angular) with a 0–100 mastery score. _(Planned; see the roadmap below.)_
+- **Coding Challenges**: complete programming problems solved in a Monaco editor, with tests.
+- **Skill Mastery**: adaptive practice for individual concepts (TypeScript first; PostgreSQL,
+  Oracle SQL and Angular later) with a 0–100 mastery score. _Content model and scoring engine
+  are built; the practice UI arrives in Phase 3._
 
 ## Getting started
 
@@ -14,121 +15,92 @@ Requires Node 22+.
 npm install
 npx playwright install chromium   # once, for end-to-end tests
 
-npm start              # dev server at http://localhost:4200
-npm test               # unit tests (Vitest)
-npm run lint           # ESLint (TypeScript + Angular templates + accessibility rules)
+npm start              # builds content, then dev server at http://localhost:4200
+npm test               # unit tests: packages (Vitest) + web app (Angular/Vitest)
+npm run typecheck      # tsc for every workspace package
+npm run lint           # ESLint (TypeScript, Angular templates, accessibility rules)
 npm run format         # Prettier
-npm run build          # production build → dist/pracstack/browser
+npm run build          # content build → web build → private-content leak check
 npm run e2e            # Playwright against the production build (port 4317)
 npm run verify         # everything above, in CI order
 ```
 
-## Current status (Phase 1: frontend foundation)
+After editing content while `npm start` is running, run `npm run content:build` to regenerate it.
 
-| Works today                                                              | Not built yet                                                  |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Dashboard, challenge catalog (filters in the URL), detail page, workspace | Skill Mastery, accounts, My Progress, Profile                  |
-| Monaco TypeScript editor with type checking                               | Java, server-side submissions, hidden tests                    |
-| Visible tests run **in your browser** in a Web Worker                     | Any backend or AWS infrastructure                              |
-| Drafts and last-run status saved in `localStorage`                        | Progress that syncs across devices                             |
+## Repository layout
 
-Items that are not built are left out of the UI rather than shown as placeholders.
+npm workspaces, with the Angular workspace (`angular.json`) at the root.
+
+```
+apps/web/                    Angular 21 app (standalone, signals, zoneless, lazy routes)
+  src/app/core/              Shell layout, content repository, title strategy, storage helpers
+  src/app/shared/            Design-system UI, async state, Monaco editor, formatting
+  src/app/features/          dashboard/, challenges/ (catalog, detail, workspace, local runner)
+  src/testing/               In-memory content fixtures for unit tests
+packages/
+  content-model/             Content types, validation, public/private split, manifest layout
+  challenge-runtime/         Runs challenge tests (call + operations); shared by browser, build, runners
+  scoring/                   Skill Mastery engine: pure, configurable, deterministic
+content/                     Authored challenges and Skill Mastery tracks + the content build
+e2e/                         Playwright tests (desktop + phone)
+docs/                        content.md (authoring + guarantees), scoring.md (algorithm)
+```
+
+Dependencies point one way: `web → challenge-runtime → content-model`, `content → (content-model,
+challenge-runtime)`, `scoring` stands alone. The `content` package is Node-only (it compiles and
+runs code); the browser only ever loads its generated **public** JSON.
+
+## Current status (end of Phase 2)
+
+| Works today                                                                   | Not built yet                                       |
+| ----------------------------------------------------------------------------- | --------------------------------------------------- |
+| Dashboard, challenge catalog (URL filters), detail page, workspace            | Skill Mastery practice UI and API (Phase 3)         |
+| 5 challenges incl. class-style LRU Cache; visible tests run in the browser    | Server-side grading with hidden tests (Phase 5)     |
+| Content loaded over HTTP with loading/error/retry states                      | Accounts, My Progress, Profile                      |
+| Content build: validation, reference-solution and snippet execution checks    | PostgreSQL (Phase 4), Java, Oracle SQL (deferred)   |
+| Leak check: build fails if private content reaches the browser bundle         | Any AWS infrastructure (Phase 6+)                   |
+| Scoring engine with documented, tested invariants                             |                                                     |
+| TypeScript track: 4 skills × 5 questions, answers verified by execution       |                                                     |
 
 **Security note:** the in-browser runner gives fast feedback on _visible_ tests for code the
 learner wrote in their own browser. It is **not** a security boundary and never a source of
-truth for progress. Official grading will run in isolated server-side runners (Phase 5).
-
-## Project structure
-
-```
-src/
-  styles/                    Design tokens, element defaults, global control classes
-  app/
-    core/                    App-wide infrastructure
-      browser/               Safe localStorage wrapper, media-query signal
-      layout/                Top bar, side nav, layout state (docked vs overlay nav)
-      not-found/             404 / missing-resource view
-      title-strategy.ts      "Page · PracStack" document titles
-    shared/
-      ui/                    Design-system primitives (see below)
-      content/               Structured instruction blocks (no innerHTML)
-      editor/                Monaco loader, workers, <app-code-editor>
-      format/                Formatting helpers
-    features/
-      dashboard/
-      challenges/
-        models/              Challenge, TestCase, defineTests()
-        data/                Bundled sample challenges (moving to a content package in Phase 2)
-        data-access/         ChallengeCatalogService, ChallengeProgressService (local)
-        runner/              In-browser visible-test runner (Web Worker)
-        pages/               catalog, detail, workspace
-        ui/                  Difficulty badge, status indicator
-e2e/                         Playwright tests (desktop + phone)
-```
-
-### Routes
-
-| Path                         | Page                                                 |
-| ---------------------------- | ---------------------------------------------------- |
-| `/`                          | Dashboard                                            |
-| `/challenges`                | Catalog (`?q=&difficulty=&category=`)                |
-| `/challenges/:id`            | Challenge details                                    |
-| `/challenges/:id/workspace`  | Coding workspace (full-bleed; nav becomes a drawer)  |
-| `/exercises`, `/exercises/:id` | Redirects from the old URLs                        |
+truth for progress. Hidden tests exist only in `content/dist/private/` and will be run by
+isolated server-side runners.
 
 ## Design system
 
-Light, dense, enterprise-tool styling. All values come from `src/styles/tokens.css`;
+Light, dense, enterprise-tool styling. All values come from `apps/web/src/styles/tokens.css`;
 components must not hard-code colors.
 
-- **Tokens:** surfaces, text, borders, primary blue `#1769AA`, status colors, 4px spacing
-  scale, 14px base font, 4px/8px radii, 32px control height.
-- **Global classes** (`src/styles/controls.css`): `.btn`, `.btn--primary`, `.btn--sm`,
-  `.btn--link`, `.btn--icon`, `.input`, `.select`, `.table`, `.kv-list`, `.divided-list`.
-- **Components** (`src/app/shared/ui`): `app-panel`, `app-page-header`, `app-breadcrumbs`,
-  `app-badge`, `app-status-indicator`, `app-icon`, `app-tabs` (WAI-ARIA tabs),
-  `app-split-pane` (WAI-ARIA window splitter, keyboard resizable, remembers size),
-  `app-confirm-dialog` (native `<dialog>`), `app-empty-state`.
-- Icons are small original inline SVGs in `shared/ui/icon/icon.ts`; add one there rather than
-  adding an icon library.
+- **Global classes** (`styles/controls.css`): `.btn`, `.btn--primary`, `.btn--sm`, `.btn--link`,
+  `.btn--icon`, `.input`, `.select`, `.table`, `.kv-list`, `.divided-list`.
+- **Components** (`shared/ui`): `app-panel`, `app-page-header`, `app-breadcrumbs`, `app-badge`,
+  `app-status-indicator`, `app-icon`, `app-alert`, `app-loading-state`, `app-empty-state`,
+  `app-tabs` (WAI-ARIA tabs), `app-split-pane` (keyboard-resizable splitter),
+  `app-confirm-dialog` (native `<dialog>`).
 
 ## How "Run tests" works
 
-1. `CodeEditor.compile()` asks Monaco's TypeScript worker for diagnostics. Type errors block the
-   run, exactly like `tsc` would.
-2. The same worker emits CommonJS JavaScript.
-3. `LocalRunnerService` starts a fresh Web Worker, sends it the JS plus the visible tests, and
-   terminates it after 5 s (infinite loops).
-4. `sandbox-runtime.ts` loads the module, calls the exported entry point for each test, and
-   compares results with `deepEqual`.
+1. `CodeEditor.compile()` type-checks with Monaco's TypeScript worker; errors block the run.
+2. The worker emits CommonJS, which `LocalRunnerService` sends to a fresh Web Worker together
+   with the visible tests. The worker is terminated after 5 s.
+3. The worker calls `runInSandbox` from `@pracstack/challenge-runtime`: the same code the
+   content build uses to verify reference solutions.
 
-Monaco's CSS is built as a separate non-injected bundle (`angular.json` → `styles` →
-`monaco`) and linked by `monaco-loader.ts` on first use. The production builder does not load
-CSS imported from lazy JavaScript, so without this the editor is unstyled in production.
+Monaco's CSS is built as a separate non-injected bundle (`angular.json` → `styles` → `monaco`)
+and linked on first use; the production builder does not load CSS imported from lazy chunks.
 
-## Adding a challenge
+## More documentation
 
-1. Create `src/app/features/challenges/data/<slug>.ts` exporting a `Challenge`. Use
-   `defineTests<(arg: T) => R>([...])` so test inputs and outputs are type-checked.
-2. Add it to `CHALLENGES` in `data/index.ts`.
-3. Add a reference solution to `REFERENCE_SOLUTIONS` in `runner/sandbox-runtime.spec.ts`.
-   `npm test` then proves the test data is correct.
-
-Challenges currently support function-style tests (call the entry point with arguments,
-compare the return value). Class-style problems (LRU cache, text editor) need operation-sequence
-tests; that is planned with the Phase 2 content model.
-
-## Local storage
-
-All keys use the `pracstack:` prefix: drafts (`challenge:<id>:<lang>:draft`), last visible-test
-run (`challenge:<id>:<lang>:last-run`), and layout preferences (`layout:*`). Drafts saved by the
-old `typexercise:solution:<id>` keys are migrated automatically on first load.
+- [docs/content.md](docs/content.md): adding challenges and questions, what is public vs
+  private, and every check the content build enforces.
+- [docs/scoring.md](docs/scoring.md): the mastery algorithm, with simulated learner journeys.
 
 ## Roadmap
 
-1. **Frontend foundation** ✅ design system, shell, Coding Challenges UI, lint, e2e
-2. Content model and scoring engine; npm-workspaces monorepo
-3. Skill Mastery vertical slice (TypeScript track, local API)
+1. **Frontend foundation** ✅
+2. **Content model, scoring engine, monorepo** ✅
+3. Skill Mastery vertical slice: local API (Lambda-compatible handlers), practice UI, server-side scoring
 4. PostgreSQL practice (PGlite)
 5. Server-side challenge evaluation (TypeScript, Java) in local containers
 6. AWS foundation (CDK) _(requires cost estimate and approval)_

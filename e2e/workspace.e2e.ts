@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { PANGRAM_SOLUTION, replaceCode, waitForEditor } from './support/workspace';
+import { LRU_SOLUTION, PANGRAM_SOLUTION, replaceCode, waitForEditor } from './support/workspace';
 
 test.describe('coding workspace', () => {
   test('solving a challenge passes all visible tests and updates local status', async ({
@@ -50,6 +50,11 @@ test.describe('coding workspace', () => {
     await page.goto('/challenges/pangram/workspace');
     await waitForEditor(page);
     await replaceCode(page, '// my draft\n');
+    // The draft is written to localStorage as part of the edit itself, with no delay.
+    const draftKey = 'pracstack:challenge:pangram:typescript:draft';
+    expect(await page.evaluate((key) => localStorage.getItem(key), draftKey)).toContain(
+      '// my draft',
+    );
     await page.reload();
     await waitForEditor(page);
     await expect(page.locator('.monaco-editor .view-lines')).toContainText('// my draft');
@@ -71,6 +76,22 @@ test.describe('coding workspace', () => {
     await page.goto('/challenges/merge-intervals/workspace');
     await page.getByRole('tab', { name: /Visible tests/ }).click();
     await expect(page.locator('#problem-panel-tests')).toContainText('touching intervals merge');
+  });
+
+  test('class-style challenges run step-by-step operation tests', async ({ page }) => {
+    await page.goto('/challenges/lru-cache/workspace');
+    await page.getByRole('tab', { name: /Visible tests/ }).click();
+    await expect(page.locator('#problem-panel-tests')).toContainText('new LRUCache(2)');
+    await expect(page.locator('#problem-panel-tests')).toContainText('get(1) → 10');
+
+    await waitForEditor(page);
+    await page.getByRole('button', { name: 'Run tests' }).click();
+    await expect(page.getByText('0 of 5 visible tests passed')).toBeVisible();
+    await expect(page.getByText('Error: Not implemented').first()).toBeVisible();
+
+    await replaceCode(page, LRU_SOLUTION);
+    await page.getByRole('button', { name: 'Run tests' }).click();
+    await expect(page.getByText('All 5 visible tests passed')).toBeVisible();
   });
 
   test('the divider between the panes can be resized with the keyboard', async ({ page }) => {

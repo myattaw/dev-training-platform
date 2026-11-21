@@ -1,0 +1,95 @@
+<app-page-header
+  heading="Dashboard"
+  description="Pick up where you left off, or start something new."
+/>
+
+@let state = catalog.summaries();
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading challenges…" />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="Challenges could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="catalog.reload()">
+      Try again
+    </button>
+  </app-alert>
+} @else {
+  <div class="grid">
+    <app-panel
+      class="continue"
+      heading="Continue"
+      headingId="continue-heading"
+      description="Challenges you have started in this browser."
+    >
+      @if (continueRows().length > 0) {
+        <ul class="divided-list" aria-labelledby="continue-heading">
+          @for (row of continueRows(); track row.challenge.id) {
+            <li class="row">
+              <a [routerLink]="['/challenges', row.challenge.id, 'workspace']">{{
+                row.challenge.title
+              }}</a>
+              <span class="meta">
+                @if (row.record.lastRun; as run) {
+                  <span class="text-secondary">{{ run.passed }}/{{ run.total }} visible tests</span>
+                }
+                <span class="text-secondary">{{ row.lastActivity }}</span>
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <app-empty-state
+          heading="Nothing in progress"
+          message="Challenges you start will appear here."
+        >
+          <a class="btn" routerLink="/challenges">Browse challenges</a>
+        </app-empty-state>
+      }
+    </app-panel>
+
+    <app-panel heading="Coding Challenges" headingId="summary-heading">
+      <dl class="summary">
+        <div>
+          <dt>Available</dt>
+          <dd>{{ summary().total }}</dd>
+        </div>
+        <div>
+          <dt>Visible tests passed</dt>
+          <dd>{{ summary().passed }}</dd>
+        </div>
+        <div>
+          <dt>In progress</dt>
+          <dd>{{ summary().inProgress }}</dd>
+        </div>
+        <div>
+          <dt>Not started</dt>
+          <dd>{{ summary().notStarted }}</dd>
+        </div>
+      </dl>
+      <a panelFooter routerLink="/challenges">View all challenges</a>
+    </app-panel>
+
+    <app-panel
+      class="up-next"
+      heading="Up next"
+      headingId="up-next-heading"
+      description="Challenges you have not tried yet, easiest first."
+    >
+      @if (upNext().length > 0) {
+        <ul class="divided-list" aria-labelledby="up-next-heading">
+          @for (row of upNext(); track row.challenge.id) {
+            <li class="row">
+              <span class="title">
+                <a [routerLink]="['/challenges', row.challenge.id]">{{ row.challenge.title }}</a>
+                <span class="summary-text text-secondary">{{ row.challenge.summary }}</span>
+              </span>
+              <app-difficulty-badge [difficulty]="row.challenge.difficulty" />
+            </li>
+          }
+        </ul>
+      } @else {
+        <app-empty-state heading="You have started every available challenge" />
+      }
+    </app-panel>
+  </div>
+}

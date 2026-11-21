@@ -33,7 +33,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run build && node e2e/support/static-server.mjs dist/pracstack/browser ${PORT}`,
+    command: `npm run build && node e2e/support/static-server.mjs dist/web/browser ${PORT}`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,

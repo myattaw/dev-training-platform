@@ -12,14 +12,14 @@ test.describe('navigation and catalog', () => {
       .click();
     await expect(page).toHaveURL('/challenges');
     await expect(page.getByRole('heading', { level: 1, name: 'Coding Challenges' })).toBeVisible();
-    await expect(page.locator('tbody tr')).toHaveCount(4);
+    await expect(page.locator('tbody tr')).toHaveCount(5);
   });
 
   test('catalog filters are reflected in, and restored from, the URL', async ({ page }) => {
     await page.goto('/challenges');
     await page.getByRole('combobox', { name: 'Difficulty' }).selectOption('medium');
     await expect(page).toHaveURL(/difficulty=medium/);
-    await expect(page.locator('tbody tr')).toHaveCount(2);
+    await expect(page.locator('tbody tr')).toHaveCount(3);
 
     await page.getByRole('searchbox', { name: 'Search challenges' }).fill('interval');
     await expect(page.locator('tbody tr')).toHaveCount(1);
@@ -29,7 +29,7 @@ test.describe('navigation and catalog', () => {
     await expect(page.getByRole('link', { name: 'Merge Intervals' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Clear filters' }).first().click();
-    await expect(page.locator('tbody tr')).toHaveCount(4);
+    await expect(page.locator('tbody tr')).toHaveCount(5);
   });
 
   test('challenge detail shows the problem and opens the workspace', async ({ page }) => {
@@ -59,6 +59,19 @@ test.describe('navigation and catalog', () => {
     await expect(page.getByText('Challenge not found')).toBeVisible();
     await page.getByRole('link', { name: 'Browse challenges' }).click();
     await expect(page).toHaveURL('/challenges');
+  });
+
+  test('shows an error with a retry when content cannot be loaded', async ({ page }) => {
+    let fail = true;
+    await page.route('**/content/manifest.json', (route) =>
+      fail ? route.fulfill({ status: 503, body: 'unavailable' }) : route.continue(),
+    );
+    await page.goto('/challenges');
+    await expect(page.getByRole('alert')).toContainText('Content request failed (503).');
+
+    fail = false;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.locator('tbody tr')).toHaveCount(5);
   });
 
   test('skip link moves focus to the main content', async ({ page }) => {

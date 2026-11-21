@@ -5,6 +5,26 @@ export const PANGRAM_SOLUTION = `export function isPangram(sentence: string): bo
 }
 `;
 
+export const LRU_SOLUTION = `export class LRUCache {
+  private readonly entries = new Map<number, number>();
+  constructor(private readonly capacity: number) {}
+  get(key: number): number {
+    const value = this.entries.get(key);
+    if (value === undefined) return -1;
+    this.entries.delete(key);
+    this.entries.set(key, value);
+    return value;
+  }
+  put(key: number, value: number): void {
+    this.entries.delete(key);
+    this.entries.set(key, value);
+    if (this.entries.size > this.capacity) {
+      this.entries.delete(this.entries.keys().next().value!);
+    }
+  }
+}
+`;
+
 /** Waits until Monaco is loaded and styled. */
 export async function waitForEditor(page: Page): Promise<void> {
   const editor = page.locator('.monaco-editor').first();
