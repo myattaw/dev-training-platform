@@ -1,7 +1,7 @@
 # Runner image for Java submissions. Built by `npm run runners:build`.
 # Contains only the JDK and the harness: no secrets, no expected values,
 # no network at run time.
-FROM eclipse-temurin:21-jdk-alpine
+FROM eclipse-temurin:24-jdk-alpine
 
 WORKDIR /harness
 COPY Harness.java ./
