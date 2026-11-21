@@ -6,6 +6,7 @@ import type {
   HistoryResponse,
   NextQuestionResponse,
   ProgressResponse,
+  RunSqlResponse,
 } from '@pracstack/api-contracts';
 import { ApiClient } from '../../../core/api/api-client';
 import { SessionService } from '../../../core/session/session.service';
@@ -32,6 +33,11 @@ export class PracticeApi {
 
   next(skillId: string): Promise<NextQuestionResponse> {
     return this.api.post('/skill-mastery/practice/next', { skillId });
+  }
+
+  /** Runs a query on the sample data of the current SQL question. Not graded. */
+  runSql(token: string, query: string): Promise<RunSqlResponse> {
+    return this.api.post('/skill-mastery/practice/run-sql', { token, query });
   }
 
   hint(token: string): Promise<HintResponse> {

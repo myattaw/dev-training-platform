@@ -320,3 +320,102 @@ describe('local developer user', () => {
     expect(() => createApi({ ...deps, allowLocalDevUser: true })).not.toThrow();
   });
 });
+
+describe('SQL questions', () => {
+  /** Fake engine: "SELECT name FROM items" returns the dataset's names; anything else fails. */
+  const fakeEngine = {
+    run: (req: { database: { dataSql: string }; query: string }) =>
+      Promise.resolve(
+        req.query.trim() === 'SELECT name FROM items'
+          ? {
+              kind: 'rows' as const,
+              columns: [{ name: 'name', type: 'text' }],
+              rows: [...req.database.dataSql.matchAll(/'([^']+)'/g)].map((m) => [m[1] ?? '']),
+              truncated: false,
+              durationMs: 1,
+            }
+          : { kind: 'error' as const, message: 'syntax error' },
+      ),
+    close: () => Promise.resolve(),
+  };
+
+  const sqlNext = async (api: ReturnType<typeof testApi>) => {
+    const res = await api.call('POST', '/api/skill-mastery/practice/next', { skillId: 'demo-sql' });
+    return res.body as NextQuestionResponse;
+  };
+
+  it('serves the schema and sample data, never the reference query or hidden data', async () => {
+    const api = testApi({ sqlEngine: fakeEngine });
+    const served = await sqlNext(api);
+    expect(served.question).toMatchObject({
+      format: 'sql-query',
+      schema: 'CREATE TABLE items (name text);',
+    });
+    const json = JSON.stringify(served);
+    expect(json).not.toContain('SELECT name FROM items');
+    expect(json).not.toContain('Juice');
+  });
+
+  it('runs queries on the sample data without scoring', async () => {
+    const api = testApi({ sqlEngine: fakeEngine });
+    const { token } = await sqlNext(api);
+    const run = await api.call('POST', '/api/skill-mastery/practice/run-sql', {
+      token,
+      query: 'SELECT name FROM items',
+    });
+    expect(run.body).toMatchObject({ kind: 'rows', table: { rows: [['Tea']] } });
+    expect(((await api.call('GET', '/api/me')).body as MeResponse).xp).toBe(0);
+  });
+
+  it('grades a submitted query against every dataset', async () => {
+    const api = testApi({ sqlEngine: fakeEngine });
+    const { token } = await sqlNext(api);
+    const res = await api.call('POST', '/api/skill-mastery/practice/answer', {
+      token,
+      answer: { format: 'sql-query', query: 'SELECT name FROM items' },
+    });
+    expect(res.body).toMatchObject({
+      result: 'correct',
+      correctAnswer: { format: 'sql-query', referenceQuery: 'SELECT name FROM items' },
+    });
+  });
+
+  it('refuses run-sql for questions that are not SQL', async () => {
+    const api = testApi({ sqlEngine: fakeEngine });
+    const { token } = await next(api);
+    const res = await api.call('POST', '/api/skill-mastery/practice/run-sql', {
+      token,
+      query: 'SELECT 1',
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('applies the stricter SQL rate limit to runs', async () => {
+    const api = testApi({
+      sqlEngine: fakeEngine,
+      sqlRateLimiter: new SlidingWindowRateLimiter(2, 60_000),
+    });
+    const { token } = await sqlNext(api);
+    const runSql = () =>
+      api.call('POST', '/api/skill-mastery/practice/run-sql', {
+        token,
+        query: 'SELECT name FROM items',
+      });
+    expect((await runSql()).status).toBe(200);
+    expect((await runSql()).status).toBe(200);
+    expect((await runSql()).status).toBe(429);
+    // Other requests still work.
+    expect((await api.call('GET', '/api/me')).status).toBe(200);
+  });
+
+  it('reports a clear error when the server has no SQL engine', async () => {
+    const api = testApi();
+    const { token } = await sqlNext(api);
+    const res = await api.call('POST', '/api/skill-mastery/practice/run-sql', {
+      token,
+      query: 'SELECT 1',
+    });
+    expect(res.status).toBe(500);
+    expect(JSON.stringify(res.body)).toContain('SQL practice is not available on this server.');
+  });
+});

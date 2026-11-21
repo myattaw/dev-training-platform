@@ -12,7 +12,7 @@ import { findLeaks, sensitiveStrings } from '../src/leak-check';
 const bundleDir = resolve(process.argv[2] ?? 'dist/web/browser');
 const TEXT_FILE = /\.(js|mjs|css|html|json|txt|map)$/;
 
-const build = buildContent();
+const build = await buildContent();
 const sensitive = sensitiveStrings(build.privateFiles, build.publicFiles);
 
 const bundle = new Map<string, string>();

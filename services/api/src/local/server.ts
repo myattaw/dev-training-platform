@@ -19,6 +19,7 @@ import { loadContentSource } from '../content/content-source';
 import type { ApiResponse } from '../http';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { FileProgressStore } from '../store/file-store';
+import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
 
 const MAX_BODY_BYTES = 16 * 1024;
 const HOST = '127.0.0.1';
@@ -33,7 +34,16 @@ const { values: args } = parseArgs({
   },
 });
 
+// SQL runs in a separate process with time and memory limits (see docs/sql.md).
+const sqlEngine = new ChildProcessSqlEngine();
+const stop = () => {
+  void sqlEngine.close().finally(() => process.exit(0));
+};
+process.on('SIGINT', stop);
+process.on('SIGTERM', stop);
+
 const api = createApi({
+  sqlEngine,
   auth: new LocalDevAuthenticator(),
   allowLocalDevUser: true,
   content: loadContentSource(resolve(args.content)),

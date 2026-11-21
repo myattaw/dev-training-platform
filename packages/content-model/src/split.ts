@@ -141,6 +141,22 @@ export function splitQuestion(source: QuestionSource, skillId: string): SplitQue
       question = { ...base, format: source.format, template: source.template };
       answer = { format: source.format, blanks: source.answer.blanks };
       break;
+    case 'sql-query':
+      question = {
+        ...base,
+        format: source.format,
+        dialect: source.dialect,
+        schema: source.database.schema,
+        sampleTables: source.database.sample,
+        ordered: source.ordered,
+      };
+      answer = {
+        format: source.format,
+        referenceQuery: source.answer.referenceQuery,
+        checkColumnNames: source.answer.checkColumnNames ?? false,
+        hiddenData: source.database.hidden,
+      };
+      break;
   }
 
   return {

@@ -13,7 +13,8 @@
   "dependencies": {
     "@pracstack/api-contracts": "*",
     "@pracstack/content-model": "*",
-    "@pracstack/scoring": "*"
+    "@pracstack/scoring": "*",
+    "@pracstack/sql-engine": "*"
   },
   "devDependencies": {
     "@pracstack/content": "*"

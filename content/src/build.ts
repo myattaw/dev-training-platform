@@ -16,6 +16,8 @@ import {
 } from '@pracstack/content-model';
 import { CHALLENGES, type ChallengeEntry } from './challenges';
 import { checkReferenceSolutions } from './checks/reference-solutions';
+import { ChildProcessSqlEngine, type SqlEngine } from '@pracstack/sql-engine';
+import { checkSqlQuestions } from './checks/sql-questions';
 import { checkTypeScriptSnippets } from './checks/typescript-snippets';
 import { TRACKS } from './skill-mastery';
 
@@ -31,17 +33,31 @@ export interface ContentBuild {
   readonly privateFiles: FileSet;
 }
 
-/** Validates all content (including running code) and produces the output files. */
-export function buildContent(
-  challenges: readonly ChallengeEntry[] = CHALLENGES,
-  tracks: readonly TrackSource[] = TRACKS,
-): ContentBuild {
+export interface BuildOptions {
+  readonly challenges?: readonly ChallengeEntry[];
+  readonly tracks?: readonly TrackSource[];
+  /** Engine for SQL checks. When omitted, one is started and stopped for this build. */
+  readonly sqlEngine?: SqlEngine;
+}
+
+/** Validates all content (including running code and SQL) and produces the output files. */
+export async function buildContent(options: BuildOptions = {}): Promise<ContentBuild> {
+  const challenges = options.challenges ?? CHALLENGES;
+  const tracks = options.tracks ?? TRACKS;
   const sources = challenges.map((c) => c.source);
+  const engine = options.sqlEngine ?? new ChildProcessSqlEngine();
+  let sqlIssues: ValidationIssue[];
+  try {
+    sqlIssues = await checkSqlQuestions(tracks, engine);
+  } finally {
+    if (!options.sqlEngine) await engine.close();
+  }
   const issues = [
     ...validateChallenges(sources),
     ...validateTracks(tracks),
     ...checkReferenceSolutions(challenges),
     ...checkTypeScriptSnippets(tracks),
+    ...sqlIssues,
   ];
 
   const publicFiles = new Map<string, unknown>();

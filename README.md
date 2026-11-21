@@ -3,8 +3,9 @@
 A developer learning platform with two product areas:
 
 - **Coding Challenges**: complete programming problems solved in a Monaco editor, with tests.
-- **Skill Mastery**: adaptive practice for individual concepts (TypeScript today; PostgreSQL,
-  Oracle SQL and Angular later) with a 0–100 mastery score computed by the server.
+- **Skill Mastery**: adaptive practice for individual concepts (TypeScript and PostgreSQL today;
+  Oracle SQL and Angular later) with a 0–100 mastery score computed by the server. SQL answers
+  run on a real PostgreSQL engine (PGlite) in an isolated process.
 
 ## Getting started
 
@@ -44,29 +45,32 @@ packages/
   content-model/             Content types, validation, public/private split, manifest layout
   challenge-runtime/         Runs challenge tests (call + operations); shared by browser, build, runners
   scoring/                   Skill Mastery engine: pure, configurable, deterministic
+  sql-engine/                Isolated PostgreSQL (PGlite) runner: separate process, limits, result comparison
 services/
   api/                       API logic (Lambda-ready), local server, grading, file/in-memory stores
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
-docs/                        api.md, content.md, scoring.md
+docs/                        api.md, content.md, scoring.md, sql.md
 ```
 
 Dependencies point one way: `web → (api-contracts, challenge-runtime, content-model)`,
-`api → (api-contracts, content-model, scoring)`, `content → (content-model, challenge-runtime)`;
+`api → (api-contracts, content-model, scoring, sql-engine)`,
+`content → (content-model, challenge-runtime, sql-engine)`;
 `scoring` stands alone. The `content` package is Node-only (it compiles and
 runs code); the browser only ever loads its generated **public** JSON.
 
-## Current status (end of Phase 3)
+## Current status (end of Phase 4)
 
 | Works today                                                                     | Not built yet                                       |
 | ------------------------------------------------------------------------------- | --------------------------------------------------- |
-| **Skill Mastery**: technologies, topics, skills, practice, results/history      | Accounts and sign-in (Phase 6); one local user now  |
-| Server-side scoring, question selection, hints, idempotent answers              | My Progress, Profile pages                          |
-| Local API with validation, rate limiting, file-backed progress                  | Server-side grading of coding challenges (Phase 5)  |
-| Coding Challenges: catalog, detail, workspace, 5 challenges, browser test runs  | PostgreSQL (Phase 4), Java, Oracle SQL (deferred)   |
-| Content build with execution checks and private-content leak check              | Any AWS infrastructure (Phase 6+)                   |
+| **Skill Mastery**: TypeScript (20 questions) and PostgreSQL (20 questions)      | Accounts and sign-in (Phase 6); one local user now  |
+| SQL practice: run queries on sample data, graded on sample + hidden datasets   | Oracle SQL (deferred), Angular track                |
+| Server-side scoring, question selection, hints, idempotent answers              | Server-side grading of coding challenges (Phase 5)  |
+| Local API with validation, rate limiting, file-backed progress                  | My Progress, Profile pages                          |
+| Coding Challenges: catalog, detail, workspace, 5 challenges, browser test runs  | Any AWS infrastructure (Phase 6+)                   |
 
-**Security notes:** the local API has no authentication; it serves a single "Local
+**Security notes:** learner SQL runs in a separate process with database-level restrictions,
+time and memory limits (see [docs/sql.md](docs/sql.md)). The local API has no authentication; it serves a single "Local
 developer" user and listens on `127.0.0.1` only (see [docs/api.md](docs/api.md)). The in-browser runner gives fast feedback on _visible_ tests for code the
 learner wrote in their own browser. It is **not** a security boundary and never a source of
 truth for progress. Hidden tests exist only in `content/dist/private/` and will be run by
@@ -98,6 +102,7 @@ and linked on first use; the production builder does not load CSS imported from 
 ## More documentation
 
 - [docs/api.md](docs/api.md): endpoints, the rules that keep scores honest, limits, storage.
+- [docs/sql.md](docs/sql.md): how SQL runs, every security boundary and its known limits, grading.
 - [docs/content.md](docs/content.md): adding challenges and questions, what is public vs
   private, and every check the content build enforces.
 - [docs/scoring.md](docs/scoring.md): the mastery algorithm, with simulated learner journeys.
@@ -107,7 +112,7 @@ and linked on first use; the production builder does not load CSS imported from 
 1. **Frontend foundation** ✅
 2. **Content model, scoring engine, monorepo** ✅
 3. **Skill Mastery vertical slice** ✅
-4. PostgreSQL practice (PGlite)
+4. **PostgreSQL practice (PGlite)** ✅
 5. Server-side challenge evaluation (TypeScript, Java) in local containers
 6. AWS foundation (CDK) _(requires cost estimate and approval)_
 7. Isolated runners on AWS _(approval)_

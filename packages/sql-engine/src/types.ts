@@ -1,0 +1,59 @@
+/** A value in a query result, normalized to JSON-safe primitives. */
+export type SqlValue = string | number | boolean | null;
+
+export interface SqlColumn {
+  readonly name: string;
+  /** PostgreSQL type name, e.g. `int4`, `numeric`, `text`. */
+  readonly type: string;
+}
+
+/** A database to run against: DDL plus data, executed as the setup superuser. */
+export interface SqlDatabaseSpec {
+  readonly schemaSql: string;
+  readonly dataSql: string;
+}
+
+export interface SqlRunRequest {
+  readonly database: SqlDatabaseSpec;
+  /** Learner (or reference) SQL. Runs as a restricted, read-only role. */
+  readonly query: string;
+  /** Rows to return; one more is fetched to detect truncation. */
+  readonly maxRows: number;
+}
+
+export type SqlRunResult =
+  | {
+      readonly kind: 'rows';
+      readonly columns: readonly SqlColumn[];
+      readonly rows: readonly (readonly SqlValue[])[];
+      /** True when the query returned more than `maxRows` rows. */
+      readonly truncated: boolean;
+      readonly durationMs: number;
+    }
+  /** PostgreSQL rejected or failed the query. The message is safe to show for sample data. */
+  | { readonly kind: 'error'; readonly message: string }
+  /** Rejected before execution (empty, too long, not a query). */
+  | { readonly kind: 'rejected'; readonly message: string }
+  | { readonly kind: 'timeout'; readonly timeoutMs: number }
+  | { readonly kind: 'resource-limit'; readonly message: string };
+
+export interface SqlEngine {
+  run(request: SqlRunRequest): Promise<SqlRunResult>;
+  /** Stops background processes. */
+  close(): Promise<void>;
+}
+
+export interface SqlLimits {
+  /** Hard wall-clock limit per query, including database setup. */
+  readonly timeoutMs: number;
+  /** Process memory (RSS) above which the running query is killed. */
+  readonly maxRssMb: number;
+  /** Longest accepted query text. */
+  readonly maxQueryLength: number;
+}
+
+export const DEFAULT_SQL_LIMITS: SqlLimits = {
+  timeoutMs: 3000,
+  maxRssMb: 1200,
+  maxQueryLength: 5000,
+};

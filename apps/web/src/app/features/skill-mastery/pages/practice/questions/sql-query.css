@@ -1,0 +1,98 @@
+:host {
+  display: block;
+}
+
+.schema {
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.schema summary {
+  padding: var(--space-2) var(--space-3);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.schema-body {
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.code {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  overflow-x: auto;
+  line-height: 20px;
+}
+
+/* One table per row: wide tables need the full width. */
+.samples {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.table-name {
+  margin-bottom: var(--space-1);
+}
+
+.note {
+  margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.editor-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.dialect {
+  font-weight: var(--font-weight-normal);
+}
+
+.hint {
+  font-size: var(--font-size-sm);
+}
+
+.editor {
+  height: 180px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.run-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.run-note {
+  font-size: var(--font-size-sm);
+}
+
+.result {
+  margin-top: var(--space-3);
+}
+
+.reference-label {
+  margin-top: var(--space-4);
+}
+
+.reference {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+@media (max-width: 599px) {
+  .hint {
+    display: none;
+  }
+}

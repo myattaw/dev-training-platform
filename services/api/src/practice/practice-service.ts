@@ -6,9 +6,12 @@ import type {
   HistoryResponse,
   NextQuestionResponse,
   ProgressResponse,
+  RunSqlRequest,
+  RunSqlResponse,
   SkillProgress,
   UserInfo,
 } from '@pracstack/api-contracts';
+import type { SqlEngine } from '@pracstack/sql-engine';
 import {
   applyAttempt,
   DEFAULT_SCORING_CONFIG,
@@ -27,6 +30,7 @@ import type {
 } from '../store/progress-store';
 import { gradeAnswer } from './grading';
 import { selectQuestion } from './select-question';
+import { SqlGrader } from './sql-grading';
 
 export const TOKEN_TTL_MS = 30 * 60 * 1000;
 const RECENT_ATTEMPTS = 6;
@@ -40,6 +44,8 @@ export interface PracticeDeps {
   readonly random: () => number;
   readonly newId: () => string;
   readonly scoring?: ScoringConfig;
+  /** Runs SQL questions. Without it, SQL questions cannot be answered. */
+  readonly sqlEngine?: SqlEngine;
 }
 
 /**
@@ -53,9 +59,11 @@ export interface PracticeDeps {
  */
 export class PracticeService {
   private readonly scoring: ScoringConfig;
+  private readonly sql: SqlGrader | undefined;
 
   constructor(private readonly deps: PracticeDeps) {
     this.scoring = deps.scoring ?? DEFAULT_SCORING_CONFIG;
+    this.sql = deps.sqlEngine ? new SqlGrader(deps.sqlEngine) : undefined;
   }
 
   async progress(user: UserInfo, technologyId: string): Promise<ProgressResponse> {
@@ -144,7 +152,7 @@ export class PracticeService {
       if (attempt) return attempt.response;
     }
     const served = this.servedQuestion(token);
-    const grade = gradeAnswer(served.question, served.grading.answer, request.answer);
+    const grade = await this.grade(served, request.answer);
     const found = this.deps.content.findSkill(token.skillId);
     if (!found) throw notFound('Unknown skill.');
 
@@ -211,6 +219,15 @@ export class PracticeService {
     throw new ApiError('conflict', 'Your progress changed while answering. Please try again.');
   }
 
+  /** "Run query": executes SQL on the sample data of the served question. Not graded or scored. */
+  async runSql(user: UserInfo, request: RunSqlRequest): Promise<RunSqlResponse> {
+    const token = await this.ownedToken(user, request.token);
+    const served = this.servedQuestion(token);
+    if (served.question.format !== 'sql-query')
+      throw badRequest('This question is not a SQL question.');
+    return this.sqlGrader().preview(served.question, request.query);
+  }
+
   async history(user: UserInfo, skillId: string): Promise<HistoryResponse> {
     const found = this.deps.content.findSkill(skillId);
     if (!found) throw notFound('Unknown skill.');
@@ -220,6 +237,24 @@ export class PracticeService {
       skill: toSkillProgress(mastery ?? this.emptyRecord(user.id, skillId, found.technologyId)),
       attempts: attempts.map(toAttemptSummary),
     };
+  }
+
+  private async grade(
+    served: ReturnType<PracticeService['servedQuestion']>,
+    answer: AnswerRequest['answer'],
+  ) {
+    const { question, grading } = served;
+    if (question.format === 'sql-query' && grading.answer.format === 'sql-query') {
+      if (answer.format !== 'sql-query')
+        throw badRequest('This question expects a sql-query answer.');
+      return this.sqlGrader().grade(question, grading.answer, answer.query);
+    }
+    return gradeAnswer(question, grading.answer, answer);
+  }
+
+  private sqlGrader(): SqlGrader {
+    if (!this.sql) throw new ApiError('internal', 'SQL practice is not available on this server.');
+    return this.sql;
   }
 
   /** A token that exists, belongs to this user and has not expired. */

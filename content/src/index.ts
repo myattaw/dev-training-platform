@@ -4,7 +4,7 @@
  * consumes the generated public JSON instead.
  */
 export { buildContent } from './build';
-export type { ContentBuild, FileSet } from './build';
+export type { BuildOptions, ContentBuild, FileSet } from './build';
 export { findLeaks, sensitiveStrings } from './leak-check';
 export { CHALLENGES } from './challenges';
 export type { ChallengeEntry } from './challenges';

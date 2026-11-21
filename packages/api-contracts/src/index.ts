@@ -88,7 +88,8 @@ export interface HintResponse {
 export type AnswerPayload =
   | { readonly format: 'multiple-choice'; readonly selected: readonly string[] }
   | { readonly format: 'predict-output'; readonly output: string }
-  | { readonly format: 'fill-in-blank'; readonly blanks: Readonly<Record<string, string>> };
+  | { readonly format: 'fill-in-blank'; readonly blanks: Readonly<Record<string, string>> }
+  | { readonly format: 'sql-query'; readonly query: string };
 
 /** POST /api/skill-mastery/practice/answer */
 export interface AnswerRequest {
@@ -108,7 +109,8 @@ export type RevealedAnswer =
       readonly blanks: Readonly<Record<string, string>>;
       /** Whether the learner's value for each blank was accepted. */
       readonly blankResults: Readonly<Record<string, boolean>>;
-    };
+    }
+  | { readonly format: 'sql-query'; readonly referenceQuery: string };
 
 export interface AnswerResponse {
   readonly result: AnswerResult;
@@ -143,9 +145,34 @@ export interface HistoryResponse {
   readonly attempts: readonly AttemptSummary[];
 }
 
+/** A query result, as shown to the learner. */
+export interface SqlResultTable {
+  readonly columns: readonly { readonly name: string; readonly type: string }[];
+  readonly rows: readonly (readonly (string | number | boolean | null)[])[];
+  /** More rows exist than are shown. */
+  readonly truncated: boolean;
+}
+
+/**
+ * POST /api/skill-mastery/practice/run-sql
+ *
+ * Runs a query against the sample data of the current SQL question, without
+ * grading or scoring, so learners can explore before submitting.
+ */
+export interface RunSqlRequest {
+  readonly token: string;
+  readonly query: string;
+}
+
+export type RunSqlResponse =
+  | { readonly kind: 'rows'; readonly table: SqlResultTable; readonly durationMs: number }
+  /** The query failed, was refused, or exceeded a limit. The message explains why. */
+  | { readonly kind: 'error'; readonly message: string };
+
 /** Limits the server enforces on answers; the UI uses them for input `maxlength`. */
 export const ANSWER_LIMITS = {
   maxOutputLength: 2000,
   maxBlankLength: 200,
   maxSelected: 10,
+  maxQueryLength: 5000,
 } as const;

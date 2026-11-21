@@ -31,6 +31,7 @@ import { MasteryMeter } from '../../ui/mastery-meter';
 import { FillInBlank } from './questions/fill-in-blank';
 import { MultipleChoice } from './questions/multiple-choice';
 import { PredictOutput } from './questions/predict-output';
+import { SqlQuery, type SqlRunState } from './questions/sql-query';
 
 type Phase =
   | { readonly kind: 'loading' }
@@ -74,6 +75,7 @@ const RESULT_DISPLAY: Readonly<
     MultipleChoice,
     PredictOutput,
     FillInBlank,
+    SqlQuery,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './practice-page.html',
@@ -106,6 +108,7 @@ export class PracticePage {
     readonly message: string;
     readonly stale: boolean;
   } | null>(null);
+  protected readonly sqlRun = signal<SqlRunState>({ status: 'idle' });
   protected readonly session = signal<SessionTally>({
     answered: 0,
     correct: 0,
@@ -165,6 +168,7 @@ export class PracticePage {
     this.draft.set(null);
     this.hints.set([]);
     this.actionError.set(null);
+    this.sqlRun.set({ status: 'idle' });
     try {
       const served = await this.api.next(this.skillId());
       this.hints.set(served.hintsRevealed);
@@ -216,8 +220,25 @@ export class PracticePage {
     }
   }
 
-  /** Ctrl/Cmd+Enter submits from anywhere in the question. */
+  /** "Run query" for SQL questions: sample data only, never graded. */
+  protected async runSql(query: string): Promise<void> {
+    const served = this.served();
+    if (!served || this.sqlRun().status === 'running') return;
+    this.sqlRun.set({ status: 'running' });
+    try {
+      const response = await this.api.runSql(served.token, query);
+      this.sqlRun.set({ status: 'done', response });
+    } catch (err) {
+      this.sqlRun.set({ status: 'done', response: { kind: 'error', message: errorMessage(err) } });
+    }
+  }
+
+  /**
+   * Ctrl/Cmd+Enter submits from anywhere in the question, except inside a
+   * code editor, where it runs the code instead.
+   */
   protected onKeydown(event: KeyboardEvent): void {
+    if ((event.target as HTMLElement | null)?.closest('.monaco-editor')) return;
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       void this.submit();

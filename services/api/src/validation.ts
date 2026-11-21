@@ -4,6 +4,7 @@ import {
   type AnswerRequest,
   type HintRequest,
   type NextQuestionRequest,
+  type RunSqlRequest,
 } from '@pracstack/api-contracts';
 import { ID_PATTERN } from '@pracstack/content-model';
 import { badRequest } from './http';
@@ -61,6 +62,14 @@ export function parseAnswerRequest(body: unknown): AnswerRequest {
   return { token: parseToken(o['token']), answer: parseAnswer(o['answer']) };
 }
 
+export function parseRunSqlRequest(body: unknown): RunSqlRequest {
+  const o = asObject(body, 'Request body');
+  return {
+    token: parseToken(o['token']),
+    query: parseString(o['query'], 'query', ANSWER_LIMITS.maxQueryLength),
+  };
+}
+
 function parseAnswer(value: unknown): AnswerPayload {
   const o = asObject(value, '"answer"');
   switch (o['format']) {
@@ -93,7 +102,14 @@ function parseAnswer(value: unknown): AnswerPayload {
       }
       return { format: 'fill-in-blank', blanks };
     }
+    case 'sql-query':
+      return {
+        format: 'sql-query',
+        query: parseString(o['query'], 'query', ANSWER_LIMITS.maxQueryLength),
+      };
     default:
-      throw badRequest('"answer.format" must be multiple-choice, predict-output or fill-in-blank.');
+      throw badRequest(
+        '"answer.format" must be multiple-choice, predict-output, fill-in-blank or sql-query.',
+      );
   }
 }

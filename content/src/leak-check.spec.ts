@@ -1,10 +1,20 @@
-import { describe, expect, it } from 'vitest';
-import { buildContent } from './build';
+import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { buildContent, type ContentBuild } from './build';
 import { findLeaks, sensitiveStrings } from './leak-check';
 
-describe('leak check', () => {
-  const build = buildContent();
-  const sensitive = sensitiveStrings(build.privateFiles, build.publicFiles);
+describe('leak check', { timeout: 120_000 }, () => {
+  let build: ContentBuild;
+  let sensitive: string[];
+  beforeAll(async () => {
+    const sqlEngine = new ChildProcessSqlEngine();
+    try {
+      build = await buildContent({ sqlEngine });
+    } finally {
+      await sqlEngine.close();
+    }
+    sensitive = sensitiveStrings(build.privateFiles, build.publicFiles);
+  }, 120_000);
 
   it('treats hidden tests, hints, explanations and question prompts as sensitive', () => {
     expect(sensitive).toContain('pangram with non-ASCII letters mixed in');

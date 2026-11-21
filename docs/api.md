@@ -19,6 +19,7 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 | POST   | `/api/skill-mastery/practice/next`           | `{ skillId }`              | a question + token     |
 | POST   | `/api/skill-mastery/practice/hint`           | `{ token }`                | the next hint          |
 | POST   | `/api/skill-mastery/practice/answer`         | `{ token, answer }`        | verdict, explanation, new score |
+| POST   | `/api/skill-mastery/practice/run-sql`        | `{ token, query }`         | result on sample data (not graded) |
 | GET    | `/api/skill-mastery/skills/:skillId/history` |                            | last 50 attempts       |
 
 Errors use `{ "error": { "code", "message" } }`. Codes: `bad-request` 400, `unauthorized`
@@ -53,13 +54,15 @@ Scores are computed only on the server (`src/practice/practice-service.ts`) with
 
 Partial credit (graded in `src/practice/grading.ts`) avoids punishing minor slips: right
 output with different spacing, some blanks right, or only correct options chosen in a
-multiple-selection question.
+multiple-selection question. SQL answers are graded by running them; see [sql.md](sql.md).
 
 ## Limits
 
 | Limit                      | Value                         | Where                  |
 | -------------------------- | ----------------------------- | ---------------------- |
 | Requests per user          | 120 per minute (sliding window) | `SlidingWindowRateLimiter` |
+| SQL runs and answers       | 30 per minute per user        | `sqlRateLimiter`       |
+| SQL query text             | 5,000 characters              | `ANSWER_LIMITS`        |
 | Request body               | 16 KB (413 above)             | local server           |
 | Predict-output answer      | 2,000 characters              | `ANSWER_LIMITS`        |
 | Fill-in-blank answer       | 200 characters per blank      | `ANSWER_LIMITS`        |

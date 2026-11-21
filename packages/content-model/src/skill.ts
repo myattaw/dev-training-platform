@@ -1,4 +1,5 @@
 import type { InstructionBlock } from './instruction';
+import type { SqlDatabase, SqlTable } from './sql';
 
 /**
  * Skill Mastery hierarchy: Technology → Topic → Skill → Questions.
@@ -75,13 +76,26 @@ export interface FillInBlankQuestion extends QuestionBase {
   readonly template: CodeSnippet;
 }
 
-export type Question = MultipleChoiceQuestion | PredictOutputQuestion | FillInBlankQuestion;
+export interface SqlQueryQuestion extends QuestionBase {
+  readonly format: 'sql-query';
+  readonly dialect: 'postgresql';
+  /** CREATE TABLE statements of the practice database. */
+  readonly schema: string;
+  /** Sample data the learner can see and query. */
+  readonly sampleTables: readonly SqlTable[];
+  /** The task asks for a specific row order (ORDER BY), so order is graded. */
+  readonly ordered: boolean;
+}
+
+export type Question =
+  MultipleChoiceQuestion | PredictOutputQuestion | FillInBlankQuestion | SqlQueryQuestion;
 export type QuestionFormat = Question['format'];
 
 export const QUESTION_FORMATS: readonly QuestionFormat[] = [
   'multiple-choice',
   'predict-output',
   'fill-in-blank',
+  'sql-query',
 ];
 
 /** Public question plus how many hints exist (the hints themselves are private). */
@@ -98,7 +112,16 @@ export interface BlankAnswer {
 export type QuestionAnswer =
   | { readonly format: 'multiple-choice'; readonly correct: readonly string[] }
   | { readonly format: 'predict-output'; readonly output: string }
-  | { readonly format: 'fill-in-blank'; readonly blanks: Readonly<Record<string, BlankAnswer>> };
+  | { readonly format: 'fill-in-blank'; readonly blanks: Readonly<Record<string, BlankAnswer>> }
+  | {
+      readonly format: 'sql-query';
+      /** A correct query; results are compared, not SQL text. */
+      readonly referenceQuery: string;
+      /** Require the reference query's column names (when the task names them). */
+      readonly checkColumnNames: boolean;
+      /** Extra datasets the submission must also pass (same tables as the sample). */
+      readonly hiddenData: readonly (readonly SqlTable[])[];
+    };
 
 /** Private: grading data, hints and explanation, revealed only by the API. */
 export interface QuestionGrading {
@@ -117,10 +140,19 @@ type Authored<Q extends Question, A extends QuestionAnswer> = Omit<Q, 'skillId'>
   readonly explanation: readonly InstructionBlock[];
 };
 
+/** SQL questions reference a shared practice database instead of repeating it. */
+export type SqlQuestionSource = Omit<SqlQueryQuestion, 'skillId' | 'schema' | 'sampleTables'> & {
+  readonly database: SqlDatabase;
+  readonly answer: { readonly referenceQuery: string; readonly checkColumnNames?: boolean };
+  readonly hints: readonly string[];
+  readonly explanation: readonly InstructionBlock[];
+};
+
 export type QuestionSource =
   | Authored<MultipleChoiceQuestion, Extract<QuestionAnswer, { format: 'multiple-choice' }>>
   | Authored<PredictOutputQuestion, Extract<QuestionAnswer, { format: 'predict-output' }>>
-  | Authored<FillInBlankQuestion, Extract<QuestionAnswer, { format: 'fill-in-blank' }>>;
+  | Authored<FillInBlankQuestion, Extract<QuestionAnswer, { format: 'fill-in-blank' }>>
+  | SqlQuestionSource;
 
 export interface SkillSource extends Skill {
   readonly questions: readonly QuestionSource[];

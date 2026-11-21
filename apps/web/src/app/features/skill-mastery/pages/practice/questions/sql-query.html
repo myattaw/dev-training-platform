@@ -1,0 +1,72 @@
+<details class="schema" open>
+  <summary>Database</summary>
+  <div class="schema-body">
+    <pre class="code"><code>{{ question().schema }}</code></pre>
+    <p class="field-label">Sample data</p>
+    <div class="samples">
+      @for (sample of sampleTables(); track sample.name) {
+        <div class="sample">
+          <p class="table-name">
+            <code>{{ sample.name }}</code>
+          </p>
+          <app-sql-result-table
+            [table]="sample.table"
+            [caption]="'Sample rows of ' + sample.name"
+          />
+        </div>
+      }
+    </div>
+    <p class="note text-secondary">
+      Your query is also checked against other data with the same tables, so do not rely on specific
+      values from the sample.
+    </p>
+  </div>
+</details>
+
+<div class="editor-bar">
+  <span class="field-label">Your query <span class="dialect text-secondary">PostgreSQL</span></span>
+  <span class="text-secondary hint"
+    ><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> in the editor runs it</span
+  >
+</div>
+<app-code-editor
+  class="editor"
+  language="sql"
+  [fileName]="'skill-' + question().id"
+  [code]="query()"
+  (codeChange)="onQueryChange($event)"
+  (runRequested)="runQuery()"
+/>
+@if (!revealed()) {
+  <div class="run-bar">
+    <button
+      type="button"
+      class="btn btn--sm"
+      [disabled]="query().trim() === '' || runState().status === 'running'"
+      (click)="runQuery()"
+    >
+      <app-icon name="play" [size]="12" />
+      {{ runState().status === 'running' ? 'Running…' : 'Run query' }}
+    </button>
+    <span class="text-secondary run-note">Runs on the sample data. Not graded.</span>
+  </div>
+}
+
+@let state = runState();
+@if (state.status === 'done') {
+  <div class="result" aria-live="polite">
+    @if (state.response.kind === 'rows') {
+      <p class="field-label">
+        Result <span class="text-secondary">({{ state.response.durationMs }} ms)</span>
+      </p>
+      <app-sql-result-table [table]="state.response.table" [showTypes]="true" />
+    } @else {
+      <app-alert type="error" heading="Query failed">{{ state.response.message }}</app-alert>
+    }
+  </div>
+}
+
+@if (reference(); as ref) {
+  <p class="field-label reference-label">A correct query</p>
+  <pre class="code reference"><code>{{ ref }}</code></pre>
+}

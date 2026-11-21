@@ -74,6 +74,9 @@ export function gradeAnswer(
       return { result: 'incorrect', revealed };
     }
 
+    case 'sql-query':
+      throw new Error('SQL answers are graded by SqlGrader, which runs queries.');
+
     case 'fill-in-blank': {
       if (question.format !== 'fill-in-blank' || answer.format !== 'fill-in-blank') break;
       const ids = blankIds(question.template.source);

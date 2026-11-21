@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { replaceCode, waitForEditor } from './support/workspace';
 
 /*
  * These tests share one local API (and its local developer user), so they run
@@ -100,6 +101,49 @@ test.describe('Skill Mastery', () => {
     await page.reload();
     await expect(prompt).toContainText('Inside the');
     await expect(page.locator('.hints')).toContainText('narrows the union');
+  });
+
+  test('PostgreSQL: run queries on sample data, then submit for grading', async ({ page }) => {
+    await page.goto('/skills');
+    await expect(page.getByRole('link', { name: 'View PostgreSQL skills' })).toBeVisible();
+
+    await page.goto('/skills/postgresql/pg-select-where/practice');
+    await expect(page.locator('.schema')).toContainText('CREATE TABLE employees');
+    await expect(page.locator('.samples')).toContainText('Ada Lovelace');
+    await waitForEditor(page);
+
+    // A typo: Run shows PostgreSQL's error, nothing is scored.
+    await replaceCode(page, 'SELECT nme, salary FROM employees');
+    await page.getByRole('button', { name: 'Run query' }).click();
+    await expect(page.locator('.result')).toContainText('column "nme" does not exist');
+
+    await replaceCode(page, 'SELECT name, salary FROM employees');
+    await page.getByRole('button', { name: 'Run query' }).click();
+    await expect(page.locator('.result')).toContainText('8 rows');
+    await expect(page.locator('.result')).toContainText('Grace Hopper');
+
+    await page.getByRole('button', { name: 'Submit answer' }).click();
+    await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
+    await expect(page.locator('pre.reference')).toContainText('SELECT name, salary FROM employees');
+    await expect(page.getByText('Score 0 → 9')).toBeVisible();
+  });
+
+  test('PostgreSQL: answers hard-coded from the sample data are caught by hidden data', async ({
+    page,
+  }) => {
+    await page.goto('/skills/postgresql/pg-order-limit/practice');
+    await expect(page.getByText('in alphabetical order')).toBeVisible();
+    await waitForEditor(page);
+    // Matches the sample data exactly, but is not a real query for the task.
+    await replaceCode(
+      page,
+      "SELECT name FROM employees WHERE name IN ('Ada Lovelace','Alan Turing','Barbara Liskov','Dennis Ritchie','Grace Hopper','Ken Thompson','Linus Torvalds','Margaret Hamilton') ORDER BY name",
+    );
+    await page.getByRole('button', { name: 'Submit answer' }).click();
+    await expect(page.getByRole('heading', { name: 'Not quite' })).toBeVisible();
+    await expect(
+      page.getByText('right result for the sample data, but not for other data'),
+    ).toBeVisible();
   });
 
   test('when the API is down, practice shows an error and the catalog still works', async ({

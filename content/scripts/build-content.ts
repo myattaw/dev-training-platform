@@ -13,7 +13,7 @@ import { buildContent, type FileSet } from '../src';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
-const build = buildContent();
+const build = await buildContent();
 const errors = build.issues.filter((i) => i.severity === 'error');
 const warnings = build.issues.filter((i) => i.severity === 'warning');
 

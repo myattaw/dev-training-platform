@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pracstack/content-model": "*",
-    "@pracstack/challenge-runtime": "*"
+    "@pracstack/challenge-runtime": "*",
+    "@pracstack/sql-engine": "*"
   }
 }

@@ -2,17 +2,23 @@ import type { MeResponse } from '@pracstack/api-contracts';
 import type { Authenticator } from './auth';
 import { ApiError, type ApiRequest, type ApiResponse, notFound } from './http';
 import { PracticeService, type PracticeDeps } from './practice/practice-service';
-import type { RateLimiter } from './rate-limit';
+import { type RateLimiter, SlidingWindowRateLimiter } from './rate-limit';
 import {
   parseAnswerRequest,
   parseHintRequest,
   parseId,
   parseNextQuestionRequest,
+  parseRunSqlRequest,
 } from './validation';
 
 export interface ApiDeps extends PracticeDeps {
   readonly auth: Authenticator;
   readonly rateLimiter: RateLimiter;
+  /**
+   * Stricter limit for requests that run SQL ("Run query" and answers), which
+   * cost far more than other requests.
+   */
+  readonly sqlRateLimiter?: RateLimiter;
   /** Must be set to use the unauthenticated local developer user. */
   readonly allowLocalDevUser?: boolean;
   /** Receives unexpected errors (never shown to the client). */
@@ -32,18 +38,22 @@ export function createApi(deps: ApiDeps): ApiHandler {
     );
   }
   const practice = new PracticeService(deps);
+  const sqlRateLimiter = deps.sqlRateLimiter ?? new SlidingWindowRateLimiter(30, 60_000);
+  const limit = (limiter: RateLimiter, key: string): void => {
+    const wait = limiter.hit(key, deps.now().getTime());
+    if (wait > 0) {
+      const seconds = Math.ceil(wait / 1000);
+      throw new ApiError('rate-limited', `Too many requests. Try again in ${seconds} s.`, {
+        'retry-after': String(seconds),
+      });
+    }
+  };
   const logError = deps.logError ?? ((err) => console.error(err));
 
   return async (request) => {
     try {
       const user = await deps.auth.authenticate(request);
-      const wait = deps.rateLimiter.hit(user.id, deps.now().getTime());
-      if (wait > 0) {
-        const seconds = Math.ceil(wait / 1000);
-        throw new ApiError('rate-limited', `Too many requests. Try again in ${seconds} s.`, {
-          'retry-after': String(seconds),
-        });
-      }
+      limit(deps.rateLimiter, user.id);
 
       const { method, path } = request;
       const ok = (body: unknown): ApiResponse => ({ status: 200, body });
@@ -64,7 +74,12 @@ export function createApi(deps: ApiDeps): ApiHandler {
         return ok(await practice.hint(user, parseHintRequest(request.body).token));
       }
       if (method === 'POST' && path === '/api/skill-mastery/practice/answer') {
+        limit(sqlRateLimiter, user.id);
         return ok(await practice.answer(user, parseAnswerRequest(request.body)));
+      }
+      if (method === 'POST' && path === '/api/skill-mastery/practice/run-sql') {
+        limit(sqlRateLimiter, user.id);
+        return ok(await practice.runSql(user, parseRunSqlRequest(request.body)));
       }
       const history = /^\/api\/skill-mastery\/skills\/([^/]+)\/history$/.exec(path);
       if (method === 'GET' && history) {

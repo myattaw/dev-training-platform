@@ -17,6 +17,13 @@ import type * as Monaco from 'monaco-editor';
 import type { CompileDiagnostic } from './compile.models';
 import { loadMonaco, MONACO_THEME, type MonacoApi } from './monaco-loader';
 
+export type EditorLanguage = 'typescript' | 'sql';
+
+const LANGUAGES: Readonly<Record<EditorLanguage, { file: string; monacoId: string }>> = {
+  typescript: { file: 'solution.ts', monacoId: 'typescript' },
+  sql: { file: 'query.sql', monacoId: 'pgsql' },
+};
+
 export type CompileResult =
   | { readonly ok: true; readonly js: string }
   | { readonly ok: false; readonly diagnostics: readonly CompileDiagnostic[] };
@@ -71,6 +78,8 @@ const ERROR_CATEGORY = 1;
 })
 export class CodeEditor {
   readonly fileName = input.required<string>();
+  /** `typescript` gets type checking and `compile()`; `sql` uses PostgreSQL highlighting. */
+  readonly language = input<EditorLanguage>('typescript');
   readonly code = model.required<string>();
   /** Emitted on Ctrl/Cmd + Enter. */
   readonly runRequested = output<void>();
@@ -199,12 +208,14 @@ export class CodeEditor {
     const editor = this.editor;
     if (!monaco || !editor) return;
 
-    const uri = monaco.Uri.parse(`file:///challenges/${fileName}/solution.ts`);
+    const lang = this.language();
+    const uri = monaco.Uri.parse(`file:///${fileName}/${LANGUAGES[lang].file}`);
     const previous = editor.getModel();
     if (previous?.uri.toString() === uri.toString()) return;
 
     const model =
-      monaco.editor.getModel(uri) ?? monaco.editor.createModel(this.code(), 'typescript', uri);
+      monaco.editor.getModel(uri) ??
+      monaco.editor.createModel(this.code(), LANGUAGES[lang].monacoId, uri);
     editor.setModel(model);
     // Keep only the active file in the TypeScript program, so challenges can't clash.
     previous?.dispose();

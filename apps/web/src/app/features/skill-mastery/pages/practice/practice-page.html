@@ -65,6 +65,17 @@
                       />
                     }
                   }
+                  @case ('sql-query') {
+                    @if (s.question.format === 'sql-query') {
+                      <app-sql-query
+                        [question]="s.question"
+                        [(answer)]="draft"
+                        [revealed]="revealed()"
+                        [runState]="sqlRun()"
+                        (run)="runSql($event)"
+                      />
+                    }
+                  }
                   @case ('fill-in-blank') {
                     @if (s.question.format === 'fill-in-blank') {
                       <app-fill-in-blank

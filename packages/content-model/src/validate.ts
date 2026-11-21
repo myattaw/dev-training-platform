@@ -1,6 +1,7 @@
 import type { ChallengeSource, ChallengeTest } from './challenge';
 import type { InstructionBlock } from './instruction';
 import { blankIds, QUESTION_DIFFICULTIES, type QuestionSource, type TrackSource } from './skill';
+import { SQL_IDENTIFIER, type SqlDatabase, type SqlTable } from './sql';
 
 /**
  * Semantic validation that TypeScript cannot express: unique ids, cross
@@ -237,6 +238,10 @@ function validateQuestion(issues: Issues, path: string, q: QuestionSource): void
       if (q.code.source.trim() === '') issues.error(path, 'code is required');
       if (q.answer.output === '') issues.error(path, 'expected output must not be empty');
       break;
+    case 'sql-query':
+      if (q.answer.referenceQuery.trim() === '') issues.error(path, 'referenceQuery is required');
+      validateDatabase(issues, `${path}/database:${q.database.id}`, q.database);
+      break;
     case 'fill-in-blank': {
       const inTemplate = blankIds(q.template.source);
       const answered = Object.keys(q.answer.blanks);
@@ -257,4 +262,37 @@ function validateQuestion(issues: Issues, path: string, q: QuestionSource): void
       break;
     }
   }
+}
+
+function validateDatabase(issues: Issues, path: string, db: SqlDatabase): void {
+  if (db.schema.trim() === '') issues.error(path, 'schema is required');
+  if (db.sample.length === 0) issues.error(path, 'sample data is required');
+  if (db.hidden.length === 0) {
+    issues.error(path, 'at least one hidden dataset is required, so hard-coded answers fail');
+  }
+  const shape = (tables: readonly SqlTable[]) =>
+    tables
+      .map((t) => `${t.table}(${t.columns.join(',')})`)
+      .sort()
+      .join(' ');
+  const sampleShape = shape(db.sample);
+  [db.sample, ...db.hidden].forEach((tables, i) => {
+    const where = i === 0 ? `${path}/sample` : `${path}/hidden[${i - 1}]`;
+    if (i > 0 && shape(tables) !== sampleShape) {
+      issues.error(where, 'must have the same tables and columns as the sample data');
+    }
+    for (const t of tables) {
+      for (const name of [t.table, ...t.columns]) {
+        if (!SQL_IDENTIFIER.test(name)) issues.error(where, `invalid SQL identifier "${name}"`);
+      }
+      t.rows.forEach((row, r) => {
+        if (row.length !== t.columns.length) {
+          issues.error(
+            where,
+            `${t.table} row ${r + 1} has ${row.length} values for ${t.columns.length} columns`,
+          );
+        }
+      });
+    }
+  });
 }

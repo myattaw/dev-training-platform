@@ -91,13 +91,12 @@ Supported formats:
 | `multiple-choice` | prompt, optional code, options        | `correct` option ids (`selection: single/multiple`) |
 | `predict-output`  | prompt and code                       | exact `output` (trailing whitespace ignored)   |
 | `fill-in-blank`   | code with `{{blank:id}}` markers      | `accepted` answers per blank                   |
+| `sql-query`       | schema, sample data, SQL editor       | reference query + hidden datasets ([sql.md](sql.md)) |
 
 Every question also has `difficulty` (1–5), `hints` (revealed one at a time, reducing the
 mastery gain) and an `explanation` (shown after answering). Aim for questions at every
 difficulty level in each skill; practice offers the band's target difficulty (see
 [scoring.md](scoring.md)) and falls back to the nearest level.
-
-SQL-query questions (PostgreSQL) arrive in Phase 4 with the PGlite engine.
 
 ## Versioning
 
