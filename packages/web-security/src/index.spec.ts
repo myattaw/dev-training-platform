@@ -36,6 +36,9 @@ describe('web security headers', () => {
 
   it('recognises only built worker files as workers', () => {
     expect(isWorkerPath('/worker-UPO43OHT.js')).toBe(true);
+    // Angular 22 hashes also use lowercase letters, '-' and '_'.
+    expect(isWorkerPath('/worker-5r1-tvj6.js')).toBe(true);
+    expect(isWorkerPath('/worker-B0vU_33C.js')).toBe(true);
     for (const path of ['/main-ABC.js', '/content/worker-A.js', '/worker-x.js.map', '/worker-.js'])
       expect(isWorkerPath(path)).toBe(false);
   });

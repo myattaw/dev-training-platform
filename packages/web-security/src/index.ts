@@ -21,7 +21,8 @@ export interface WebSecurityOptions {
  * Matches CloudFront path patterns and is tested against built file names.
  */
 export const WORKER_PATH_PATTERN = '/worker-*.js';
-export const isWorkerPath = (path: string): boolean => /^\/worker-[A-Z0-9]+\.js$/.test(path);
+/** Content hashes are base64url-like since Angular 22 (letters, digits, '-', '_'). */
+export const isWorkerPath = (path: string): boolean => /^\/worker-[A-Za-z0-9_-]+\.js$/.test(path);
 
 const join = (directives: Readonly<Record<string, readonly string[]>>): string =>
   Object.entries(directives)

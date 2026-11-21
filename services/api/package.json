@@ -27,6 +27,6 @@
   "devDependencies": {
     "@pracstack/content": "*",
     "@types/aws-lambda": "^8.10.164",
-    "esbuild": "^0.28.1"
+    "esbuild": "^0.28.2"
   }
 }

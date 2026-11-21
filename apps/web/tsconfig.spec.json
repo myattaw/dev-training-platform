@@ -3,16 +3,13 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    // TypeScript 6 defaults rootDir to this folder; the app also compiles packages/*/src.
+    "rootDir": "../..",
     "outDir": "../../out-tsc/web-spec",
     "paths": {
       "@pracstack/*": ["../../packages/*/src/index.ts"]
     },
-    "types": [
-      "vitest/globals"
-    ]
+    "types": ["vitest/globals"]
   },
-  "include": [
-    "src/**/*.d.ts",
-    "src/**/*.spec.ts"
-  ]
+  "include": ["src/**/*.d.ts", "src/**/*.spec.ts"]
 }

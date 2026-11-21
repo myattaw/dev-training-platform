@@ -38,31 +38,31 @@
     "oracle:remove": "tsx scripts/oracle.mts remove"
   },
   "dependencies": {
-    "@angular/common": "^21.2.0",
-    "@angular/compiler": "^21.2.0",
-    "@angular/core": "^21.2.0",
-    "@angular/forms": "^21.2.0",
-    "@angular/platform-browser": "^21.2.0",
-    "@angular/router": "^21.2.0",
+    "@angular/common": "^22.3.0",
+    "@angular/compiler": "^22.3.0",
+    "@angular/core": "^22.3.0",
+    "@angular/forms": "^22.3.0",
+    "@angular/platform-browser": "^22.3.0",
+    "@angular/router": "^22.3.0",
     "monaco-editor": "0.57.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@angular/build": "^21.2.30",
-    "@angular/cli": "^21.2.30",
-    "@angular/compiler-cli": "^21.2.0",
+    "@angular/build": "^22.3.0",
+    "@angular/cli": "^22.3.0",
+    "@angular/compiler-cli": "^22.3.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.65.1",
+    "@pracstack/web-security": "*",
     "@types/node": "^22.20.5",
-    "angular-eslint": "21.4.0",
+    "angular-eslint": "22.8.0",
     "eslint": "^10.3.0",
     "jsdom": "^31.0.1",
     "prettier": "^3.8.1",
     "tsx": "^4.23.15",
-    "typescript": "~5.9.2",
+    "typescript": "~6.0.3",
     "typescript-eslint": "8.73.0",
-    "vitest": "^4.0.8",
-    "@pracstack/web-security": "*"
+    "vitest": "^5.1.1"
   }
 }

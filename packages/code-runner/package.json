@@ -16,6 +16,6 @@
     "@pracstack/content-model": "*"
   },
   "devDependencies": {
-    "esbuild": "*"
+    "esbuild": "^0.28.2"
   }
 }

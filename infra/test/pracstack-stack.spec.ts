@@ -464,6 +464,10 @@ describe('web hosting', () => {
       'styles-VVAZTZ3C.css',
       'worker-UPO43OHT.js',
       'media/codicon-LTRFOK3N.ttf',
+      // Angular 22 hash alphabet
+      'chunk--3IhnF3m.js',
+      'chunk-5r1-tvj6.js',
+      'worker-B0vU_33C.js',
     ])
       expect(isImmutableAsset(f), f).toBe(true);
     for (const f of [

@@ -3,6 +3,8 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
+    // TypeScript 6 defaults rootDir to this folder; the app also compiles packages/*/src.
+    "rootDir": "../..",
     "outDir": "../../out-tsc/web-app",
     // Workspace packages are TypeScript source: compile them with the app rather than
     // as prebuilt node_modules (the dev server cannot prebundle extensionless .ts imports).
@@ -11,11 +13,6 @@
     },
     "types": []
   },
-  "include": [
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "src/**/*.spec.ts",
-    "src/testing/**"
-  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "src/testing/**"]
 }

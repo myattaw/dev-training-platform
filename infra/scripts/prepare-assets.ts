@@ -21,8 +21,9 @@ export const BUILD_DIR = resolve(here, '../.build');
 export function isImmutableAsset(path: string): boolean {
   const p = path.split(sep).join('/');
   return (
-    /^(chunk|main|polyfills|styles|worker)-[A-Z0-9]{8}\.(js|css)(\.map)?$/.test(p) ||
-    /^media\/[^/]+-[A-Z0-9]{8}\.[a-z0-9]+$/.test(p)
+    // 8-character content hashes: letters, digits, '-' and '_' (Angular 22+).
+    /^(chunk|main|polyfills|styles|worker)-[A-Za-z0-9_-]{8}\.(js|css)(\.map)?$/.test(p) ||
+    /^media\/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$/.test(p)
   );
 }
 
