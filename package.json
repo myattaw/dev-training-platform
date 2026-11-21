@@ -61,7 +61,7 @@
     "prettier": "^3.8.1",
     "tsx": "^4.23.15",
     "typescript": "~5.9.2",
-    "typescript-eslint": "8.59.2",
+    "typescript-eslint": "8.73.0",
     "vitest": "^4.0.8",
     "@pracstack/web-security": "*"
   }
