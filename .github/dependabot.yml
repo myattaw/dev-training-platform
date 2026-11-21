@@ -6,6 +6,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # Types must match the Node.js version we run (22, see .nvmrc); move them together.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       angular:
         patterns: ['@angular/*', '@angular-devkit/*', '@schematics/angular']
@@ -24,3 +28,9 @@ updates:
       - /packages/code-runner/docker/java
     schedule:
       interval: weekly
+    ignore:
+      # Stay on the LTS versions the runners are tested with: Node.js 22 and Java 21.
+      - dependency-name: node
+        versions: ['>=23']
+      - dependency-name: eclipse-temurin
+        versions: ['>=22']

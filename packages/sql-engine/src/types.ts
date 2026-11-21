@@ -48,12 +48,19 @@ export interface SqlLimits {
   readonly timeoutMs: number;
   /** Process memory (RSS) above which the running query is killed. */
   readonly maxRssMb: number;
+  /**
+   * Memory the learner's query may ADD to the process (resident memory at the
+   * end of setup is the baseline). This is what a "too much memory" verdict is
+   * based on, so leftovers of our own setup never count against the learner.
+   */
+  readonly maxQueryMemoryMb: number;
   /** Longest accepted query text. */
   readonly maxQueryLength: number;
 }
 
 export const DEFAULT_SQL_LIMITS: SqlLimits = {
   timeoutMs: 3000,
-  maxRssMb: 1200,
+  maxRssMb: 2000,
+  maxQueryMemoryMb: 512,
   maxQueryLength: 5000,
 };

@@ -92,7 +92,8 @@ export class ChildProcessSqlEngine implements SqlEngine {
       execArgv: ['--import', 'tsx'],
     };
     const child = fork(runner.path, [], {
-      execArgv: [...runner.execArgv],
+      // gc() lets the worker return closed databases' memory promptly.
+      execArgv: [...runner.execArgv, '--expose-gc'],
       env: {
         ...(this.options.env ?? process.env),
         PRACSTACK_SQL_LIMITS: JSON.stringify(this.limits),

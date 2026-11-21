@@ -22,6 +22,8 @@ const engine = new ChildProcessSqlEngine({
     PRACSTACK_SQL_WORKER: `${TASK_ROOT}/sql-worker.mjs`,
   },
   maxQueue: 1,
+  // The function has 1536 MB: keep the process well inside it.
+  limits: { maxRssMb: 1300, maxQueryMemoryMb: 400 },
 });
 
 export async function handler(event: unknown): Promise<SqlRunResult> {

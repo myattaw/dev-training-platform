@@ -23,7 +23,7 @@ const db: SqlDatabaseSpec = {
       (3, 'Cleo', 1, 95000.00, NULL);`,
 };
 
-const engine = new ChildProcessSqlEngine({ limits: { timeoutMs: 3000, maxRssMb: 1100 } });
+const engine = new ChildProcessSqlEngine({ limits: { timeoutMs: 3000, maxQueryMemoryMb: 400 } });
 afterAll(() => engine.close());
 
 const run = (query: string, maxRows = 100): Promise<SqlRunResult> =>

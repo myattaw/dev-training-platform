@@ -438,7 +438,9 @@ describe.skipIf(skip)('SQL runner function', { timeout: 60_000 }, () => {
       query: 'SELECT count(*) FROM generate_series(1, 10000000000)',
       maxRows: 10,
     });
-    expect(res.body).toMatchObject({ kind: 'timeout' });
+    // generate_series materialises rows in WebAssembly memory, so the memory limit may
+    // stop it before the time limit does; either way it is stopped.
+    expect(['timeout', 'resource-limit']).toContain((res.body as { kind: string }).kind);
     const next = await fn.invoke({ database, query: 'SELECT 1 AS one', maxRows: 10 });
     expect(next.body).toMatchObject({ kind: 'rows', rows: [[1]] });
   });

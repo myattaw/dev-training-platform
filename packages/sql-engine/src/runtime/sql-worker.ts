@@ -56,6 +56,15 @@ const TYPE_NAMES: Readonly<Record<number, string>> = {
   2950: 'uuid',
 };
 
+/**
+ * Closed PGlite instances keep their WebAssembly memory until garbage
+ * collection; collecting right away returns it to the system, so it doesn't
+ * linger into the next run. (The runner process is started with --expose-gc.)
+ */
+function collectGarbage(): void {
+  (globalThis as { gc?: () => void }).gc?.();
+}
+
 /** Sent before the learner's query starts (see runner.ts). */
 export const PREPARED = 'prepared';
 
@@ -76,6 +85,7 @@ function template(spec: SqlDatabaseSpec): Promise<File | Blob> {
         return await admin.dumpDataDir('none');
       } finally {
         await admin.close();
+        collectGarbage();
       }
     })();
     cached.catch(() => templates.delete(key));
@@ -132,6 +142,7 @@ async function run(job: WorkerJob): Promise<SqlRunResult> {
     }
   } finally {
     await db.close().catch(() => undefined);
+    collectGarbage();
   }
 }
 

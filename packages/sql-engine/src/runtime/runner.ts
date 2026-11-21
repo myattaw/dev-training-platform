@@ -96,9 +96,13 @@ async function execute(request: SqlRunRequest): Promise<SqlRunResult> {
       }
       resolve(result);
     };
+    const mb = 1024 * 1024;
+    /** Resident memory when the learner's query started; undefined while preparing. */
+    let baseline: number | undefined;
     const onMessage = (message: SqlRunResult | 'prepared'): void => {
       if (message === 'prepared') {
-        // The database is ready: start the learner's time limit now.
+        // The database is ready: start the learner's time and memory limits now.
+        baseline = process.memoryUsage().rss;
         clearTimeout(timer);
         timer = setTimeout(
           () => finish({ kind: 'timeout', timeoutMs: limits.timeoutMs }, true),
@@ -118,7 +122,16 @@ async function execute(request: SqlRunRequest): Promise<SqlRunResult> {
       SETUP_TIMEOUT_MS,
     );
     const memory = setInterval(() => {
-      if (process.memoryUsage().rss > limits.maxRssMb * 1024 * 1024) {
+      const rss = process.memoryUsage().rss;
+      if (baseline === undefined) {
+        // Preparing (our own work): only the absolute safety cap, and never the learner's fault.
+        if (rss > limits.maxRssMb * mb) {
+          finish(
+            { kind: 'error', message: 'The exercise database could not be prepared (memory).' },
+            true,
+          );
+        }
+      } else if (rss - baseline > limits.maxQueryMemoryMb * mb || rss > limits.maxRssMb * mb) {
         finish(
           { kind: 'resource-limit', message: 'The query used too much memory and was stopped.' },
           true,
