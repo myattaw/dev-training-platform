@@ -50,6 +50,7 @@ describe('the real content', { timeout: 120_000 }, () => {
     expect(manifest.technologies).toEqual([
       expect.objectContaining({ id: 'typescript', skillCount: 4 }),
       expect.objectContaining({ id: 'postgresql', skillCount: 4 }),
+      expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
     ]);
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
   });

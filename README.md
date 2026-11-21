@@ -4,9 +4,10 @@ A developer learning platform with two product areas:
 
 - **Coding Challenges**: complete programming problems in TypeScript or Java, solved in a Monaco
   editor and graded on the server against hidden tests in isolated Docker containers.
-- **Skill Mastery**: adaptive practice for individual concepts (TypeScript and PostgreSQL today;
-  Oracle SQL and Angular later) with a 0–100 mastery score computed by the server. SQL answers
-  run on a real PostgreSQL engine (PGlite) in an isolated process.
+- **Skill Mastery**: adaptive practice for individual concepts (TypeScript, PostgreSQL and Oracle
+  SQL today; Angular later) with a 0–100 mastery score computed by the server. SQL answers run on
+  real engines: PostgreSQL (PGlite) in an isolated process, Oracle on Oracle Database Free in a
+  local container.
 
 ## Getting started
 
@@ -16,6 +17,7 @@ Requires Node 22+.
 npm install
 npx playwright install chromium   # once, for end-to-end tests
 npm run runners:build             # once, needs Docker: builds the code-runner images
+npm run oracle:start              # needs Docker: local Oracle for the Oracle SQL track (≈ 1.3 GB once)
 
 npm start              # content build, then API (:3100) + web dev server (http://localhost:4200)
 npm run api            # API only (local developer user; see docs/api.md)
@@ -65,13 +67,13 @@ Dependencies point one way: `web → (api-contracts, challenge-runtime, content-
 `scoring` stands alone. The `content` package is Node-only (it compiles and
 runs code); the browser only ever loads its generated **public** JSON.
 
-## Current status (end of Phase 7)
+## Current status (end of Phase 8)
 
 | Works today                                                                       | Not built yet                                          |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Deployment to AWS (awaiting approval)                  |
-| Isolated Docker runners: no network, resource limits, expected values kept outside | Oracle SQL (deferred), Angular track                   |
-| Skill Mastery: TypeScript and PostgreSQL (40 questions), server-side scoring      | My Progress, Profile pages                             |
+| Isolated Docker runners: no network, resource limits, expected values kept outside | Angular track                                          |
+| Skill Mastery: TypeScript, PostgreSQL and Oracle SQL (70 questions), server-side scoring | My Progress, Profile pages                             |
 | SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | CI/CD, WAF, custom domain (Phase 9)                    |
 | AWS stack in CDK: sign-in (Cognito), API on Lambda, DynamoDB, CloudFront + strict CSP — **written and tested, not deployed** | |
 | Runners on AWS: isolated Lambda container functions (no network, no credentials), attacked in tests — **not deployed** | |
@@ -112,7 +114,7 @@ and linked on first use; the production builder does not load CSS imported from 
 - [docs/api.md](docs/api.md): endpoints, the rules that keep scores honest, limits, storage.
 - [docs/aws.md](docs/aws.md): the AWS architecture, cost estimate, deploying and removing it.
 - [docs/runners.md](docs/runners.md): how submissions are isolated and graded, and the known limits.
-- [docs/sql.md](docs/sql.md): how SQL runs, every security boundary and its known limits, grading.
+- [docs/sql.md](docs/sql.md): how SQL runs (PostgreSQL and Oracle), every security boundary and its known limits, grading.
 - [docs/content.md](docs/content.md): adding challenges and questions, what is public vs
   private, and every check the content build enforces.
 - [docs/scoring.md](docs/scoring.md): the mastery algorithm, with simulated learner journeys.
@@ -126,5 +128,5 @@ and linked on first use; the production builder does not load CSS imported from 
 5. **Server-side challenge evaluation (TypeScript, Java) in local containers** ✅
 6. **AWS foundation (CDK)** ✅ _(code and tests; deployment awaits approval)_
 7. **Isolated runners on AWS** ✅ _(Lambda container functions; code and tests, deployment awaits approval)_
-8. Oracle SQL track _(deferred)_
+8. **Oracle SQL track** ✅ _(Oracle Database Free locally; on AWS, questions without SQL execution only)_
 9. CI/CD and production hardening

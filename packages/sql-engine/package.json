@@ -11,6 +11,10 @@
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.5.17"
+    "@electric-sql/pglite": "0.5.17",
+    "oracledb": "26.0.0"
+  },
+  "devDependencies": {
+    "@types/oracledb": "^26.0.1"
   }
 }

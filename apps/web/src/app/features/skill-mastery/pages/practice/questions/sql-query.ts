@@ -13,7 +13,7 @@ import type {
   RunSqlResponse,
   SqlResultTable as ResultTable,
 } from '@pracstack/api-contracts';
-import type { SqlQueryQuestion } from '@pracstack/content-model';
+import { SQL_DIALECT_LABELS, type SqlQueryQuestion } from '@pracstack/content-model';
 import { CodeEditor } from '../../../../../shared/editor/code-editor';
 import { Alert } from '../../../../../shared/ui/alert/alert';
 import { Icon } from '../../../../../shared/ui/icon/icon';
@@ -37,6 +37,7 @@ export type SqlRunState =
 })
 export class SqlQuery {
   readonly question = input.required<SqlQueryQuestion>();
+  protected readonly dialectLabel = computed(() => SQL_DIALECT_LABELS[this.question().dialect]);
   readonly answer = model<AnswerPayload | null>(null);
   readonly revealed = input<RevealedAnswer>();
   readonly runState = input<SqlRunState>({ status: 'idle' });

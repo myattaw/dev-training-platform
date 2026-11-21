@@ -1,4 +1,6 @@
 import {
+  SQL_DIALECT_LABELS,
+  type SqlDialect,
   type SqlQuestionSource,
   type SqlTable,
   tablesToSql,
@@ -20,19 +22,37 @@ const MAX_REFERENCE_ROWS = 1000;
  */
 export async function checkSqlQuestions(
   tracks: readonly TrackSource[],
-  engine: SqlEngine,
+  engines: Partial<Record<SqlDialect, SqlEngine>>,
 ): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
+  const unchecked = new Map<SqlDialect, number>();
   for (const track of tracks) {
     for (const topic of track.topics) {
       for (const skill of topic.skills) {
         for (const q of skill.questions) {
           if (q.format !== 'sql-query') continue;
           const path = `track:${track.id}/${topic.id}/${skill.id}/${q.id}`;
+          const engine = engines[q.dialect];
+          if (!engine) {
+            unchecked.set(q.dialect, (unchecked.get(q.dialect) ?? 0) + 1);
+            continue;
+          }
           issues.push(...(await checkQuestion(path, q, engine)));
         }
       }
     }
+  }
+  for (const [dialect, count] of unchecked) {
+    const label = SQL_DIALECT_LABELS[dialect];
+    issues.push({
+      severity: 'warning',
+      path: `sql:${dialect}`,
+      message:
+        `${count} ${label} reference queries were NOT run (no ${label} engine). ` +
+        (dialect === 'oracle'
+          ? 'Start Oracle with "npm run oracle:start", or run the content tests, which do.'
+          : ''),
+    });
   }
   return issues;
 }

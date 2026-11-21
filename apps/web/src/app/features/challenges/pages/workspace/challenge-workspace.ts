@@ -142,8 +142,13 @@ export class ChallengeWorkspace {
     return this.progress.loadDraft(challenge.id, lang) ?? setup.starterCode;
   });
 
-  protected readonly outcome = linkedSignal<unknown, RunOutcome | null>({
-    source: () => [this.challenge(), this.language()],
+  /**
+   * Cleared when the challenge or language changes. The key is a string, so
+   * re-evaluating the same challenge and language never clears a result
+   * (an array would be a new value every time).
+   */
+  protected readonly outcome = linkedSignal<string, RunOutcome | null>({
+    source: () => `${this.challenge()?.id ?? ''}:${this.language() ?? ''}`,
     computation: () => null,
   });
 

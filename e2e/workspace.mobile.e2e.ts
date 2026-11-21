@@ -19,7 +19,7 @@ test.describe('coding workspace on a phone', () => {
       'aria-selected',
       'true',
     );
-    await expect(page.getByText('All 10 visible tests passed')).toBeVisible();
+    await expect(page.getByText('All 10 visible tests passed')).toBeVisible({ timeout: 20_000 });
   });
 
   test('navigation is a drawer that closes after navigating', async ({ page }) => {

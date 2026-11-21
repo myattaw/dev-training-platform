@@ -53,7 +53,7 @@ const check = (q: QuestionSource) => {
       },
     ],
   };
-  return checkSqlQuestions([track], engine).then((issues) =>
+  return checkSqlQuestions([track], { postgresql: engine }).then((issues) =>
     issues.map((i) => `${i.severity}: ${i.message}`),
   );
 };

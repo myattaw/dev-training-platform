@@ -19,7 +19,7 @@ import { loadContentSource } from '../content/content-source';
 import { type ApiResponse, MAX_REQUEST_BODY_BYTES } from '../http';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { FileProgressStore } from '../store/file-store';
-import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
+import { ChildProcessSqlEngine, localOracle, OracleSqlEngine } from '@pracstack/sql-engine';
 import { DockerCodeRunner } from '@pracstack/code-runner';
 import { securityHeadersFor } from '@pracstack/web-security';
 
@@ -43,6 +43,17 @@ const { values: args } = parseArgs({
 
 // SQL runs in a separate process with time and memory limits (see docs/sql.md).
 const sqlEngine = new ChildProcessSqlEngine();
+
+// Oracle SQL runs on Oracle Database Free in Docker, if it was started (npm run oracle:start).
+const oracle = await localOracle(join(repoRoot, '.local', 'oracle.json'), false).catch(
+  () => undefined,
+);
+const oracleEngine = oracle ? new OracleSqlEngine({ connection: oracle }) : undefined;
+if (!oracleEngine) {
+  console.warn(
+    'Oracle is not running: Oracle SQL questions that need a database are skipped. Start it with "npm run oracle:start".',
+  );
+}
 const stop = () => {
   void sqlEngine.close().finally(() => process.exit(0));
 };
@@ -61,6 +72,7 @@ void codeRunner.check().then((status) => {
 
 const api = createApi({
   sqlEngine,
+  ...(oracleEngine ? { sqlEngines: { oracle: oracleEngine } } : {}),
   codeRunner,
   auth: new LocalDevAuthenticator(),
   allowLocalDevUser: true,

@@ -52,3 +52,44 @@ export function precheckQuery(sql: string, maxLength: number): string | undefine
 export function cursorBody(sql: string): string {
   return sql.trim().replace(/;\s*$/, '');
 }
+
+/**
+ * Splits a script into statements at semicolons that are outside quotes and
+ * comments. For our own authored setup scripts (schema and data), not for
+ * learner SQL, which is always a single query.
+ */
+export function splitStatements(sql: string): string[] {
+  const statements: string[] = [];
+  let current = '';
+  let i = 0;
+  while (i < sql.length) {
+    const ch = sql[i] ?? '';
+    const next = sql[i + 1];
+    if (ch === "'" || ch === '"') {
+      // Quoted text; a doubled quote is an escaped quote.
+      let j = i + 1;
+      while (j < sql.length) {
+        if (sql[j] === ch && sql[j + 1] === ch) j += 2;
+        else if (sql[j] === ch) break;
+        else j++;
+      }
+      current += sql.slice(i, j + 1);
+      i = j + 1;
+    } else if (ch === '-' && next === '-') {
+      const end = sql.indexOf('\n', i);
+      i = end === -1 ? sql.length : end;
+    } else if (ch === '/' && next === '*') {
+      const end = sql.indexOf('*/', i + 2);
+      i = end === -1 ? sql.length : end + 2;
+    } else if (ch === ';') {
+      if (current.trim()) statements.push(current.trim());
+      current = '';
+      i++;
+    } else {
+      current += ch;
+      i++;
+    }
+  }
+  if (current.trim()) statements.push(current.trim());
+  return statements;
+}

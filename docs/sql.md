@@ -1,4 +1,7 @@
-# SQL practice (PostgreSQL)
+# SQL practice (PostgreSQL and Oracle)
+
+Two dialects, each on its real engine: PostgreSQL (below) and Oracle (see "Oracle" further down).
+Grading is the same for both: results are compared on the sample and the hidden datasets.
 
 Learners write real SQL against a real PostgreSQL engine:
 [PGlite](https://github.com/electric-sql/pglite), PostgreSQL compiled to WebAssembly (pinned to
@@ -71,7 +74,8 @@ used as a general-purpose database.
 
 ## Authoring
 
-See `content/src/skill-mastery/postgresql/`. A practice database has a schema (SQL DDL), sample
+See `content/src/skill-mastery/postgresql/` and `oracle/`; each question has a `dialect`
+(`postgresql` or `oracle`) and is checked and graded by that dialect's engine. A practice database has a schema (SQL DDL), sample
 data and at least one hidden dataset, written as structured tables (converted to quoted
 `INSERT`s by `tablesToSql`). Questions reference the database and give a reference query:
 
@@ -96,3 +100,54 @@ The content build runs every reference query on every dataset through the same e
 
 For ordered questions, make sure the sort key has no ties in any dataset, or a correct query
 could legitimately return tied rows in another order.
+
+## Oracle
+
+The Oracle SQL track runs on **Oracle Database Free** (23ai/26ai Free, the free edition, in the
+`gvenzl/oracle-free` slim image pinned by digest) in a local Docker container. Oracle cannot
+run inside AWS Lambda, so **on AWS the Oracle track serves only its questions that need no
+database** (half of each skill) until a cloud Oracle host is chosen.
+
+```bash
+npm run oracle:start    # once per boot: starts or reuses "pracstack-oracle" on 127.0.0.1:1521 (≈ 1.3 GB download once)
+npm start               # the local API uses it automatically when it is running
+npm run oracle:stop     # or oracle:remove to delete it and its settings
+```
+
+Without it, Oracle SQL-writing questions are skipped (the API never serves a question it
+cannot grade), and the content build warns that the Oracle reference queries were not run.
+
+### Security boundaries (`packages/sql-engine/src/oracle-engine.ts`)
+
+Unlike PGlite there is one long-lived database, so isolation comes from Oracle's own access
+control, set up by the engine:
+
+| Boundary | How |
+| --- | --- |
+| **Datasets are separate schemas** | Each dataset (sample and each hidden one) is a schema owned by a user that cannot log in |
+| **Learner SQL runs as a per-dataset user** | It can log in and *read* that one dataset's tables (the `READ` privilege: no writes, not even `SELECT … FOR UPDATE` locks) and nothing else. Hidden datasets are other schemas, so "Run query" cannot read them; the tests try every schema name |
+| **Fresh session per run** | Inline PL/SQL (`WITH FUNCTION`) could change session state; every run opens a new connection, so nothing carries over. Inline PL/SQL is also refused before running |
+| **Limits** | A client-side call timeout (3 s; the call is cancelled), CPU and logical reads per call (profile), a 64 MB temporary tablespace, rows fetched, 2 runs at a time |
+| **No network or files** | `UTL_HTTP`, `UTL_TCP`, `UTL_SMTP`, `UTL_INADDR`, `UTL_FILE`, `DBMS_LDAP` and `HTTPURITYPE` are revoked from `PUBLIC`; Oracle's default network ACLs already block them |
+| **Admin credentials** | The SYS/SYSTEM password is random, kept in `.local/oracle.json` (git-ignored), used only to create datasets, and never reaches learner sessions |
+| **Local only** | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB |
+
+Values are normalised like the PostgreSQL engine's: numbers stay exact (long ones as text),
+`DATE` values print as `YYYY-MM-DD` (with the time when there is one) independent of this
+machine's time zone, and Oracle's rule that `''` is NULL applies.
+
+**Known limits.** Learners share one database (separated by users, privileges and limits, not
+by a fresh database per run as with PGlite); a query can list other datasets' *schema names*
+(not their contents) in `ALL_USERS`; CPU limits are per call, so a slow query is stopped by the
+3 s timeout.
+
+### Tests
+
+- `packages/sql-engine/src/oracle-engine.spec.ts`: values, Oracle syntax, errors, isolation
+  between datasets (hidden data), writes, network packages, runaway queries.
+- `content/src/checks/oracle-questions.spec.ts`: every Oracle reference query on every dataset.
+- `services/api/src/practice/oracle-grading.spec.ts`: hard-coded and NULL-mistake answers fail
+  on hidden data without revealing it; behaviour without an Oracle engine.
+- `e2e/oracle.e2e.ts`: practising in the browser against the local Oracle.
+
+All start Oracle in Docker (about 20 s); `PRACSTACK_SKIP_DOCKER_TESTS=1` skips them.

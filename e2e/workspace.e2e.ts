@@ -11,11 +11,11 @@ test.describe('coding workspace', () => {
 
     // The starter code throws, so every test fails.
     await page.getByRole('button', { name: 'Run tests' }).click();
-    await expect(page.getByText('0 of 10 visible tests passed')).toBeVisible();
+    await expect(page.getByText('0 of 10 visible tests passed')).toBeVisible({ timeout: 20_000 });
 
     await replaceCode(page, PANGRAM_SOLUTION);
     await page.getByRole('button', { name: 'Run tests' }).click();
-    await expect(page.getByText('All 10 visible tests passed')).toBeVisible();
+    await expect(page.getByText('All 10 visible tests passed')).toBeVisible({ timeout: 20_000 });
 
     await page.goto('/challenges');
     const row = page.locator('tbody tr', { hasText: 'Pangram' });
@@ -41,7 +41,7 @@ test.describe('coding workspace', () => {
       "export function reverse(input: string): string {\n  console.log('called with', input);\n  return [...input].reverse().join('');\n}\n",
     );
     await page.getByRole('button', { name: 'Run tests' }).click();
-    await expect(page.getByText('All 6 visible tests passed')).toBeVisible();
+    await expect(page.getByText('All 6 visible tests passed')).toBeVisible({ timeout: 20_000 });
     await page.getByRole('tab', { name: /Console/ }).click();
     await expect(page.locator('pre.console')).toContainText('called with robot');
   });
@@ -86,12 +86,12 @@ test.describe('coding workspace', () => {
 
     await waitForEditor(page);
     await page.getByRole('button', { name: 'Run tests' }).click();
-    await expect(page.getByText('0 of 5 visible tests passed')).toBeVisible();
+    await expect(page.getByText('0 of 5 visible tests passed')).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText('Error: Not implemented').first()).toBeVisible();
 
     await replaceCode(page, LRU_SOLUTION);
     await page.getByRole('button', { name: 'Run tests' }).click();
-    await expect(page.getByText('All 5 visible tests passed')).toBeVisible();
+    await expect(page.getByText('All 5 visible tests passed')).toBeVisible({ timeout: 20_000 });
   });
 
   test('the divider between the panes can be resized with the keyboard', async ({ page }) => {

@@ -76,9 +76,17 @@ export interface FillInBlankQuestion extends QuestionBase {
   readonly template: CodeSnippet;
 }
 
+/** SQL dialects with a practice engine. */
+export type SqlDialect = 'postgresql' | 'oracle';
+export const SQL_DIALECTS: readonly SqlDialect[] = ['postgresql', 'oracle'];
+export const SQL_DIALECT_LABELS: Readonly<Record<SqlDialect, string>> = {
+  postgresql: 'PostgreSQL',
+  oracle: 'Oracle',
+};
+
 export interface SqlQueryQuestion extends QuestionBase {
   readonly format: 'sql-query';
-  readonly dialect: 'postgresql';
+  readonly dialect: SqlDialect;
   /** CREATE TABLE statements of the practice database. */
   readonly schema: string;
   /** Sample data the learner can see and query. */

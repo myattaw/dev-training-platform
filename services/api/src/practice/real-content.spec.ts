@@ -1,7 +1,12 @@
 import type { AnswerPayload } from '@pracstack/api-contracts';
 import { buildContent } from '@pracstack/content';
 import type { QuestionAnswer, SplitQuestion } from '@pracstack/content-model';
-import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
+import {
+  ChildProcessSqlEngine,
+  type OracleContainer,
+  OracleSqlEngine,
+  oracleForTests,
+} from '@pracstack/sql-engine';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { gradeAnswer } from './grading';
 import { SqlGrader } from './sql-grading';
@@ -26,28 +31,45 @@ function answerFromKey(key: QuestionAnswer): AnswerPayload {
 }
 
 const engine = new ChildProcessSqlEngine();
-const sql = new SqlGrader(engine);
+const graders: Partial<Record<'postgresql' | 'oracle', SqlGrader>> = {
+  postgresql: new SqlGrader(engine),
+};
 let questions: SplitQuestion[] = [];
+let oracle: OracleContainer | undefined;
+const skipDocker = process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1';
 
 beforeAll(async () => {
-  const build = await buildContent({ sqlEngine: engine });
+  // Oracle questions need a real Oracle (Docker); see docs/sql.md.
+  if (!skipDocker) {
+    oracle = await oracleForTests();
+    graders.oracle = new SqlGrader(new OracleSqlEngine({ connection: oracle }));
+  }
+  const build = await buildContent({
+    sqlEngine: engine,
+    ...(graders.oracle && oracle
+      ? { sqlEngines: { oracle: new OracleSqlEngine({ connection: oracle }) } }
+      : {}),
+  });
   questions = [...build.privateFiles]
     .filter(([path]) => path.endsWith('.questions.json'))
     .flatMap(([, value]) => value as SplitQuestion[]);
-}, 120_000);
-afterAll(() => engine.close());
+}, 400_000);
+afterAll(async () => {
+  await engine.close();
+});
 
 describe('grading the real question bank', { timeout: 120_000 }, () => {
   it('every question is graded correct when answered with its own key', async () => {
-    expect(questions.length).toBeGreaterThanOrEqual(40);
+    expect(questions.length).toBeGreaterThanOrEqual(70);
     const failures: string[] = [];
     for (const q of questions) {
+      if (q.question.format === 'sql-query' && !graders[q.question.dialect]) continue;
       const answer = answerFromKey(q.grading.answer);
       const grade =
         q.question.format === 'sql-query' &&
         q.grading.answer.format === 'sql-query' &&
         answer.format === 'sql-query'
-          ? await sql.grade(q.question, q.grading.answer, answer.query)
+          ? await graders[q.question.dialect]!.grade(q.question, q.grading.answer, answer.query)
           : gradeAnswer(q.question, q.grading.answer, answer);
       if (grade.result !== 'correct')
         failures.push(`${q.question.id}: ${grade.result} ${grade.note ?? ''}`);

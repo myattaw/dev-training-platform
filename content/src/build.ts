@@ -13,6 +13,7 @@ import {
   validateChallenges,
   validateTracks,
   type ValidationIssue,
+  type SqlDialect,
 } from '@pracstack/content-model';
 import { CHALLENGES, type ChallengeEntry } from './challenges';
 import { checkReferenceSolutions } from './checks/reference-solutions';
@@ -36,8 +37,10 @@ export interface ContentBuild {
 export interface BuildOptions {
   readonly challenges?: readonly ChallengeEntry[];
   readonly tracks?: readonly TrackSource[];
-  /** Engine for SQL checks. When omitted, one is started and stopped for this build. */
+  /** PostgreSQL engine for SQL checks. When omitted, one is started and stopped for this build. */
   readonly sqlEngine?: SqlEngine;
+  /** Engines for other dialects (Oracle needs a running database; see oracle-container). */
+  readonly sqlEngines?: Partial<Record<SqlDialect, SqlEngine>>;
 }
 
 /** Validates all content (including running code and SQL) and produces the output files. */
@@ -48,7 +51,7 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
   const engine = options.sqlEngine ?? new ChildProcessSqlEngine();
   let sqlIssues: ValidationIssue[];
   try {
-    sqlIssues = await checkSqlQuestions(tracks, engine);
+    sqlIssues = await checkSqlQuestions(tracks, { ...options.sqlEngines, postgresql: engine });
   } finally {
     if (!options.sqlEngine) await engine.close();
   }

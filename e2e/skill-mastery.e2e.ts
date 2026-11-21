@@ -56,7 +56,10 @@ test.describe('Skill Mastery', () => {
       '20',
     );
     await expect(page.locator('tbody tr')).toHaveCount(2);
-    await expect(page.getByRole('banner')).toContainText('30 XP');
+    // Total XP of the shared local user: other tests running in parallel may add to it.
+    await expect(page.getByRole('banner')).toContainText(/\d+ XP/);
+    const xp = Number(/(\d+) XP/.exec((await page.getByRole('banner').textContent()) ?? '')?.[1]);
+    expect(xp).toBeGreaterThanOrEqual(30);
     await expect(page.getByRole('banner')).toContainText('Local mode');
 
     // The technology page and dashboard reflect the new score.

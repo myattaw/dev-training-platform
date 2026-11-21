@@ -9,11 +9,19 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { localOracle, OracleSqlEngine } from '@pracstack/sql-engine';
 import { buildContent, type FileSet } from '../src';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+const here = dirname(fileURLToPath(import.meta.url));
+const root = resolve(here, '..', 'dist');
 
-const build = await buildContent();
+// Oracle reference queries are checked when the local Oracle is running (npm run oracle:start).
+const oracle = await localOracle(resolve(here, '..', '..', '.local', 'oracle.json'), false).catch(
+  () => undefined,
+);
+const build = await buildContent({
+  ...(oracle ? { sqlEngines: { oracle: new OracleSqlEngine({ connection: oracle }) } } : {}),
+});
 const errors = build.issues.filter((i) => i.severity === 'error');
 const warnings = build.issues.filter((i) => i.severity === 'warning');
 

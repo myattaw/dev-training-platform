@@ -60,6 +60,11 @@ aws iam detach-role-policy --role-name <ApiFunctionRole name> --policy-arn <Stop
 Budget data lags actual usage by several hours, so the switch limits a runaway; it does not
 prevent all spend.
 
+**Oracle SQL on AWS.** Oracle cannot run in Lambda, and no cloud Oracle host has been chosen
+(options: Oracle Cloud's Always Free Autonomous Database, or Amazon RDS for Oracle at about
+$60–80/month). Until then the Oracle track serves only its questions that need no database; the
+API never serves a question it cannot grade.
+
 **Before real use: raise the Lambda concurrency quota.** This account can run 10 Lambda
 functions at once, shared by the API and the runners, so a few busy runners can make the API
 fail. Requesting a higher quota (Service Quotas → AWS Lambda → Concurrent executions) is free.

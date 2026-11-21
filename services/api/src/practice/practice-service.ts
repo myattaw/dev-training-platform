@@ -1,3 +1,4 @@
+import { SQL_DIALECT_LABELS, SQL_DIALECTS, type SqlDialect } from '@pracstack/content-model';
 import type {
   AnswerRequest,
   AnswerResponse,
@@ -45,7 +46,10 @@ export interface PracticeDeps {
   readonly newId: () => string;
   readonly scoring?: ScoringConfig;
   /** Runs SQL questions. Without it, SQL questions cannot be answered. */
+  /** PostgreSQL engine (shorthand for `sqlEngines.postgresql`). */
   readonly sqlEngine?: SqlEngine;
+  /** Engines per SQL dialect. SQL questions of a dialect without one are not served. */
+  readonly sqlEngines?: Partial<Record<SqlDialect, SqlEngine>>;
 }
 
 /**
@@ -59,11 +63,15 @@ export interface PracticeDeps {
  */
 export class PracticeService {
   private readonly scoring: ScoringConfig;
-  private readonly sql: SqlGrader | undefined;
+  private readonly sql: Partial<Record<SqlDialect, SqlGrader>> = {};
 
   constructor(private readonly deps: PracticeDeps) {
     this.scoring = deps.scoring ?? DEFAULT_SCORING_CONFIG;
-    this.sql = deps.sqlEngine ? new SqlGrader(deps.sqlEngine) : undefined;
+    const engines = { postgresql: deps.sqlEngine, ...deps.sqlEngines };
+    for (const dialect of SQL_DIALECTS) {
+      const engine = engines[dialect];
+      if (engine) this.sql[dialect] = new SqlGrader(engine);
+    }
   }
 
   async progress(user: UserInfo, technologyId: string): Promise<ProgressResponse> {
@@ -105,7 +113,7 @@ export class PracticeService {
     // Without a SQL engine (e.g. a deployment without the SQL runner), SQL questions can't be graded.
     const available = this.deps.content
       .questions(skillId)
-      .filter((q) => this.sql || q.question.format !== 'sql-query');
+      .filter((q) => q.question.format !== 'sql-query' || this.sql[q.question.dialect]);
     if (available.length === 0)
       throw new ApiError('unavailable', 'SQL practice is not available here yet.');
     const chosen = selectQuestion(
@@ -231,7 +239,7 @@ export class PracticeService {
     const served = this.servedQuestion(token);
     if (served.question.format !== 'sql-query')
       throw badRequest('This question is not a SQL question.');
-    return this.sqlGrader().preview(served.question, request.query);
+    return this.sqlGrader(served.question.dialect).preview(served.question, request.query);
   }
 
   async history(user: UserInfo, skillId: string): Promise<HistoryResponse> {
@@ -253,14 +261,20 @@ export class PracticeService {
     if (question.format === 'sql-query' && grading.answer.format === 'sql-query') {
       if (answer.format !== 'sql-query')
         throw badRequest('This question expects a sql-query answer.');
-      return this.sqlGrader().grade(question, grading.answer, answer.query);
+      return this.sqlGrader(question.dialect).grade(question, grading.answer, answer.query);
     }
     return gradeAnswer(question, grading.answer, answer);
   }
 
-  private sqlGrader(): SqlGrader {
-    if (!this.sql) throw new ApiError('unavailable', 'SQL practice is not available here yet.');
-    return this.sql;
+  private sqlGrader(dialect: SqlDialect): SqlGrader {
+    const grader = this.sql[dialect];
+    if (!grader) {
+      throw new ApiError(
+        'unavailable',
+        `${SQL_DIALECT_LABELS[dialect]} SQL practice is not available here yet.`,
+      );
+    }
+    return grader;
   }
 
   /** A token that exists, belongs to this user and has not expired. */
