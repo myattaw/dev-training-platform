@@ -21,6 +21,11 @@ export const routes: Routes = [
     loadChildren: () =>
       import('./features/challenges/challenges.routes').then((m) => m.CHALLENGE_ROUTES),
   },
+  {
+    path: 'auth/callback',
+    title: 'Signing in',
+    loadComponent: () => import('./core/auth/auth-callback').then((m) => m.AuthCallback),
+  },
   // Links from before the Coding Challenges rename keep working.
   { path: 'exercises', pathMatch: 'full', redirectTo: 'challenges' },
   { path: 'exercises/:id', redirectTo: 'challenges/:id/workspace' },

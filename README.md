@@ -37,7 +37,7 @@ npm workspaces, with the Angular workspace (`angular.json`) at the root.
 
 ```
 apps/web/                    Angular 21 app (standalone, signals, zoneless, lazy routes)
-  src/app/core/              Shell layout, content repository, title strategy, storage helpers
+  src/app/core/              Shell layout, sign-in (Cognito, PKCE), runtime config, API client, content
   src/app/shared/            Design-system UI, async state, Monaco editor, formatting
   src/app/features/          dashboard/, challenges/ (catalog, detail, workspace, local runner),
                              skill-mastery/ (technologies, skills, practice, results)
@@ -49,28 +49,30 @@ packages/
   scoring/                   Skill Mastery engine: pure, configurable, deterministic
   sql-engine/                Isolated PostgreSQL (PGlite) runner: separate process, limits, result comparison
   code-runner/               Docker runner for TypeScript and Java submissions (images, harnesses, supervisor)
+  web-security/              Security headers (CSP etc.) shared by CloudFront and the local server
 services/
-  api/                       API logic (Lambda-ready), local server, grading, file/in-memory stores
+  api/                       API logic, Lambda adapter + bundle, local server, grading, stores (memory, file, DynamoDB)
+infra/                       AWS CDK app: one stack (CloudFront, S3, Cognito, API Gateway, Lambda, DynamoDB, Budgets)
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
-docs/                        api.md, content.md, runners.md, scoring.md, sql.md
+docs/                        api.md, aws.md, content.md, runners.md, scoring.md, sql.md
 ```
 
 Dependencies point one way: `web → (api-contracts, challenge-runtime, content-model)`,
-`api → (api-contracts, challenge-runtime, code-runner, content-model, scoring, sql-engine)`,
+`api → (api-contracts, challenge-runtime, code-runner, content-model, scoring, sql-engine, web-security)`, `infra → web-security`,
 `content → (content-model, challenge-runtime, sql-engine)`;
 `scoring` stands alone. The `content` package is Node-only (it compiles and
 runs code); the browser only ever loads its generated **public** JSON.
 
-## Current status (end of Phase 5)
+## Current status (end of Phase 6)
 
-| Works today                                                                       | Not built yet                                       |
-| --------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Accounts and sign-in (Phase 6); one local user now  |
-| Isolated Docker runners: no network, resource limits, expected values kept outside | Anything on AWS (Phase 6+)                          |
-| Skill Mastery: TypeScript and PostgreSQL (40 questions), server-side scoring      | Oracle SQL (deferred), Angular track                |
-| SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | My Progress, Profile pages                          |
-| Submission history and "Solved" status; local drafts per language                 |                                                     |
+| Works today                                                                       | Not built yet                                          |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Code and SQL runners **on AWS** (Phase 7)              |
+| Isolated Docker runners: no network, resource limits, expected values kept outside | Oracle SQL (deferred), Angular track                   |
+| Skill Mastery: TypeScript and PostgreSQL (40 questions), server-side scoring      | My Progress, Profile pages                             |
+| SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | CI/CD, WAF, custom domain (Phase 9)                    |
+| AWS stack in CDK: sign-in (Cognito), API on Lambda, DynamoDB, CloudFront + strict CSP — **written and tested, not deployed** | |
 
 **Security notes:** submitted code runs only in locked-down containers, and expected values never
 enter them (see [docs/runners.md](docs/runners.md), including its known limits). Learner SQL runs in a separate process with database-level restrictions,
@@ -106,6 +108,7 @@ and linked on first use; the production builder does not load CSS imported from 
 ## More documentation
 
 - [docs/api.md](docs/api.md): endpoints, the rules that keep scores honest, limits, storage.
+- [docs/aws.md](docs/aws.md): the AWS architecture, cost estimate, deploying and removing it.
 - [docs/runners.md](docs/runners.md): how submissions are isolated and graded, and the known limits.
 - [docs/sql.md](docs/sql.md): how SQL runs, every security boundary and its known limits, grading.
 - [docs/content.md](docs/content.md): adding challenges and questions, what is public vs
@@ -119,7 +122,7 @@ and linked on first use; the production builder does not load CSS imported from 
 3. **Skill Mastery vertical slice** ✅
 4. **PostgreSQL practice (PGlite)** ✅
 5. **Server-side challenge evaluation (TypeScript, Java) in local containers** ✅
-6. AWS foundation (CDK) _(requires cost estimate and approval)_
+6. **AWS foundation (CDK)** ✅ _(code and tests; deployment awaits approval)_
 7. Isolated runners on AWS _(approval)_
 8. Oracle SQL track _(deferred)_
 9. CI/CD and production hardening

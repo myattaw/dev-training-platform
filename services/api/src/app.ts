@@ -54,8 +54,8 @@ export function createApi(deps: ApiDeps): ApiHandler {
     newId: deps.newId,
     ...(deps.codeRunner ? { runner: deps.codeRunner } : {}),
   });
-  const limit = (limiter: RateLimiter, key: string): void => {
-    const wait = limiter.hit(key, deps.now().getTime());
+  const limit = async (limiter: RateLimiter, key: string): Promise<void> => {
+    const wait = await limiter.hit(key, deps.now().getTime());
     if (wait > 0) {
       const seconds = Math.ceil(wait / 1000);
       throw new ApiError('rate-limited', `Too many requests. Try again in ${seconds} s.`, {
@@ -68,7 +68,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
   return async (request) => {
     try {
       const user = await deps.auth.authenticate(request);
-      limit(deps.rateLimiter, user.id);
+      await limit(deps.rateLimiter, user.id);
 
       const { method, path } = request;
       const ok = (body: unknown): ApiResponse => ({ status: 200, body });
@@ -89,11 +89,11 @@ export function createApi(deps: ApiDeps): ApiHandler {
         return ok(await practice.hint(user, parseHintRequest(request.body).token));
       }
       if (method === 'POST' && path === '/api/skill-mastery/practice/answer') {
-        limit(sqlRateLimiter, user.id);
+        await limit(sqlRateLimiter, user.id);
         return ok(await practice.answer(user, parseAnswerRequest(request.body)));
       }
       if (method === 'POST' && path === '/api/skill-mastery/practice/run-sql') {
-        limit(sqlRateLimiter, user.id);
+        await limit(sqlRateLimiter, user.id);
         return ok(await practice.runSql(user, parseRunSqlRequest(request.body)));
       }
       const history = /^\/api\/skill-mastery\/skills\/([^/]+)\/history$/.exec(path);
@@ -113,7 +113,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
           return ok(await challenges.history(user, id));
         if (method === 'POST') {
           const codeRequest = parseChallengeCodeRequest(request.body);
-          limit(codeRateLimiter, user.id);
+          await limit(codeRateLimiter, user.id);
           return ok(
             action === 'run'
               ? await challenges.run(user, id, codeRequest)

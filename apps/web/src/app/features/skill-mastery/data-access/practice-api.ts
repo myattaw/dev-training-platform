@@ -9,6 +9,7 @@ import type {
   RunSqlResponse,
 } from '@pracstack/api-contracts';
 import { ApiClient } from '../../../core/api/api-client';
+import { AuthService } from '../../../core/auth/auth.service';
 import { SessionService } from '../../../core/session/session.service';
 
 /**
@@ -19,15 +20,23 @@ import { SessionService } from '../../../core/session/session.service';
 export class PracticeApi {
   private readonly api = inject(ApiClient);
   private readonly session = inject(SessionService);
+  private readonly auth = inject(AuthService);
 
   /** Bumped after every answer, so progress views can refresh. */
   readonly progressVersion = signal(0);
 
+  /** Signed out: no progress yet (the catalog still shows). */
   progress(technologyId: string): Promise<ProgressResponse> {
+    if (!this.auth.canUseApi()) return Promise.resolve({ technologyId, skills: [] });
     return this.api.get('/skill-mastery/progress', { technologyId });
   }
 
   history(skillId: string): Promise<HistoryResponse> {
+    if (!this.auth.canUseApi())
+      return Promise.resolve({
+        skill: { skillId, score: 0, mastered: false, attempts: 0 },
+        attempts: [],
+      });
     return this.api.get(`/skill-mastery/skills/${encodeURIComponent(skillId)}/history`);
   }
 

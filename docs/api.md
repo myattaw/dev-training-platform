@@ -4,8 +4,10 @@
 Two thin adapters run it:
 
 - **Local server** (`src/local/server.ts`, Phase 3): Node `http`, bound to `127.0.0.1`.
-- **AWS Lambda** behind API Gateway (Phase 6): not built yet; it will adapt API Gateway
-  events to the same `ApiRequest`/`ApiResponse` types.
+- **AWS Lambda** behind API Gateway (`src/lambda/`, Phase 6): adapts HTTP API (payload v2)
+  events to the same `ApiRequest`/`ApiResponse` types. Bundled into one file by
+  `npm run build:lambda -w @pracstack/api`; the build fails if the SQL engine or the code runner
+  would be included. Deployment: [aws.md](aws.md).
 
 Request and response types are shared with the browser in `packages/api-contracts`. The
 server never trusts them: every body is validated at runtime (`src/validation.ts`).
@@ -64,17 +66,20 @@ multiple-selection question. SQL answers are graded by running them; see [sql.md
 
 | Limit                      | Value                         | Where                  |
 | -------------------------- | ----------------------------- | ---------------------- |
-| Requests per user          | 120 per minute (sliding window) | `SlidingWindowRateLimiter` |
+| Requests per user          | 120 per minute                | `rateLimiter`          |
 | SQL runs and answers       | 30 per minute per user        | `sqlRateLimiter`       |
 | SQL query text             | 5,000 characters              | `ANSWER_LIMITS`        |
 | Code runs and submissions  | 10 per minute per user        | `codeRateLimiter`      |
 | Submitted code             | 64 KB                         | `CODE_LIMITS`          |
-| Request body               | 16 KB (413 above)             | local server           |
+| Request body               | 400 KB (413 above)            | `MAX_REQUEST_BODY_BYTES` |
 | Predict-output answer      | 2,000 characters              | `ANSWER_LIMITS`        |
 | Fill-in-blank answer       | 200 characters per blank      | `ANSWER_LIMITS`        |
 | Ids                        | kebab-case, ≤ 100 characters  | validation             |
 
-On AWS, API Gateway throttling replaces the in-memory limiter (Phase 7).
+Locally the limits are counted in memory (`SlidingWindowRateLimiter`, sliding window). On AWS
+every Lambda instance has its own memory, so they are counted in DynamoDB (`DynamoRateLimiter`:
+one atomic counter per user and minute, removed by TTL), and API Gateway additionally throttles
+the whole API (10 requests/s, bursts of 20) as a cost ceiling.
 
 ## Storage
 
@@ -85,18 +90,34 @@ by user, and recording an answer is a single transaction. Implementations:
 - `FileProgressStore`: local development. JSON in `.local/progress.json` (git-ignored),
   written atomically (temp file + rename). Single process only. Delete the file to reset your
   local progress.
-- DynamoDB: Phase 6.
+- `DynamoProgressStore`: AWS. One table (`pk`/`sk`, TTL `ttl`); every user's records in their
+  own partition; answers and submissions are DynamoDB transactions with condition checks, so a
+  token is never scored twice and stale mastery is rejected. Layout documented at the top of
+  `src/store/dynamo-store.ts`.
+
+All stores pass the same behavioural contract (`src/store/progress-store.spec.ts`); the
+DynamoDB one runs against DynamoDB Local in Docker.
 
 ## Authentication
 
-`Authenticator` resolves the caller. Phase 3 has only `LocalDevAuthenticator`: **every request
-is the same "Local developer" user, with no authentication.** Because of that:
+`Authenticator` resolves the caller.
+
+**On AWS: `VerifiedJwtAuthenticator`.** Learners sign in with Amazon Cognito (managed login,
+authorization code + PKCE) and the web app sends the ID token as `Authorization: Bearer …`.
+API Gateway's JWT authorizer verifies its signature, expiry, issuer and audience before the
+function runs; the authenticator reads those verified claims (only from API Gateway's request
+context, never from client input), re-checks issuer, audience, `token_use` and expiry, and
+uses `sub` as the user ID. Anything missing or wrong is a 401.
+
+**Locally: `LocalDevAuthenticator`.** **Every request is the same "Local developer" user, with
+no authentication.** Because of that:
 
 - `createApi` refuses it unless `allowLocalDevUser: true` is passed explicitly;
 - the local server listens on `127.0.0.1` only, never on a network interface;
 - the web app labels the session "Local mode".
 
-Cognito JWT authentication replaces it in Phase 6, without changes to the API logic.
+The web app reads its sign-in mode from `/config.json` (`apps/web/public/config.json` locally,
+written by the CDK stack on AWS).
 
 ## Running locally
 

@@ -30,6 +30,7 @@ import {
 } from '@pracstack/content-model';
 import { errorMessage } from '../../../../shared/async/async-state';
 import { ChallengeSubmissions } from '../../data-access/challenge-submissions';
+import { AuthService } from '../../../../core/auth/auth.service';
 import { SubmissionPanel } from './submission-panel/submission-panel';
 import { asyncResource } from '../../../../shared/async/async-state';
 import { Alert } from '../../../../shared/ui/alert/alert';
@@ -73,6 +74,7 @@ export class ChallengeWorkspace {
   private readonly progress = inject(ChallengeProgressService);
   private readonly runner = inject(LocalRunnerService);
   private readonly submissions = inject(ChallengeSubmissions);
+  protected readonly auth = inject(AuthService);
   private readonly editor = viewChild(CodeEditor);
 
   protected readonly isNarrow = mediaQuery('(max-width: 899px)');
@@ -231,6 +233,7 @@ export class ChallengeWorkspace {
           : { status: 'compile-error', diagnostics: compiled.diagnostics };
       } else {
         // Languages the browser cannot run are run on the server (visible tests only).
+        if (!this.auth.ensureSignedIn()) return;
         try {
           outcome = await this.submissions.run(challenge.id, { language: lang, code: this.code() });
         } catch (err) {
@@ -253,6 +256,8 @@ export class ChallengeWorkspace {
     const challenge = this.challenge();
     const lang = this.language();
     if (!challenge || !lang || this.submitting() || this.running()) return;
+    // Submissions are recorded per user. The draft is saved locally, so nothing is lost.
+    if (!this.auth.ensureSignedIn()) return;
     this.submitting.set(true);
     this.submitError.set(null);
     this.resultsTab.set('submissions');

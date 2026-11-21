@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import type { ActivatedRouteSnapshot, ResolveFn, Routes } from '@angular/router';
 import { SkillCatalog } from './data-access/skill-catalog';
+import { requireSignIn } from '../../core/auth/require-sign-in.guard';
 
 /** Titles never reject: a failed lookup must not block navigation (pages show the error). */
 const technologyTitle: ResolveFn<string> = (route) =>
@@ -41,6 +42,8 @@ export const SKILL_MASTERY_ROUTES: Routes = [
   },
   {
     path: ':technologyId/:skillId/practice',
+    // Practice records progress, so it needs a signed-in user.
+    canActivate: [requireSignIn],
     title: (route) => skillName(route).then((name) => `Practice: ${name}`),
     loadComponent: () => import('./pages/practice/practice-page').then((m) => m.PracticePage),
   },

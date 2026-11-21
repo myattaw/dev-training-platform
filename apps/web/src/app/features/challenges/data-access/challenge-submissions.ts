@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
 import type {
   ChallengeCodeRequest,
   ChallengeProgress,
@@ -8,6 +8,7 @@ import type {
   SubmissionResponse,
 } from '@pracstack/api-contracts';
 import { ApiClient } from '../../../core/api/api-client';
+import { AuthService } from '../../../core/auth/auth.service';
 import type { RunOutcome } from '../runner/runner.models';
 
 /**
@@ -17,16 +18,21 @@ import type { RunOutcome } from '../runner/runner.models';
 @Injectable({ providedIn: 'root' })
 export class ChallengeSubmissions {
   private readonly api = inject(ApiClient);
+  private readonly auth = inject(AuthService);
   private readonly progressState = signal<ReadonlyMap<string, ChallengeProgress>>(new Map());
 
   /** Server progress per challenge id (empty when the API is unavailable). */
   readonly progress = this.progressState.asReadonly();
 
   constructor() {
-    this.refreshProgress();
+    effect(() => {
+      if (this.auth.canUseApi()) this.refreshProgress();
+      else this.progressState.set(new Map());
+    });
   }
 
   refreshProgress(): void {
+    if (!this.auth.canUseApi()) return;
     this.api.get<ChallengeProgressResponse>('/challenges/progress').then(
       (res) => this.progressState.set(new Map(res.challenges.map((c) => [c.challengeId, c]))),
       () => undefined,
@@ -52,6 +58,7 @@ export class ChallengeSubmissions {
   }
 
   history(challengeId: string): Promise<SubmissionListResponse> {
+    if (!this.auth.canUseApi()) return Promise.resolve({ submissions: [] });
     return this.api.get(`/challenges/${encodeURIComponent(challengeId)}/submissions`);
   }
 }

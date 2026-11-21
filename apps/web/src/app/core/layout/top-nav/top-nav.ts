@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Icon } from '../../../shared/ui/icon/icon';
+import { AuthService } from '../../auth/auth.service';
 import { SessionService } from '../../session/session.service';
 import { LayoutService } from '../layout.service';
 
@@ -33,7 +34,11 @@ import { LayoutService } from '../layout.service';
         <span>PracStack</span>
       </a>
 
-      @if (session.me(); as me) {
+      @if (auth.status() === 'signed-out') {
+        <p class="user">
+          <button type="button" class="btn btn--sm btn--primary" (click)="signIn()">Sign in</button>
+        </p>
+      } @else if (session.me(); as me) {
         <p class="user">
           @if (me.user.mode === 'local-dev') {
             <span
@@ -44,6 +49,9 @@ import { LayoutService } from '../layout.service';
           }
           <span class="name">{{ me.user.displayName }}</span>
           <span class="xp text-secondary">{{ me.xp }} XP</span>
+          @if (auth.status() === 'signed-in') {
+            <button type="button" class="btn btn--sm" (click)="auth.signOut()">Sign out</button>
+          }
         </p>
       }
     </header>
@@ -118,5 +126,10 @@ import { LayoutService } from '../layout.service';
 export class TopNav {
   protected readonly layout = inject(LayoutService);
   protected readonly session = inject(SessionService);
+  protected readonly auth = inject(AuthService);
+
+  protected signIn(): void {
+    void this.auth.signIn();
+  }
   readonly toggleNav = output<void>();
 }

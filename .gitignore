@@ -7,7 +7,7 @@
 /bazel-out
 
 # Node
-/node_modules
+node_modules/
 npm-debug.log
 yarn-error.log
 
@@ -57,3 +57,8 @@ Thumbs.db
 
 # Generated runner bundle
 /packages/code-runner/docker/typescript/execute.mjs
+
+# Build output of workspaces
+services/api/dist/
+infra/cdk.out/
+infra/.build/

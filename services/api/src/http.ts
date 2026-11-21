@@ -13,6 +13,11 @@ export interface ApiRequest {
   readonly headers: Readonly<Record<string, string | undefined>>;
   /** Parsed JSON body, or `undefined` when there is none. */
   readonly body: unknown;
+  /**
+   * Claims of a JWT that was already verified by the platform (on AWS: the API
+   * Gateway JWT authorizer). Set only by trusted adapters, never from client input.
+   */
+  readonly verifiedClaims?: Readonly<Record<string, unknown>>;
 }
 
 export interface ApiResponse {
@@ -20,6 +25,13 @@ export interface ApiResponse {
   readonly body: unknown;
   readonly headers?: Readonly<Record<string, string>>;
 }
+
+/**
+ * Largest accepted request body. Submitted code may be up to
+ * `CODE_LIMITS.maxCodeLength` (64 K) characters; JSON escaping and UTF-8 can
+ * make that several times larger in bytes, so the limit leaves room for that.
+ */
+export const MAX_REQUEST_BODY_BYTES = 400 * 1024;
 
 const STATUS: Readonly<Record<ApiErrorCode, number>> = {
   'bad-request': 400,

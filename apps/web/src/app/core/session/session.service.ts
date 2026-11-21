@@ -1,4 +1,5 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
+import { AuthService } from '../auth/auth.service';
 import type { MeResponse } from '@pracstack/api-contracts';
 import { ApiClient } from '../api/api-client';
 
@@ -13,11 +14,18 @@ export class SessionService {
   private readonly state = signal<MeResponse | undefined>(undefined);
   readonly me = this.state.asReadonly();
 
+  private readonly auth = inject(AuthService);
+
   constructor() {
-    this.refresh();
+    // Load (or clear) the user whenever sign-in state changes.
+    effect(() => {
+      if (this.auth.canUseApi()) this.refresh();
+      else this.state.set(undefined);
+    });
   }
 
   refresh(): void {
+    if (!this.auth.canUseApi()) return;
     this.api.get<MeResponse>('/me').then(
       (me) => this.state.set(me),
       () => this.state.set(undefined),

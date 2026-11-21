@@ -408,14 +408,22 @@ describe('SQL questions', () => {
     expect((await api.call('GET', '/api/me')).status).toBe(200);
   });
 
-  it('reports a clear error when the server has no SQL engine', async () => {
+  it('returns 503 for SQL skills when the server has no SQL engine, and serves no question', async () => {
     const api = testApi();
-    const { token } = await sqlNext(api);
-    const res = await api.call('POST', '/api/skill-mastery/practice/run-sql', {
+    const res = await api.call('POST', '/api/skill-mastery/practice/next', { skillId: 'demo-sql' });
+    expect(res.status).toBe(503);
+    expect(JSON.stringify(res.body)).toContain('SQL practice is not available here yet.');
+    expect(await api.store.findOpenToken('alice', 'demo-sql')).toBeUndefined();
+  });
+
+  it('returns 503 for a SQL question served before the engine became unavailable', async () => {
+    const withEngine = testApi({ sqlEngine: fakeEngine });
+    const { token } = await sqlNext(withEngine);
+    const without = testApi({ store: withEngine.store });
+    const res = await without.call('POST', '/api/skill-mastery/practice/run-sql', {
       token,
       query: 'SELECT 1',
     });
-    expect(res.status).toBe(500);
-    expect(JSON.stringify(res.body)).toContain('SQL practice is not available on this server.');
+    expect(res.status).toBe(503);
   });
 });

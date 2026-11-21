@@ -8,17 +8,24 @@
   },
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "build:lambda": "tsx scripts/build-lambda.ts",
+    "pretest": "npm run build -w @pracstack/content"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1175.0",
+    "@aws-sdk/lib-dynamodb": "^3.1175.0",
     "@pracstack/api-contracts": "*",
+    "@pracstack/challenge-runtime": "*",
+    "@pracstack/code-runner": "*",
     "@pracstack/content-model": "*",
     "@pracstack/scoring": "*",
     "@pracstack/sql-engine": "*",
-    "@pracstack/code-runner": "*",
-    "@pracstack/challenge-runtime": "*"
+    "@pracstack/web-security": "*"
   },
   "devDependencies": {
-    "@pracstack/content": "*"
+    "@pracstack/content": "*",
+    "@types/aws-lambda": "^8.10.164",
+    "esbuild": "^0.28.1"
   }
 }

@@ -102,8 +102,14 @@ export class PracticeService {
 
     const state = mastery?.state ?? initialState(this.scoring);
     const recent = await this.deps.store.listAttempts(user.id, skillId, RECENT_ATTEMPTS);
+    // Without a SQL engine (e.g. a deployment without the SQL runner), SQL questions can't be graded.
+    const available = this.deps.content
+      .questions(skillId)
+      .filter((q) => this.sql || q.question.format !== 'sql-query');
+    if (available.length === 0)
+      throw new ApiError('unavailable', 'SQL practice is not available here yet.');
     const chosen = selectQuestion(
-      this.deps.content.questions(skillId),
+      available,
       targetDifficulty(state, this.scoring),
       recent.map((a) => a.questionId),
       this.deps.random,
@@ -253,7 +259,7 @@ export class PracticeService {
   }
 
   private sqlGrader(): SqlGrader {
-    if (!this.sql) throw new ApiError('internal', 'SQL practice is not available on this server.');
+    if (!this.sql) throw new ApiError('unavailable', 'SQL practice is not available here yet.');
     return this.sql;
   }
 

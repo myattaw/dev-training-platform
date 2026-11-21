@@ -1,4 +1,5 @@
-import { Injectable, isDevMode } from '@angular/core';
+import { inject, Injectable, isDevMode } from '@angular/core';
+import { AuthService } from '../auth/auth.service';
 import type { ApiErrorBody, ApiErrorCode } from '@pracstack/api-contracts';
 
 export type ClientErrorCode = ApiErrorCode | 'unavailable';
@@ -26,6 +27,8 @@ export abstract class ApiClient {
 
 @Injectable()
 export class FetchApiClient extends ApiClient {
+  private readonly auth = inject(AuthService);
+
   override get<T>(path: string, query: Record<string, string> = {}): Promise<T> {
     const search = new URLSearchParams(query).toString();
     return this.request<T>('GET', search ? `${path}?${search}` : path);
@@ -37,11 +40,18 @@ export class FetchApiClient extends ApiClient {
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const url = new URL(`api/${path.replace(/^\//, '')}`, document.baseURI);
+    const headers: Record<string, string> =
+      body === undefined ? {} : { 'content-type': 'application/json' };
+    if (this.auth.status() !== 'local') {
+      const token = await this.auth.idToken();
+      if (!token) throw new ApiClientError('unauthorized', 'Sign in to continue.', 401);
+      headers['authorization'] = `Bearer ${token}`;
+    }
     let response: Response;
     try {
       response = await fetch(url, {
         method,
-        headers: body === undefined ? {} : { 'content-type': 'application/json' },
+        headers,
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch {
@@ -57,10 +67,14 @@ export class FetchApiClient extends ApiClient {
         ? new ApiClientError('internal', 'The server sent an invalid response.')
         : unavailable();
     }
+    if (response.status === 401 && this.auth.status() === 'signed-in') this.auth.sessionExpired();
     if (!response.ok) {
       const error = (payload as Partial<ApiErrorBody>).error;
       if (error?.code && error.message)
         throw new ApiClientError(error.code, error.message, response.status);
+      // API Gateway's JWT authorizer answers 401 in its own format.
+      if (response.status === 401)
+        throw new ApiClientError('unauthorized', 'Sign in to continue.', 401);
       const gatewayError = [502, 503, 504].includes(response.status);
       throw gatewayError
         ? unavailable()

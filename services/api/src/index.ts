@@ -1,6 +1,6 @@
 export { createApi } from './app';
 export type { ApiDeps, ApiHandler } from './app';
-export { LOCAL_DEV_USER, LocalDevAuthenticator } from './auth';
+export { LOCAL_DEV_USER, LocalDevAuthenticator, VerifiedJwtAuthenticator } from './auth';
 export type { Authenticator } from './auth';
 export { createContentSource, loadContentSource } from './content/content-source';
 export type { ContentSource } from './content/content-source';

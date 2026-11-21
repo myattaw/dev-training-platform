@@ -54,7 +54,13 @@
           [disabled]="running() || submitting()"
           (click)="submit()"
         >
-          {{ submitting() ? 'Submitting…' : 'Submit' }}
+          {{
+            submitting()
+              ? 'Submitting…'
+              : auth.status() === 'signed-out'
+                ? 'Sign in to submit'
+                : 'Submit'
+          }}
         </button>
       </div>
     </div>

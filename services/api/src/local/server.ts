@@ -16,13 +16,14 @@ import { parseArgs } from 'node:util';
 import { createApi } from '../app';
 import { LocalDevAuthenticator } from '../auth';
 import { loadContentSource } from '../content/content-source';
-import type { ApiResponse } from '../http';
+import { type ApiResponse, MAX_REQUEST_BODY_BYTES } from '../http';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { FileProgressStore } from '../store/file-store';
 import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
 import { DockerCodeRunner } from '@pracstack/code-runner';
+import { securityHeadersFor } from '@pracstack/web-security';
 
-const MAX_BODY_BYTES = 16 * 1024;
+const MAX_BODY_BYTES = MAX_REQUEST_BODY_BYTES;
 const HOST = '127.0.0.1';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
@@ -165,6 +166,7 @@ const TYPES: Record<string, string> = {
   '.json': 'application/json',
   '.ico': 'image/x-icon',
   '.svg': 'image/svg+xml',
+  '.ttf': 'font/ttf',
 };
 
 /** Serves a built SPA: real files, otherwise index.html (client-side routes). */
@@ -174,12 +176,19 @@ async function serveStatic(root: string, pathname: string, res: ServerResponse):
     res.writeHead(403).end();
     return;
   }
+  // The same security headers as production (CloudFront), so the e2e tests run under the real CSP.
   try {
     const body = await readFile(file);
-    res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
+    res.writeHead(200, {
+      ...securityHeadersFor(pathname),
+      'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
+    });
     res.end(body);
   } catch {
-    res.writeHead(200, { 'content-type': TYPES['.html'] ?? 'text/html' });
+    res.writeHead(200, {
+      ...securityHeadersFor('/'),
+      'content-type': TYPES['.html'] ?? 'text/html',
+    });
     res.end(await readFile(join(root, 'index.html')));
   }
 }
