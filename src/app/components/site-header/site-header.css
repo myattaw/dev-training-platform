@@ -1,0 +1,46 @@
+header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--header-height);
+  border-bottom: 1px solid var(--border);
+  background: rgb(11 17 32 / 0.85);
+  backdrop-filter: blur(8px);
+}
+
+nav {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.brand span {
+  color: var(--accent);
+}
+
+.brand:hover {
+  text-decoration: none;
+}
+
+.links {
+  display: flex;
+  gap: 24px;
+}
+
+.links a {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.links a:hover,
+.links a.active {
+  color: var(--text);
+  text-decoration: none;
+}

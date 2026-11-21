@@ -1,0 +1,17 @@
+<a class="card" [routerLink]="['/exercises', exercise().id]">
+  <div class="top">
+    <h3>{{ exercise().title }}</h3>
+    <app-difficulty-badge [difficulty]="exercise().difficulty" />
+  </div>
+
+  <p>{{ exercise().description }}</p>
+
+  <div class="bottom">
+    <ul class="topics" aria-label="Topics">
+      @for (topic of exercise().topics; track topic) {
+        <li>{{ topic }}</li>
+      }
+    </ul>
+    <span class="cta">Start →</span>
+  </div>
+</a>

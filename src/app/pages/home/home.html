@@ -1,0 +1,29 @@
+<section class="hero container">
+  <p class="eyebrow">Free, in-browser TypeScript practice</p>
+  <h1>Master TypeScript by <span>writing code</span>.</h1>
+  <p class="lead">
+    Solve hands-on exercises in a VS Code–style editor with real type checking, then run the tests and get instant
+    feedback. No installs, no sign-up.
+  </p>
+  <div class="actions">
+    <a class="btn btn-primary" routerLink="/exercises/pangram">Try your first exercise</a>
+    <a class="btn" routerLink="/exercises">Browse all exercises</a>
+  </div>
+</section>
+
+<section class="featured container" aria-labelledby="featured-heading">
+  <div class="section-head">
+    <h2 id="featured-heading">Featured exercises</h2>
+    <a routerLink="/exercises">View all →</a>
+  </div>
+
+  <div class="grid">
+    @for (exercise of featured; track exercise.id) {
+      <app-exercise-card [exercise]="exercise" />
+    }
+  </div>
+</section>
+
+<footer class="container">
+  <p>typexercise.com · Inspired by Exercism</p>
+</footer>

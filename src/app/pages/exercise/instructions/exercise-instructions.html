@@ -1,0 +1,30 @@
+<ng-template #text let-segments>
+  @for (segment of segments; track $index) {
+    @if (segment.code) {
+      <code>{{ segment.text }}</code>
+    } @else {
+      {{ segment.text }}
+    }
+  }
+</ng-template>
+
+@for (block of rendered(); track $index) {
+  @switch (block.kind) {
+    @case ('heading') {
+      <h3><ng-container *ngTemplateOutlet="text; context: { $implicit: block.segments }" /></h3>
+    }
+    @case ('paragraph') {
+      <p><ng-container *ngTemplateOutlet="text; context: { $implicit: block.segments }" /></p>
+    }
+    @case ('list') {
+      <ul>
+        @for (item of block.items; track $index) {
+          <li><ng-container *ngTemplateOutlet="text; context: { $implicit: item }" /></li>
+        }
+      </ul>
+    }
+    @case ('code') {
+      <pre><code>{{ block.code }}</code></pre>
+    }
+  }
+}

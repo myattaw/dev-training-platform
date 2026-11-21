@@ -1,0 +1,43 @@
+@if (exercise(); as ex) {
+  <div class="workspace">
+    <section class="pane instructions" aria-labelledby="exercise-title">
+      <a routerLink="/exercises" class="back">← All exercises</a>
+
+      <div class="title-row">
+        <h1 id="exercise-title">{{ ex.title }}</h1>
+        <app-difficulty-badge [difficulty]="ex.difficulty" />
+      </div>
+
+      <app-exercise-instructions [blocks]="ex.instructions" />
+
+      <nav class="pager" aria-label="Exercise navigation">
+        @if (neighbors().previous; as prev) {
+          <a class="btn" [routerLink]="['/exercises', prev.id]">← {{ prev.title }}</a>
+        } @else {
+          <span></span>
+        }
+        @if (neighbors().next; as next) {
+          <a class="btn" [routerLink]="['/exercises', next.id]">{{ next.title }} →</a>
+        }
+      </nav>
+    </section>
+
+    <section class="pane editor-pane" aria-label="Solution editor">
+      <div class="toolbar">
+        <span class="file">solution.ts</span>
+        <div class="actions">
+          <button type="button" class="btn btn-ghost" (click)="reset()" [disabled]="running()">Reset</button>
+          <button type="button" class="btn btn-primary" (click)="runTests()" [disabled]="running()">
+            {{ running() ? 'Running…' : '▶ Run Tests' }}
+          </button>
+        </div>
+      </div>
+
+      <app-code-editor class="editor" [fileName]="ex.id" [(code)]="code" (runRequested)="runTests()" />
+
+      <app-test-results class="results" [outcome]="outcome()" [running]="running()" [testCount]="ex.tests.length" />
+    </section>
+  </div>
+} @else {
+  <app-not-found heading="Exercise not found" [message]="'There is no exercise called “' + id() + '”.'" />
+}
