@@ -1,6 +1,9 @@
 import { type ChildProcess, fork } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import type { RunnerRequest, RunnerResponse } from './runtime/runner';
+
+/** Must match SETUP_TIMEOUT_MS in runtime/runner.ts (not imported: that module starts the runner). */
+const SETUP_TIMEOUT_MS = 30_000;
 import {
   DEFAULT_SQL_LIMITS,
   type SqlEngine,
@@ -26,6 +29,7 @@ export interface ChildProcessEngineOptions {
 }
 
 interface Pending {
+  readonly request: SqlRunRequest;
   readonly resolve: (result: SqlRunResult) => void;
   readonly timer: NodeJS.Timeout;
 }
@@ -62,13 +66,14 @@ export class ChildProcessSqlEngine implements SqlEngine {
     const id = this.nextId++;
     return new Promise<SqlRunResult>((resolve) => {
       // Queued jobs wait for earlier ones, so allow for the whole queue ahead.
-      const budget = (this.pending.size + 1) * this.limits.timeoutMs + SAFETY_MARGIN_MS;
+      const budget =
+        (this.pending.size + 1) * (this.limits.timeoutMs + SETUP_TIMEOUT_MS) + SAFETY_MARGIN_MS;
       const timer = setTimeout(() => {
         this.pending.delete(id);
         resolve({ kind: 'timeout', timeoutMs: this.limits.timeoutMs });
         this.restart();
       }, budget);
-      this.pending.set(id, { resolve, timer });
+      this.pending.set(id, { request, resolve, timer });
       child.send({ id, request } satisfies RunnerRequest);
     });
   }
@@ -102,11 +107,17 @@ export class ChildProcessSqlEngine implements SqlEngine {
       this.pending.delete(message.id);
       entry.resolve(message.result);
     });
-    child.on('exit', () => {
-      if (this.child === child) {
-        this.child = undefined;
-        this.failAll('The SQL engine stopped unexpectedly. Try again.');
+    child.on('exit', (code) => {
+      if (this.child !== child) return;
+      this.child = undefined;
+      if (code === 0 && this.pending.size > 0) {
+        // A deliberate recycle (after a killed query): resend what it had not answered.
+        const next = this.ensureChild();
+        for (const [id, entry] of this.pending)
+          next.send({ id, request: entry.request } satisfies RunnerRequest);
+        return;
       }
+      this.failAll('The SQL engine stopped unexpectedly. Try again.');
     });
     // Never keep the parent process alive just for the runner.
     child.unref();

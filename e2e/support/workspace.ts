@@ -28,7 +28,8 @@ export const LRU_SOLUTION = `export class LRUCache {
 /** Waits until Monaco is loaded and styled. */
 export async function waitForEditor(page: Page): Promise<void> {
   const editor = page.locator('.monaco-editor').first();
-  await expect(editor).toBeVisible();
+  // Monaco is several MB of JavaScript: allow for slow machines (CI runners).
+  await expect(editor).toBeVisible({ timeout: 30_000 });
   // Monaco's stylesheet makes the editor root `position: relative`; unstyled it is `static`.
   await expect(editor).toHaveCSS('position', 'relative');
 }

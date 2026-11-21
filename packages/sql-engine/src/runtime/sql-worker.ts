@@ -56,6 +56,9 @@ const TYPE_NAMES: Readonly<Record<number, string>> = {
   2950: 'uuid',
 };
 
+/** Sent before the learner's query starts (see runner.ts). */
+export const PREPARED = 'prepared';
+
 function template(spec: SqlDatabaseSpec): Promise<File | Blob> {
   const key = createHash('sha256')
     .update(spec.schemaSql)
@@ -96,6 +99,8 @@ async function run(job: WorkerJob): Promise<SqlRunResult> {
   }
 
   const db = await PGlite.create({ loadDataDir: dataDir });
+  // Setup done (our own work); from here on the learner's query is timed.
+  parentPort?.postMessage(PREPARED);
   try {
     await db.exec('SET SESSION AUTHORIZATION learner');
     await db.exec('BEGIN READ ONLY');

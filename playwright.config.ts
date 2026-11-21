@@ -18,6 +18,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env['CI'],
   retries: process.env['CI'] ? 1 : 0,
+  // CI runners are slower than developer machines (cold browser, fewer CPUs).
+  expect: { timeout: process.env['CI'] ? 15_000 : 5_000 },
+  timeout: process.env['CI'] ? 90_000 : 30_000,
   reporter: process.env['CI'] ? 'github' : 'list',
   use: {
     baseURL: `http://localhost:${PORT}`,

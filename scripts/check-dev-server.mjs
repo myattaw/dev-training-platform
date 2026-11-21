@@ -10,12 +10,18 @@ const PORT = 4398;
 const TIMEOUT_MS = 120_000;
 const strip = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
 
-const server = spawn('npx', ['ng', 'serve', '--port', String(PORT)], {
+// Bound to 127.0.0.1 explicitly: "localhost" is ::1 on some Linux systems.
+const server = spawn('npx', ['ng', 'serve', '--host', '127.0.0.1', '--port', String(PORT)], {
   shell: true,
   stdio: ['ignore', 'pipe', 'pipe'],
   // On Linux/macOS: its own process group, so the shell AND ng serve can be killed together.
   detached: process.platform !== 'win32',
 });
+// Never leave ng serve running, whatever happens below.
+process.on('uncaughtException', (err) => fail(String(err)));
+process.on('unhandledRejection', (err) => fail(String(err)));
+process.on('SIGINT', () => fail('Interrupted.'));
+process.on('SIGTERM', () => fail('Terminated.'));
 let output = '';
 server.stdout.on('data', (d) => (output += strip(String(d))));
 server.stderr.on('data', (d) => (output += strip(String(d))));
@@ -45,7 +51,9 @@ while (!/Local:\s+http/.test(output)) {
 }
 
 for (const path of ['/', '/challenges/pangram/workspace', '/skills/typescript']) {
-  const res = await fetch(`http://localhost:${PORT}${path}`);
+  const res = await fetch(`http://127.0.0.1:${PORT}${path}`).catch((err) =>
+    fail(`GET ${path} failed: ${err.message}`),
+  );
   if (!res.ok) fail(`GET ${path} returned ${res.status}.`);
 }
 // Prebundling and compile errors are reported asynchronously after startup.

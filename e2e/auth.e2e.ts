@@ -94,7 +94,7 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     await expect(page.getByRole('button', { name: 'Sign in to submit' })).toBeVisible();
     await replaceCode(page, PANGRAM_SOLUTION);
     await page.getByRole('button', { name: 'Run tests' }).click();
-    await expect(page.getByText('All 10 visible tests passed')).toBeVisible();
+    await expect(page.getByText('All 10 visible tests passed')).toBeVisible({ timeout: 30_000 });
 
     expect(fake.apiAuthHeaders).toEqual([]);
   });

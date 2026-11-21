@@ -28,6 +28,12 @@ export interface RunnerResponse {
 }
 
 const MEMORY_POLL_MS = 25;
+/**
+ * Bound on preparing a dataset (starting PGlite, loading the schema and data):
+ * our own trusted work, which can take a few seconds on a slow machine. It is
+ * not counted against the learner's query time limit.
+ */
+export const SETUP_TIMEOUT_MS = 30_000;
 
 const limits: SqlLimits = {
   ...DEFAULT_SQL_LIMITS,
@@ -37,6 +43,7 @@ const limits: SqlLimits = {
 };
 
 let worker: Worker | undefined;
+let recycleAfterReply = false;
 let workerReady: Promise<Worker> | undefined;
 
 function getWorker(): Promise<Worker> {
@@ -80,18 +87,35 @@ async function execute(request: SqlRunRequest): Promise<SqlRunResult> {
       w.off('message', onMessage);
       w.off('error', onError);
       w.off('exit', onExit);
-      // A killed worker may be mid-query: never reuse it.
-      if (kill) discardWorker();
+      // A killed worker may be mid-query: never reuse it. Its memory may not be
+      // returned to the system promptly, which would trip the memory check on
+      // the next query, so this whole process is replaced after replying.
+      if (kill) {
+        discardWorker();
+        recycleAfterReply = true;
+      }
       resolve(result);
     };
-    const onMessage = (result: SqlRunResult): void => finish(result, false);
+    const onMessage = (message: SqlRunResult | 'prepared'): void => {
+      if (message === 'prepared') {
+        // The database is ready: start the learner's time limit now.
+        clearTimeout(timer);
+        timer = setTimeout(
+          () => finish({ kind: 'timeout', timeoutMs: limits.timeoutMs }, true),
+          limits.timeoutMs,
+        );
+        return;
+      }
+      finish(message, false);
+    };
     const onError = (): void => finish({ kind: 'error', message: 'The SQL engine failed.' }, true);
     const onExit = (): void =>
       finish({ kind: 'error', message: 'The SQL engine stopped unexpectedly.' }, true);
 
-    const timer = setTimeout(
-      () => finish({ kind: 'timeout', timeoutMs: limits.timeoutMs }, true),
-      limits.timeoutMs,
+    let timer = setTimeout(
+      () =>
+        finish({ kind: 'error', message: 'The exercise database took too long to prepare.' }, true),
+      SETUP_TIMEOUT_MS,
     );
     const memory = setInterval(() => {
       if (process.memoryUsage().rss > limits.maxRssMb * 1024 * 1024) {
@@ -111,10 +135,16 @@ async function execute(request: SqlRunRequest): Promise<SqlRunResult> {
 
 // Jobs arrive over IPC and are processed strictly one at a time.
 let queue = Promise.resolve();
+let inFlight = 0;
 process.on('message', (message: RunnerRequest) => {
+  inFlight++;
   queue = queue.then(async () => {
     const result = await execute(message.request);
-    process.send?.({ id: message.id, result } satisfies RunnerResponse);
+    process.send?.({ id: message.id, result } satisfies RunnerResponse, () => {
+      inFlight--;
+      // Replaced once idle; ChildProcessSqlEngine resends anything that arrives meanwhile.
+      if (recycleAfterReply && inFlight === 0) process.exit(0);
+    });
   });
 });
 process.on('disconnect', () => process.exit(0));
