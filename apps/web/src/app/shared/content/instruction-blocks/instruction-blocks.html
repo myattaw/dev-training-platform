@@ -3,7 +3,8 @@
     @if (segment.code) {
       <code>{{ segment.text }}</code>
     } @else {
-      {{ segment.text }}
+      <!-- Wrapped so the template indentation around it is not rendered. -->
+      <ng-container>{{ segment.text }}</ng-container>
     }
   }
 </ng-template>

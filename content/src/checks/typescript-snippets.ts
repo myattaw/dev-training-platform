@@ -14,7 +14,10 @@ import * as ts from 'typescript';
  * - predict-output: the code must type-check, and running it must print
  *   exactly the expected answer;
  * - fill-in-blank: the template, filled in with each accepted answer, must
- *   type-check.
+ *   type-check;
+ * - multiple-choice with a `typeCheck`: the answer key must agree with the
+ *   compiler. `compiles`: "Yes" is correct exactly when the code compiles.
+ *   `options-compile`: the correct options are exactly those that compile.
  *
  * Snippets use the same compiler settings as the learner's editor: strict,
  * ES2022, no DOM, and only a minimal `console`.
@@ -46,7 +49,16 @@ interface Snippet {
   readonly source: string;
   /** Set for predict-output snippets, which are also executed. */
   readonly expectedOutput?: string;
+  /**
+   * Set for answer-key checks: whether the answer key says this compiles.
+   * Compile errors are then expected for `false`, and reported as a wrong key
+   * instead of a broken snippet.
+   */
+  readonly keySaysCompiles?: boolean;
 }
+
+/** Option text as code: the text without surrounding backticks. */
+const optionCode = (text: string): string => text.trim().replace(/^`+|`+$/g, '');
 
 export function checkTypeScriptSnippets(tracks: readonly TrackSource[]): ValidationIssue[] {
   const snippets = collectSnippets(tracks);
@@ -55,6 +67,19 @@ export function checkTypeScriptSnippets(tracks: readonly TrackSource[]): Validat
   const diagnostics = typeCheck(snippets);
   for (const snippet of snippets) {
     const errors = diagnostics.get(snippet.fileName) ?? [];
+    if (snippet.keySaysCompiles !== undefined) {
+      const compiles = errors.length === 0;
+      if (compiles !== snippet.keySaysCompiles) {
+        issues.push({
+          severity: 'error',
+          path: snippet.path,
+          message: compiles
+            ? 'answer key says this does not compile, but it does'
+            : `answer key says this compiles, but it does not: ${errors.join('; ')}`,
+        });
+      }
+      continue;
+    }
     for (const message of errors) {
       issues.push({
         severity: 'error',
@@ -92,6 +117,53 @@ function collectSnippets(tracks: readonly TrackSource[]): Snippet[] {
               source: q.code.source,
               expectedOutput: q.answer.output,
             });
+          }
+          if (q.format === 'multiple-choice' && q.typeCheck) {
+            const correct = new Set(q.answer.correct);
+            if (q.typeCheck.kind === 'compiles') {
+              const yes = q.options.find((o) => /^yes\b/i.test(o.text.trim()));
+              if (!q.code || q.code.language !== 'typescript' || !yes) {
+                throw new Error(
+                  `${path}: a "compiles" check needs TypeScript code and a "Yes" option`,
+                );
+              }
+              snippets.push({
+                path,
+                fileName: `/snippets/${q.id}--key.ts`,
+                source: q.code.source,
+                keySaysCompiles: correct.has(yes.id),
+              });
+            } else if (q.typeCheck.kind === 'type-equals') {
+              // Exact type identity (not just assignability), the standard trick.
+              // The check sits inside a function: there, outer `let` variables are
+              // not narrowed by their initialiser, so `typeof` gives the declared
+              // type the learner sees on hover (`boolean`, not `false`).
+              const { prelude, expression } = q.typeCheck;
+              for (const option of q.options) {
+                snippets.push({
+                  path: `${path} (option ${option.id}: ${option.text})`,
+                  fileName: `/snippets/${q.id}--type-${option.id}.ts`,
+                  source: `${prelude}
+type Expected = ${optionCode(option.text)};
+type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+export function sameType(): Equals<typeof ${expression}, Expected> {
+  return true;
+}
+`,
+                  keySaysCompiles: correct.has(option.id),
+                });
+              }
+            } else {
+              const prelude = q.typeCheck.prelude ?? '';
+              for (const option of q.options) {
+                snippets.push({
+                  path: `${path} (option ${option.id}: ${option.text})`,
+                  fileName: `/snippets/${q.id}--option-${option.id}.ts`,
+                  source: `${prelude}\n${optionCode(option.text)}\n`,
+                  keySaysCompiles: correct.has(option.id),
+                });
+              }
+            }
           }
           if (q.format === 'fill-in-blank' && q.template.language === 'typescript') {
             // One file per combination would explode; check each accepted answer

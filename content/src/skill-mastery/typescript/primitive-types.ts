@@ -61,6 +61,8 @@ console.log(kinds.join(' '));`),
     ],
     selection: 'multiple',
     answer: { correct: ['b', 'c'] },
+    // The compiler confirms exactly b and c compile.
+    typeCheck: { kind: 'options-compile' },
     hints: [
       'Under `strictNullChecks`, `null` is its own type.',
       '`String(value)` always returns a string.',

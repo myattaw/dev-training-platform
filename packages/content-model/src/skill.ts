@@ -169,9 +169,13 @@ type Authored<Q extends Question, A extends QuestionAnswer> = Omit<Q, 'skillId' 
  * - `compiles`: options are `yes` / `no`; the key must match whether `code` compiles.
  * - `options-compile`: every option is a declaration; the correct options must be
  *   exactly those that compile (after `prelude`).
+ * - `type-equals`: every option is a type; the correct options must be exactly
+ *   those identical to the type of `expression` (after `prelude`).
  */
 export type TypeScriptKeyCheck =
-  { readonly kind: 'compiles' } | { readonly kind: 'options-compile'; readonly prelude?: string };
+  | { readonly kind: 'compiles' }
+  | { readonly kind: 'options-compile'; readonly prelude?: string }
+  | { readonly kind: 'type-equals'; readonly prelude: string; readonly expression: string };
 
 /** SQL questions reference a shared practice database instead of repeating it. */
 export type SqlQuestionSource = Omit<

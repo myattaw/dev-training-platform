@@ -21,9 +21,11 @@ test.describe('Skill Mastery', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'TypeScript' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Types and annotations' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Type narrowing' })).toBeVisible();
-    await expect(page.locator('tbody tr')).toHaveCount(4);
+    await expect(page.getByRole('heading', { name: 'Objects and functions' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Reusable types' })).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(8);
     await expect(page.locator('tbody app-skill-status').first()).toHaveText('Not started');
-    await expect(page.getByText('0 of 4 skills mastered')).toBeVisible();
+    await expect(page.getByText('0 of 8 skills mastered')).toBeVisible();
   });
 
   test('practice: answers are graded and scored by the server', async ({ page }) => {
@@ -35,22 +37,24 @@ test.describe('Skill Mastery', () => {
     await expect(progress).toContainText('Beginner');
     await expect(progress).toContainText('tier 1 of 5');
     await expect(page.locator('.question-meta')).toHaveText('Beginner');
-    await expect(page.getByText('What type does TypeScript infer for')).toBeVisible();
-    await page.getByRole('radio', { name: 'number', exact: true }).check();
+    // Selection is deterministic (learner, skill, answers so far), so the questions are known.
+    const prompt = page.locator('app-instruction-blocks.prompt');
+    await expect(prompt).toHaveText('What type does TypeScript infer for city?');
+    await page.getByRole('radio', { name: 'string', exact: true }).check();
     await page.getByRole('button', { name: 'Submit answer' }).click();
 
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
     await expect(page.getByText('Mastery 0 → 6')).toBeVisible();
-    await expect(page.locator('app-panel.feedback')).toContainText('TypeScript infers');
+    await expect(page.locator('app-panel.feedback')).toContainText('widened primitive type');
 
-    // Next: no new Beginner question is left, so the nearest tier is served, with a note.
+    // Next: a question from another family, still Beginner and not seen before.
     await page.getByRole('button', { name: 'Next question' }).click();
-    await expect(page.locator('.question-meta')).toHaveText('Elementary');
-    await expect(page.locator('.selection-note')).toContainText('No new Beginner questions');
-    await page.getByRole('textbox', { name: 'Blank 1 of 1' }).fill('boolean');
+    await expect(page.locator('.question-meta')).toHaveText('Beginner');
+    await expect(prompt).toHaveText('What type does TypeScript infer for count?');
+    await page.getByRole('radio', { name: 'number', exact: true }).check();
     await page.keyboard.press('ControlOrMeta+Enter');
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
-    await expect(page.getByText('Mastery 6 → 13')).toBeVisible();
+    await expect(page.getByText('Mastery 6 → 12')).toBeVisible();
     // Two first-time correct answers in a row: up a tier.
     await expect(page.locator('.score-change')).toContainText('Up to Elementary');
     await expect(progress).toContainText('tier 2 of 5');
@@ -60,13 +64,13 @@ test.describe('Skill Mastery', () => {
     await expect(page).toHaveURL('/skills/typescript/ts-primitive-types');
     await expect(page.getByRole('meter', { name: 'Primitive types mastery' })).toHaveAttribute(
       'aria-valuenow',
-      '13',
+      '12',
     );
     await expect(page.locator('tbody tr')).toHaveCount(2);
     // Total XP of the shared local user: other tests running in parallel may add to it.
     await expect(page.getByRole('banner')).toContainText(/\d+ XP/);
     const xp = Number(/(\d+) XP/.exec((await page.getByRole('banner').textContent()) ?? '')?.[1]);
-    expect(xp).toBeGreaterThanOrEqual(30);
+    expect(xp).toBeGreaterThanOrEqual(20);
     await expect(page.getByRole('banner')).toContainText('Local mode');
 
     // The technology page and dashboard reflect the new score.
@@ -82,19 +86,23 @@ test.describe('Skill Mastery', () => {
 
   test('hints are tracked, and wrong answers reveal the correct one', async ({ page }) => {
     await page.goto('/skills/typescript/ts-union-types/practice');
-    await expect(page.getByText('Which value can not be assigned to')).toBeVisible();
+    await expect(
+      page.getByText('Which declarations compile? Select all that apply.'),
+    ).toBeVisible();
 
     await page.getByRole('button', { name: 'Hint (1 left)' }).click();
     await expect(
-      page.getByText('A union accepts a value of any one of its member types.'),
+      page.getByText('A value of a union type can be any one of its member types.'),
     ).toBeVisible();
     await expect(page.getByRole('button', { name: 'No more hints' })).toBeDisabled();
 
-    await page.getByRole('radio', { name: '42' }).check();
+    await page.getByRole('checkbox', { name: "const b: Size = 'Small';" }).check();
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expect(page.getByRole('heading', { name: 'Not quite' })).toBeVisible();
-    await expect(page.locator('.option.correct, .option.missed')).toContainText('true');
-    await expect(page.locator('.option.wrong')).toContainText('42');
+    await expect(page.locator('.option.correct, .option.missed').first()).toContainText(
+      "const a: Size = 'small';",
+    );
+    await expect(page.locator('.option.wrong')).toContainText("'Small'");
 
     await page.goto('/skills/typescript/ts-union-types');
     await expect(page.locator('tbody tr').first()).toContainText('Incorrect');
@@ -165,12 +173,12 @@ test.describe('Skill Mastery', () => {
     page,
   }) => {
     await page.goto('/skills/postgresql/pg-order-limit/practice');
-    await expect(page.getByText('in alphabetical order')).toBeVisible();
+    await expect(page.getByText('lowest salary first')).toBeVisible();
     await waitForEditor(page);
     // Matches the sample data exactly, but is not a real query for the task.
     await replaceCode(
       page,
-      "SELECT name FROM employees WHERE name IN ('Ada Lovelace','Alan Turing','Barbara Liskov','Dennis Ritchie','Grace Hopper','Ken Thompson','Linus Torvalds','Margaret Hamilton') ORDER BY name",
+      "SELECT name, salary FROM employees WHERE name IN ('Ada Lovelace','Alan Turing','Barbara Liskov','Dennis Ritchie','Grace Hopper','Ken Thompson','Linus Torvalds','Margaret Hamilton') ORDER BY salary",
     );
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expect(page.getByRole('heading', { name: 'Not quite' })).toBeVisible();
@@ -188,7 +196,7 @@ test.describe('Skill Mastery', () => {
     await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
 
     await page.goto('/skills/typescript');
-    await expect(page.locator('tbody tr')).toHaveCount(4);
+    await expect(page.locator('tbody tr')).toHaveCount(8);
     await expect(page.getByText('Your progress could not be loaded')).toBeVisible();
   });
 });
