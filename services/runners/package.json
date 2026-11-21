@@ -14,7 +14,7 @@
     "@pracstack/sql-engine": "*"
   },
   "devDependencies": {
-    "esbuild": "*"
+    "esbuild": "^0.28.2"
   },
   "exports": {
     "./probes": "./src/probes.ts"
