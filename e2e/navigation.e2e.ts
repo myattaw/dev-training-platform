@@ -1,0 +1,84 @@
+import { expect, test } from '@playwright/test';
+
+test.describe('navigation and catalog', () => {
+  test('dashboard links to the challenge catalog', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveTitle('Dashboard · PracStack');
+    await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+
+    await page
+      .getByRole('navigation', { name: 'Primary' })
+      .getByRole('link', { name: 'Coding Challenges' })
+      .click();
+    await expect(page).toHaveURL('/challenges');
+    await expect(page.getByRole('heading', { level: 1, name: 'Coding Challenges' })).toBeVisible();
+    await expect(page.locator('tbody tr')).toHaveCount(4);
+  });
+
+  test('catalog filters are reflected in, and restored from, the URL', async ({ page }) => {
+    await page.goto('/challenges');
+    await page.getByRole('combobox', { name: 'Difficulty' }).selectOption('medium');
+    await expect(page).toHaveURL(/difficulty=medium/);
+    await expect(page.locator('tbody tr')).toHaveCount(2);
+
+    await page.getByRole('searchbox', { name: 'Search challenges' }).fill('interval');
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+
+    await page.reload();
+    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await expect(page.getByRole('link', { name: 'Merge Intervals' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Clear filters' }).first().click();
+    await expect(page.locator('tbody tr')).toHaveCount(4);
+  });
+
+  test('challenge detail shows the problem and opens the workspace', async ({ page }) => {
+    await page.goto('/challenges');
+    await page.getByRole('link', { name: 'Balanced Brackets' }).click();
+    await expect(page).toHaveTitle('Balanced Brackets · PracStack');
+    await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText(
+      'Coding Challenges',
+    );
+    await expect(page.getByText('Visible tests (10)')).toBeVisible();
+
+    await page.getByRole('link', { name: 'Open workspace' }).click();
+    await expect(page).toHaveURL('/challenges/balanced-brackets/workspace');
+  });
+
+  test('old /exercises links redirect to the new routes', async ({ page }) => {
+    await page.goto('/exercises/pangram');
+    await expect(page).toHaveURL('/challenges/pangram/workspace');
+    await page.goto('/exercises');
+    await expect(page).toHaveURL('/challenges');
+  });
+
+  test('unknown pages and challenges show a not-found state', async ({ page }) => {
+    await page.goto('/no/such/page');
+    await expect(page.getByText('Page not found')).toBeVisible();
+    await page.goto('/challenges/no-such-challenge');
+    await expect(page.getByText('Challenge not found')).toBeVisible();
+    await page.getByRole('link', { name: 'Browse challenges' }).click();
+    await expect(page).toHaveURL('/challenges');
+  });
+
+  test('skip link moves focus to the main content', async ({ page }) => {
+    await page.goto('/');
+    await page.keyboard.press('Tab');
+    const skip = page.getByRole('button', { name: 'Skip to main content' });
+    await expect(skip).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('main')).toBeFocused();
+  });
+
+  test('side navigation can be collapsed and the choice is remembered', async ({ page }) => {
+    await page.goto('/');
+    const nav = page.getByRole('navigation', { name: 'Primary' });
+    await expect(nav).toBeVisible();
+    await page.getByRole('button', { name: 'Close navigation' }).click();
+    await expect(nav).toBeHidden();
+    await page.reload();
+    await expect(nav).toBeHidden();
+    await page.getByRole('button', { name: 'Open navigation' }).click();
+    await expect(nav).toBeVisible();
+  });
+});

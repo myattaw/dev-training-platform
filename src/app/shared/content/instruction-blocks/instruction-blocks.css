@@ -1,0 +1,37 @@
+:host {
+  display: block;
+  line-height: 22px;
+}
+
+h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--font-size-base);
+}
+
+h3:first-child {
+  margin-top: 0;
+}
+
+p,
+ul {
+  margin: 0 0 var(--space-3);
+}
+
+ul {
+  padding-left: var(--space-5);
+}
+
+li {
+  margin-bottom: var(--space-1);
+}
+
+pre {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-divider);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 20px;
+}

@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  max-width: var(--content-max-width);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.problem {
+  max-width: 900px;
+}
+
+.aside {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.tests {
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

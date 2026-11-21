@@ -3,11 +3,14 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": false
+    "analytics": false,
+    "schematicCollections": [
+      "angular-eslint"
+    ]
   },
   "newProjectRoot": "projects",
   "projects": {
-    "typexercise": {
+    "pracstack": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -26,7 +29,12 @@
               }
             ],
             "styles": [
-              "src/styles.css"
+              "src/styles.css",
+              {
+                "input": "node_modules/monaco-editor/min/vs/editor/editor.main.css",
+                "bundleName": "monaco",
+                "inject": false
+              }
             ],
             "loader": {
               ".ttf": "file"
@@ -60,16 +68,25 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "typexercise:build:production"
+              "buildTarget": "pracstack:build:production"
             },
             "development": {
-              "buildTarget": "typexercise:build:development"
+              "buildTarget": "pracstack:build:development"
             }
           },
           "defaultConfiguration": "development"
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "src/**/*.ts",
+              "src/**/*.html"
+            ]
+          }
         }
       }
     }

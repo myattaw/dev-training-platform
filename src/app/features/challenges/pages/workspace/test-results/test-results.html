@@ -1,0 +1,97 @@
+<div class="results" aria-live="polite">
+  @if (running()) {
+    <p class="summary">
+      <app-status-indicator type="in-progress"
+        >Running {{ testCount() }} visible tests…</app-status-indicator
+      >
+    </p>
+  } @else {
+    @let result = outcome();
+    @if (result === null) {
+      <p class="summary text-secondary">
+        Select <strong>Run tests</strong> or press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> (<kbd>⌘</kbd>
+        + <kbd>Enter</kbd> on macOS) to check your solution against {{ testCount() }} visible tests.
+      </p>
+      <p class="note text-secondary">Tests run in your browser. Nothing is submitted.</p>
+    } @else {
+      @switch (result.status) {
+        @case ('passed') {
+          <p class="summary">
+            <app-status-indicator type="success">
+              All {{ result.results.length }} visible tests passed · {{ result.durationMs }} ms
+            </app-status-indicator>
+          </p>
+        }
+        @case ('failed') {
+          <p class="summary">
+            <app-status-indicator type="error">
+              {{ passedCount() }} of {{ result.results.length }} visible tests passed
+            </app-status-indicator>
+          </p>
+        }
+        @case ('compile-error') {
+          <p class="summary">
+            <app-status-indicator type="error"
+              >TypeScript errors. Fix them before running the tests.</app-status-indicator
+            >
+          </p>
+          <ul class="diagnostics">
+            @for (d of result.diagnostics; track $index) {
+              <li>
+                <span class="loc">Line {{ d.line }}, column {{ d.column }}</span> {{ d.message }}
+              </li>
+            }
+          </ul>
+        }
+        @case ('load-error') {
+          <p class="summary">
+            <app-status-indicator type="error">{{ result.message }}</app-status-indicator>
+          </p>
+        }
+        @case ('timeout') {
+          <p class="summary">
+            <app-status-indicator type="error">
+              Stopped after {{ result.timeoutMs / 1000 }} seconds. Check for an infinite loop.
+            </app-status-indicator>
+          </p>
+        }
+      }
+
+      @if (result.status === 'passed' || result.status === 'failed') {
+        <ol class="tests">
+          @for (test of result.results; track $index) {
+            <li [class.failed]="!test.passed">
+              <details [open]="!test.passed">
+                <summary>
+                  <app-status-indicator [type]="test.passed ? 'success' : 'error'">
+                    <span class="sr-only">{{ test.passed ? 'Passed:' : 'Failed:' }}</span>
+                    <span class="test-name">{{ test.description }}</span>
+                  </app-status-indicator>
+                </summary>
+                <dl>
+                  <dt>Input</dt>
+                  <dd>
+                    <code>{{ test.input }}</code>
+                  </dd>
+                  <dt>Expected</dt>
+                  <dd>
+                    <code>{{ test.expected }}</code>
+                  </dd>
+                  @if (test.error) {
+                    <dt>Error</dt>
+                    <dd class="error">{{ test.error }}</dd>
+                  } @else {
+                    <dt>Received</dt>
+                    <dd>
+                      <code>{{ test.actual }}</code>
+                    </dd>
+                  }
+                </dl>
+              </details>
+            </li>
+          }
+        </ol>
+      }
+    }
+  }
+</div>

@@ -1,0 +1,93 @@
+/*
+ * PracStack design tokens.
+ *
+ * Every color, size and spacing value used by components comes from here.
+ * Components must not hard-code colors; add a token instead.
+ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f6f9;
+  --color-surface-hover: #f1f4f8;
+  --color-surface-selected: #e8f1fa;
+
+  /* Text */
+  --color-text: #16191f;
+  --color-text-secondary: #5f6b7a;
+  --color-text-disabled: #9aa5b1;
+  --color-text-inverse: #ffffff;
+
+  /* Borders */
+  --color-border: #d5dbe3;
+  --color-border-strong: #8d99a8;
+  --color-border-divider: #e7eaee;
+
+  /* Interactive */
+  --color-primary: #1769aa;
+  --color-primary-hover: #105a93;
+  --color-primary-active: #0b4878;
+  --color-primary-subtle: #e8f1fa;
+  --color-focus-ring: #1769aa;
+
+  /* Status */
+  --color-success: #16794b;
+  --color-success-bg: #ebf6f0;
+  --color-warning: #9a6700;
+  --color-warning-bg: #fdf5e3;
+  --color-error: #c23a35;
+  --color-error-bg: #fcefee;
+  --color-info: #1769aa;
+  --color-info-bg: #e8f1fa;
+
+  /* Typography */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif;
+  --font-mono: 'Cascadia Code', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-md: 16px;
+  --font-size-lg: 18px;
+  --font-size-xl: 22px;
+  --line-height-base: 20px;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* Spacing (4px scale) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shape */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --shadow-popover: 0 4px 16px rgb(15 23 42 / 0.14);
+
+  /* Controls */
+  --control-height: 32px;
+  --control-height-sm: 28px;
+
+  /* Layout */
+  --header-height: 48px;
+  --nav-width: 232px;
+  --content-max-width: 1440px;
+  --page-padding: var(--space-6);
+
+  /* Layering */
+  --z-nav-overlay: 20;
+  --z-header: 30;
+}
+
+@media (max-width: 767px) {
+  :root {
+    --page-padding: var(--space-4);
+  }
+}

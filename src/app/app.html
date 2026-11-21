@@ -1,5 +1,15 @@
-<app-site-header />
+<button type="button" class="skip-link" (click)="skipToContent()">Skip to main content</button>
 
-<main>
-  <router-outlet />
-</main>
+<app-top-nav (toggleNav)="toggleNav()" />
+
+<div class="shell" [class.overlay]="layout.overlayMode()">
+  <app-side-nav id="side-nav" class="side-nav" [hidden]="!layout.navOpen()" />
+
+  @if (layout.overlayMode() && layout.navOpen()) {
+    <div class="backdrop" aria-hidden="true" (click)="layout.closeOverlay()"></div>
+  }
+
+  <main #main tabindex="-1" [class.full-bleed]="layout.fullBleed()">
+    <router-outlet />
+  </main>
+</div>

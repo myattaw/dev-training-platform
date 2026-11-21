@@ -1,28 +1,27 @@
-import { Routes } from '@angular/router';
+import { type Routes } from '@angular/router';
 
 /**
- * Every page is lazy-loaded (`loadComponent`), so each route becomes its own
- * JavaScript chunk. Monaco is only downloaded when an exercise page opens.
+ * Every feature is lazy-loaded, so each becomes its own JavaScript chunk.
+ * Monaco is only downloaded when a coding workspace opens.
  */
 export const routes: Routes = [
   {
     path: '',
-    title: 'typexercise: Learn TypeScript by doing',
-    loadComponent: () => import('./pages/home/home').then((m) => m.Home),
+    pathMatch: 'full',
+    title: 'Dashboard',
+    loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
   },
   {
-    path: 'exercises',
-    title: 'Exercises · typexercise',
-    loadComponent: () => import('./pages/catalog/catalog').then((m) => m.Catalog),
+    path: 'challenges',
+    loadChildren: () =>
+      import('./features/challenges/challenges.routes').then((m) => m.CHALLENGE_ROUTES),
   },
-  {
-    // `:id` is bound to the component's `id` input (see withComponentInputBinding).
-    path: 'exercises/:id',
-    loadComponent: () => import('./pages/exercise/exercise').then((m) => m.ExercisePage),
-  },
+  // Links from before the Coding Challenges rename keep working.
+  { path: 'exercises', pathMatch: 'full', redirectTo: 'challenges' },
+  { path: 'exercises/:id', redirectTo: 'challenges/:id/workspace' },
   {
     path: '**',
-    title: 'Not found · typexercise',
-    loadComponent: () => import('./pages/not-found/not-found').then((m) => m.NotFound),
+    title: 'Page not found',
+    loadComponent: () => import('./core/not-found/not-found').then((m) => m.NotFound),
   },
 ];

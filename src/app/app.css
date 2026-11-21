@@ -1,11 +1,71 @@
 :host {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: calc(var(--z-header) + 1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: var(--font-weight-bold);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.shell {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Docked: the nav scrolls independently and stays in view. */
+.side-nav {
+  position: sticky;
+  top: var(--header-height);
+  flex: none;
+  height: calc(100dvh - var(--header-height));
+}
+
+/* Overlay: the nav is a drawer above the content. */
+.overlay .side-nav {
+  position: fixed;
+  left: 0;
+  z-index: var(--z-nav-overlay);
+  box-shadow: var(--shadow-popover);
+}
+
+.backdrop {
+  position: fixed;
+  inset: var(--header-height) 0 0 0;
+  z-index: calc(var(--z-nav-overlay) - 1);
+  background: rgb(15 23 42 / 0.25);
 }
 
 main {
   flex: 1;
-  display: flex;
-  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-5) var(--page-padding) var(--space-8);
+}
+
+main:focus {
+  outline: none;
+}
+
+/* Full-bleed pages own the whole area below the header and manage their own scrolling. */
+main.full-bleed {
+  height: calc(100dvh - var(--header-height));
+  padding: 0;
+  overflow: hidden;
 }

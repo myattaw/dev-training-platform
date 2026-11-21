@@ -1,16 +1,23 @@
-import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import { type ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  provideRouter,
+  TitleStrategy,
+  withComponentInputBinding,
+  withInMemoryScrolling,
+} from '@angular/router';
 
 import { routes } from './app.routes';
+import { AppTitleStrategy } from './core/title-strategy';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(
       routes,
-      // Route params like `:id` are passed straight into component `input()`s.
+      // Route and query params like `:id` or `?q=` are passed straight into component `input()`s.
       withComponentInputBinding(),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
     ),
+    { provide: TitleStrategy, useExisting: AppTitleStrategy },
   ],
 };
