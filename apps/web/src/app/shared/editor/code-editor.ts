@@ -127,7 +127,7 @@ export class CodeEditor {
       };
     }
 
-    const getWorker = await monaco.typescript.getTypeScriptWorker();
+    const getWorker = await typeScriptWorker(monaco);
     const worker = await getWorker(model.uri);
     const file = model.uri.toString();
 
@@ -227,4 +227,26 @@ function flattenMessage(message: string | Monaco.typescript.Diagnostic['messageT
   if (typeof message === 'string') return message;
   const nested = (message.next ?? []).map((m) => flattenMessage(m));
   return [message.messageText, ...nested].join(' ');
+}
+
+/**
+ * Monaco registers its TypeScript support asynchronously, after the editor is
+ * already visible; until then `getTypeScriptWorker()` throws "TypeScript not
+ * registered!". Waits for it (a click on "Run tests" right after the editor
+ * appears used to do nothing at all). Exported for tests.
+ */
+export async function typeScriptWorker(
+  monaco: Pick<typeof Monaco, 'typescript'>,
+  timeoutMs = 15_000,
+  pollMs = 100,
+): Promise<Awaited<ReturnType<typeof Monaco.typescript.getTypeScriptWorker>>> {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      return await monaco.typescript.getTypeScriptWorker();
+    } catch (err) {
+      if (Date.now() >= deadline) throw err;
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+    }
+  }
 }

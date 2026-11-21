@@ -232,10 +232,19 @@ export class ChallengeWorkspace {
     try {
       let outcome: RunOutcome;
       if (this.runsInBrowser()) {
-        const compiled = await editor.compile();
-        outcome = compiled.ok
-          ? await this.runner.run(compiled.js, setup.entryPoint, challenge.visibleTests)
-          : { status: 'compile-error', diagnostics: compiled.diagnostics };
+        try {
+          const compiled = await editor.compile();
+          outcome = compiled.ok
+            ? await this.runner.run(compiled.js, setup.entryPoint, challenge.visibleTests)
+            : { status: 'compile-error', diagnostics: compiled.diagnostics };
+        } catch (err) {
+          // Never fail silently: an unexpected error is shown, not swallowed.
+          outcome = {
+            status: 'load-error',
+            message: `The tests could not be run: ${errorMessage(err)} Try again.`,
+            logs: [],
+          };
+        }
       } else {
         // Languages the browser cannot run are run on the server (visible tests only).
         if (!this.auth.ensureSignedIn()) return;

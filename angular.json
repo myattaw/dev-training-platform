@@ -42,7 +42,8 @@
               }
             ],
             "loader": {
-              ".ttf": "file"
+              ".ttf": "file",
+              ".css": "empty"
             },
             "outputPath": "dist/web"
           },
