@@ -1,0 +1,26 @@
+# Weekly dependency updates, grouped so they arrive as a few pull requests.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      angular:
+        patterns: ['@angular/*', '@angular-devkit/*', '@schematics/angular']
+      aws:
+        patterns: ['@aws-sdk/*', 'aws-cdk', 'aws-cdk-lib', 'constructs', 'cdk-nag']
+      tooling:
+        patterns: ['eslint*', '@typescript-eslint/*', 'prettier', 'vitest', '@vitest/*', '@playwright/test', 'tsx', 'esbuild']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # Base images of the Docker runners (local) and the Lambda runners (AWS).
+  - package-ecosystem: docker
+    directories:
+      - /packages/code-runner/docker/typescript
+      - /packages/code-runner/docker/java
+    schedule:
+      interval: weekly

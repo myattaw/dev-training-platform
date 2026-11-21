@@ -58,7 +58,8 @@ services/
 infra/                       AWS CDK app: one stack (CloudFront, S3, Cognito, API Gateway, Lambda, runners in an isolated VPC, DynamoDB, Budgets)
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
-docs/                        api.md, aws.md, content.md, runners.md, scoring.md, sql.md
+docs/                        api.md, aws.md, content.md, operations.md, runners.md, scoring.md, sql.md
+.github/                     CI workflow (fast checks), Dependabot, pull-request template
 ```
 
 Dependencies point one way: `web → (api-contracts, challenge-runtime, content-model)`,
@@ -67,14 +68,14 @@ Dependencies point one way: `web → (api-contracts, challenge-runtime, content-
 `scoring` stands alone. The `content` package is Node-only (it compiles and
 runs code); the browser only ever loads its generated **public** JSON.
 
-## Current status (end of Phase 8)
+## Current status (end of Phase 9)
 
 | Works today                                                                       | Not built yet                                          |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Deployment to AWS (awaiting approval)                  |
 | Isolated Docker runners: no network, resource limits, expected values kept outside | Angular track                                          |
 | Skill Mastery: TypeScript, PostgreSQL and Oracle SQL (70 questions), server-side scoring | My Progress, Profile pages                             |
-| SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | CI/CD, WAF, custom domain (Phase 9)                    |
+| SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | WAF and custom domain (declined for now); CD           |
 | AWS stack in CDK: sign-in (Cognito), API on Lambda, DynamoDB, CloudFront + strict CSP — **written and tested, not deployed** | |
 | Runners on AWS: isolated Lambda container functions (no network, no credentials), attacked in tests — **not deployed** | |
 
@@ -112,6 +113,7 @@ and linked on first use; the production builder does not load CSS imported from 
 ## More documentation
 
 - [docs/api.md](docs/api.md): endpoints, the rules that keep scores honest, limits, storage.
+- [docs/operations.md](docs/operations.md): CI (and what it skips), alarms, kill switch, logs, rollback, secrets.
 - [docs/aws.md](docs/aws.md): the AWS architecture, cost estimate, deploying and removing it.
 - [docs/runners.md](docs/runners.md): how submissions are isolated and graded, and the known limits.
 - [docs/sql.md](docs/sql.md): how SQL runs (PostgreSQL and Oracle), every security boundary and its known limits, grading.
@@ -129,4 +131,4 @@ and linked on first use; the production builder does not load CSS imported from 
 6. **AWS foundation (CDK)** ✅ _(code and tests; deployment awaits approval)_
 7. **Isolated runners on AWS** ✅ _(Lambda container functions; code and tests, deployment awaits approval)_
 8. **Oracle SQL track** ✅ _(Oracle Database Free locally; on AWS, questions without SQL execution only)_
-9. CI/CD and production hardening
+9. **CI and production hardening** ✅ _(GitHub Actions fast checks, Dependabot, alarms, access logs; no CD by choice)_

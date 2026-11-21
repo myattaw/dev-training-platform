@@ -13,6 +13,8 @@ const strip = (s) => s.replace(/\x1b\[[0-9;]*m/g, '');
 const server = spawn('npx', ['ng', 'serve', '--port', String(PORT)], {
   shell: true,
   stdio: ['ignore', 'pipe', 'pipe'],
+  // On Linux/macOS: its own process group, so the shell AND ng serve can be killed together.
+  detached: process.platform !== 'win32',
 });
 let output = '';
 server.stdout.on('data', (d) => (output += strip(String(d))));
@@ -21,7 +23,13 @@ server.stderr.on('data', (d) => (output += strip(String(d))));
 const stop = () => {
   // Synchronous, so the whole process tree is gone before this script exits.
   if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(server.pid), '/T', '/F']);
-  else server.kill('SIGTERM');
+  else {
+    try {
+      process.kill(-server.pid, 'SIGKILL');
+    } catch {
+      /* already gone */
+    }
+  }
 };
 const fail = (message) => {
   console.error(`Dev server check failed: ${message}\n\n${output}`);

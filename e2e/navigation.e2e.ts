@@ -76,8 +76,10 @@ test.describe('navigation and catalog', () => {
 
   test('skip link moves focus to the main content', async ({ page }) => {
     await page.goto('/');
-    await page.keyboard.press('Tab');
     const skip = page.getByRole('button', { name: 'Skip to main content' });
+    // The app renders after loading /config.json; a Tab pressed before that goes elsewhere.
+    await expect(skip).toBeAttached();
+    await page.keyboard.press('Tab');
     await expect(skip).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(page.locator('main')).toBeFocused();

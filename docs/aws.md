@@ -88,6 +88,8 @@ the always-free tiers unless marked *12 months* (only for accounts less than a y
 | VPC (isolated subnets, security group) and flow logs of rejected traffic | $0 | ≈ $0 | No NAT, endpoints or gateways: nothing billed by the hour |
 | DynamoDB (on-demand + PITR) | ≈ $0 | ≈ $0.05 | 25 GB storage |
 | CloudWatch Logs | $0 | ≈ $0 | 5 GB ingestion |
+| CloudWatch alarms (6) + SNS email | $0 | $0 | 10 alarms; 1,000 emails per month |
+| CloudFront access logs (S3, 30 days) | $0 | < $0.05 | — |
 | AWS Budgets (one budget, one action) | $0 | $0 | The first two action-enabled budgets are free |
 | CDK bootstrap (staging bucket, roles) | < $0.01 | < $0.01 | — |
 | **Total** | **≈ $0.10/month** | **well under $1/month** | |
@@ -100,8 +102,8 @@ No NAT gateways, VPC endpoints, load balancers, databases, WAF, or anything else
 Lambda $20, DynamoDB $25, CloudFront requests $12, logs $4: **≈ $90/month**. Per-user rate
 limits (120/min) make that require many accounts. The budget emails you at $5 actual, $10
 actual and when the forecast exceeds $10, so it would be noticed within a day. Static files on
-CloudFront are not throttled; AWS WAF rate limiting (≈ $6/month) is planned for production
-hardening.
+CloudFront are not throttled. AWS WAF rate limiting (about $8–10/month) was considered in Phase 9
+and declined for now; it can be added to the stack later.
 
 **Worst case for the runners.** Runners are billed by memory × time, so they are capped across all
 users: 30 code runs and 60 SQL runs per minute. Kept at those caps with the slowest possible runs

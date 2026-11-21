@@ -7,6 +7,7 @@ import { PANGRAM_SOLUTION, replaceCode, waitForEditor } from './support/workspac
  * These share one local API user, so they run in order on different challenges.
  */
 test.describe.configure({ mode: 'serial' });
+test.skip(process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1', 'Docker tests skipped');
 
 const submit = async (page: Page) => {
   await page.getByRole('button', { name: 'Submit', exact: true }).click();

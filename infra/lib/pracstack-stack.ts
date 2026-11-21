@@ -18,6 +18,10 @@ import {
   aws_s3 as s3,
   aws_s3_deployment as s3deploy,
   aws_ec2 as ec2,
+  aws_cloudwatch as cloudwatch,
+  aws_cloudwatch_actions as cwActions,
+  aws_sns as sns,
+  aws_sns_subscriptions as subscriptions,
 } from 'aws-cdk-lib';
 import {
   HttpApi,
@@ -190,8 +194,23 @@ export class PracStackStack extends Stack {
       cookieBehavior: cloudfront.CacheCookieBehavior.none(),
     });
 
+    // CloudFront access logs (standard logging needs object ACLs on its bucket).
+    // Kept 30 days. They contain IP addresses and paths, never request bodies or tokens.
+    const accessLogs = new s3.Bucket(this, 'AccessLogBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      enforceSSL: true,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
+      lifecycleRules: [{ expiration: Duration.days(30) }],
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
+
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
       comment: `PracStack ${props.stage}`,
+      enableLogging: true,
+      logBucket: accessLogs,
+      logFilePrefix: 'cloudfront/',
       defaultRootObject: 'index.html',
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
@@ -464,6 +483,57 @@ export class PracStackStack extends Stack {
     });
     killSwitch.node.addDependency(budgetActionRole);
 
+    // ---------------------------------------------------------------- alarms
+    // Emails when something is failing. Six alarms: within CloudWatch's 10 free alarms.
+    // (CloudWatch cannot publish to a topic encrypted with the free AWS-managed key.)
+    const alarmTopic = new sns.Topic(this, 'AlarmTopic', {
+      displayName: `PracStack ${props.stage} alarms`,
+      enforceSSL: true,
+    });
+    alarmTopic.addSubscription(new subscriptions.EmailSubscription(props.alertEmail));
+    const alarm = (
+      id: string,
+      metric: cloudwatch.IMetric,
+      threshold: number,
+      description: string,
+    ) =>
+      new cloudwatch.Alarm(this, id, {
+        metric,
+        threshold,
+        evaluationPeriods: 1,
+        comparisonOperator: cloudwatch.ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+        treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+        alarmDescription: description,
+      }).addAlarmAction(new cwActions.SnsAction(alarmTopic));
+    const fiveMinutes = { period: Duration.minutes(5), statistic: 'Sum' };
+
+    alarm(
+      'ApiErrorsAlarm',
+      apiFunction.metricErrors(fiveMinutes),
+      5,
+      'The API function failed 5+ times in 5 minutes (unexpected errors; see its logs).',
+    );
+    alarm(
+      'Api5xxAlarm',
+      httpApi.metricServerError(fiveMinutes),
+      10,
+      'The API returned 10+ server errors (5xx) in 5 minutes.',
+    );
+    alarm(
+      'LambdaThrottlesAlarm',
+      new cloudwatch.Metric({ namespace: 'AWS/Lambda', metricName: 'Throttles', ...fiveMinutes }),
+      1,
+      'Lambda throttled requests: the account concurrency limit was reached (see docs/aws.md).',
+    );
+    for (const [name, runner] of Object.entries(runners)) {
+      alarm(
+        `${name[0]?.toUpperCase()}${name.slice(1)}RunnerErrorsAlarm`,
+        runner.metricErrors(fiveMinutes),
+        5,
+        `The ${name} runner failed 5+ times in 5 minutes (the supervisor itself, not learner code).`,
+      );
+    }
+
     // ---------------------------------------------------------------- outputs
     new CfnOutput(this, 'SiteUrl', { value: siteUrl });
     new CfnOutput(this, 'SignInDomain', { value: cognitoOrigin });
@@ -474,7 +544,15 @@ export class PracStackStack extends Stack {
         value: runner.functionName,
       });
 
-    this.acknowledgeReviewedFindings({ distribution, webBucket, userPool, apiFunction, runners });
+    this.acknowledgeReviewedFindings({
+      distribution,
+      webBucket,
+      accessLogs,
+      alarmTopic,
+      userPool,
+      apiFunction,
+      runners,
+    });
   }
 
   private securityHeaders(id: string, csp: string): cloudfront.ResponseHeadersPolicy {
@@ -514,6 +592,8 @@ export class PracStackStack extends Stack {
   private acknowledgeReviewedFindings(r: {
     distribution: cloudfront.Distribution;
     webBucket: s3.Bucket;
+    accessLogs: s3.Bucket;
+    alarmTopic: sns.Topic;
     userPool: cognito.UserPool;
     apiFunction: lambda.Function;
     runners: Record<RunnerName, lambda.DockerImageFunction>;
@@ -524,9 +604,14 @@ export class PracStackStack extends Stack {
     };
     ack(r.distribution, {
       CFR1: 'A learning platform open to everyone: no geographic restriction is wanted.',
-      CFR2: 'AWS WAF costs at least ~$6/month; deferred to production hardening (Phase 9). API Gateway throttling and per-user rate limits apply meanwhile.',
-      CFR3: 'CloudFront access logs need a log bucket with ACLs; deferred to production hardening (Phase 9). API access logs are enabled.',
-      CFR4: 'The default *.cloudfront.net certificate cannot enforce TLS 1.2; a custom domain with a TLS 1.2 policy comes with production hardening.',
+      CFR2: 'AWS WAF (about $8–10/month) was declined for now (Phase 9). API Gateway throttling, per-user and global rate limits, and the budget kill switch apply.',
+      CFR4: 'The default *.cloudfront.net certificate cannot enforce TLS 1.2; a custom domain with a TLS 1.2 policy was deferred until there is a domain (Phase 9).',
+    });
+    ack(r.accessLogs, {
+      S1: 'This is the access-log bucket; logging its own access would be circular.',
+    });
+    ack(r.alarmTopic, {
+      SNS2: 'Alarm notifications only. CloudWatch cannot publish to a topic encrypted with the free AWS-managed key, and a customer key costs $1/month.',
     });
     ack(r.webBucket, {
       S1: 'Holds only public build output, readable only through CloudFront (Origin Access Control).',

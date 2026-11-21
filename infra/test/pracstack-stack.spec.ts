@@ -102,6 +102,11 @@ describe('cost safety', () => {
       'AWS::Logs::LogGroup',
       'AWS::Budgets::Budget',
       'AWS::Budgets::BudgetsAction',
+      // Alarms (first 10 free) and their email topic.
+      'AWS::CloudWatch::Alarm',
+      'AWS::SNS::Topic',
+      'AWS::SNS::TopicPolicy',
+      'AWS::SNS::Subscription',
       'AWS::IAM::ManagedPolicy',
       // The runners' isolated VPC (no gateways, endpoints or routes: all free).
       'AWS::EC2::VPC',
@@ -188,6 +193,34 @@ describe('cost safety', () => {
         [1536, 10],
       ]),
     );
+  });
+
+  it('emails alarms for failures, within the free alarm allowance', () => {
+    const alarms = resourcesOf('AWS::CloudWatch::Alarm');
+    expect(alarms.length).toBeGreaterThanOrEqual(6);
+    expect(alarms.length).toBeLessThanOrEqual(10);
+    for (const a of alarms) {
+      expect(a.Properties.AlarmActions).toHaveLength(1);
+      expect(a.Properties.AlarmActions[0].Ref).toMatch(/^AlarmTopic/);
+    }
+    template.hasResourceProperties('AWS::SNS::Subscription', {
+      Protocol: 'email',
+      Endpoint: 'alerts@example.com',
+    });
+  });
+
+  it('keeps CloudFront access logs for 30 days in a private bucket', () => {
+    const dist = resourcesOf('AWS::CloudFront::Distribution')[0]?.Properties.DistributionConfig;
+    expect(dist.Logging).toMatchObject({ Prefix: 'cloudfront/' });
+    template.hasResourceProperties('AWS::S3::Bucket', {
+      LifecycleConfiguration: {
+        Rules: [Match.objectLike({ ExpirationInDays: 30, Status: 'Enabled' })],
+      },
+      PublicAccessBlockConfiguration: Match.objectLike({
+        BlockPublicAcls: true,
+        RestrictPublicBuckets: true,
+      }),
+    });
   });
 
   it('can be removed completely by `cdk destroy` when retainData is false', () => {
