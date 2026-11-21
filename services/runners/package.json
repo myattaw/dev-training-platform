@@ -1,0 +1,22 @@
+{
+  "name": "@pracstack/runners",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "build": "tsx scripts/build.ts"
+  },
+  "dependencies": {
+    "@pracstack/challenge-runtime": "*",
+    "@pracstack/code-runner": "*",
+    "@pracstack/sql-engine": "*"
+  },
+  "devDependencies": {
+    "esbuild": "*"
+  },
+  "exports": {
+    "./probes": "./src/probes.ts"
+  }
+}

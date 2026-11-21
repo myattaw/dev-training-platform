@@ -1,4 +1,4 @@
-# PracStack on AWS (Phase 6: foundation)
+# PracStack on AWS
 
 Everything is defined with the AWS CDK in [`infra/`](../infra) as one CloudFormation stack,
 `PracStack-<stage>`. **Nothing in this repository creates AWS resources on its own:** tests and
@@ -13,6 +13,10 @@ Browser ──HTTPS──▶ CloudFront ─┬─ /*            → S3 bucket (p
                                                     │ JWT authorizer (Cognito ID token)
                                                     ▼
                                                   Lambda (Node.js 22, arm64) ──▶ DynamoDB (on-demand)
+                                                    │ Invoke (3 functions only)
+                                                    ▼
+                                                  Runner functions: TypeScript, Java, SQL
+                                                  (container images, isolated VPC: no network)
 Browser ──redirect──▶ Cognito managed login (sign-up, sign-in, PKCE)
 AWS Budgets ──email──▶ you
 ```
@@ -28,18 +32,39 @@ AWS Budgets ──email──▶ you
 | **AWS Budgets** | Cost alerts | Monthly budget (default $10) with emails at 50 %, 100 % actual and 100 % forecast |
 | **CloudWatch Logs** | Function and API access logs | 14-day retention |
 
-### Not on AWS yet (Phase 7)
+### Learner code and SQL (Phase 7)
 
-Learner code and SQL are **not** executed here: an ordinary API Lambda must never run untrusted
-code. On AWS:
+The API function never runs learner code or SQL. It invokes three **runner functions**
+(TypeScript, Java, SQL): container-image Lambda functions in a VPC with no way out, holding no
+credentials, cleaned between runs. Design, layers and limits:
+[runners.md](runners.md#on-aws-lambda-runner-functions-servicesrunners).
 
-- Coding challenges: "Run tests" for **TypeScript** works (in the browser); **Submit** and
-  **Java** runs return "not available" (HTTP 503).
-- PostgreSQL skills serve their multiple-choice and other non-SQL questions; questions that ask
-  you to **write SQL** are skipped until the SQL runner exists on AWS.
+| Runner | Memory | Function timeout | Run limit |
+| --- | --- | --- | --- |
+| TypeScript | 1024 MB | 20 s | 10 s |
+| Java | 1024 MB | 25 s | 15 s |
+| SQL | 1536 MB | 10 s | 3 s per query |
 
-Everything else works: browsing, sign-up and sign-in, TypeScript Skill Mastery with server-side
-scoring, XP, and progress.
+The API function's timeout is 29 s (API Gateway allows 30 s): enough for a Java run that starts
+a cold runner.
+
+**Kill switch.** When actual spend passes the monthly budget, AWS Budgets attaches the
+`StopRunnersPolicy` (deny invoking the runners) to the API function's role. Learners then see
+"busy" for submissions and SQL; everything else keeps working. To resume after reviewing the
+costs, detach it:
+
+```bash
+aws iam detach-role-policy --role-name <ApiFunctionRole name> --policy-arn <StopRunnersPolicy ARN>
+```
+
+Budget data lags actual usage by several hours, so the switch limits a runaway; it does not
+prevent all spend.
+
+**Before real use: raise the Lambda concurrency quota.** This account can run 10 Lambda
+functions at once, shared by the API and the runners, so a few busy runners can make the API
+fail. Requesting a higher quota (Service Quotas → AWS Lambda → Concurrent executions) is free.
+
+g, XP, and progress.
 
 ## Cost estimate (us-east-2)
 
@@ -53,14 +78,16 @@ the always-free tiers unless marked *12 months* (only for accounts less than a y
 | S3 (≈ 15 MB) | < $0.01 | < $0.01 | — |
 | Cognito (Lite) | $0 | $0 | 10,000 monthly active users |
 | API Gateway (HTTP API) | $0 | ≈ $0.05 | 1 M requests/month (*12 months*) |
-| Lambda (arm64) | $0 | $0 | 1 M requests + 400,000 GB-s per month |
+| Lambda: API (arm64) and runners (x86) | $0 | $0 (≈ 2,000 runs ≈ 3,000 GB-s) | 1 M requests + 400,000 GB-s per month |
+| Runner images (ECR, ≈ 0.6 GB compressed) | ≈ $0.06 | ≈ $0.06 | 500 MB (*12 months*) |
+| VPC (isolated subnets, security group) and flow logs of rejected traffic | $0 | ≈ $0 | No NAT, endpoints or gateways: nothing billed by the hour |
 | DynamoDB (on-demand + PITR) | ≈ $0 | ≈ $0.05 | 25 GB storage |
 | CloudWatch Logs | $0 | ≈ $0 | 5 GB ingestion |
-| AWS Budgets | $0 | $0 | Budgets without actions are free |
+| AWS Budgets (one budget, one action) | $0 | $0 | The first two action-enabled budgets are free |
 | CDK bootstrap (staging bucket, roles) | < $0.01 | < $0.01 | — |
-| **Total** | **≈ $0/month** | **well under $1/month** | |
+| **Total** | **≈ $0.10/month** | **well under $1/month** | |
 
-No NAT gateways, load balancers, VPCs, databases, WAF, or anything else that bills by the hour
+No NAT gateways, VPC endpoints, load balancers, databases, WAF, or anything else that bills by the hour
 (a test fails if one is added: `infra/test/pracstack-stack.spec.ts`).
 
 **Worst case (abuse).** Costs scale with requests. A signed-in attacker holding the API at its
@@ -71,19 +98,31 @@ actual and when the forecast exceeds $10, so it would be noticed within a day. S
 CloudFront are not throttled; AWS WAF rate limiting (≈ $6/month) is planned for production
 hardening.
 
+**Worst case for the runners.** Runners are billed by memory × time, so they are capped across all
+users: 30 code runs and 60 SQL runs per minute. Kept at those caps with the slowest possible runs
+(Java at its 15 s limit, 1 GB), they would cost about **$1/hour (≈ $25/day)**. The budget action
+stops them once actual spend passes the budget; because billing data arrives hours late, expect
+up to roughly a day of that rate before it fires.
+
 ## Deploying (requires approval; creates billable resources)
 
-Prerequisites: AWS CLI configured for the target account and region, Docker not needed.
+Prerequisites: AWS CLI configured for the target account and region, and Docker running (the
+CDK builds the three runner images and pushes them to the bootstrap ECR repository).
 
 ```bash
-npm run deploy:prepare                 # build web + Lambda bundle, stage assets in infra/.build
+npm run deploy:prepare                 # build web, API bundle, runner image contexts; stage in infra/.build
 cd infra
 npx cdk bootstrap                      # once per account/region: creates the CDKToolkit stack
 npx cdk diff    -c alertEmail=you@example.com
 npx cdk deploy  -c alertEmail=you@example.com    # review the IAM changes it shows, then confirm
+npx tsx scripts/verify-runners.ts      # hostile probes against the deployed runners (must pass)
 ```
 
-Outputs: `SiteUrl` (the app), `SignInDomain`, `UserPoolId`, `TableName`.
+Do not open the site to learners until `verify-runners.ts` passes: it is the only check of the
+network isolation and of Lambda's own processes that can only run on AWS.
+
+Outputs: `SiteUrl` (the app), `SignInDomain`, `UserPoolId`, `TableName`, and the three
+runner function names.
 
 Context options: `stage` (default `dev`), `alertEmail` (required), `budgetUsd` (default `10`),
 `retainData` (default `false`).
@@ -96,14 +135,16 @@ npx cdk destroy -c alertEmail=you@example.com
 ```
 
 With `retainData=false` (the default) this deletes **everything in the stack, including all
-user accounts and progress**: bucket and its files, distribution, user pool, table, function,
-API, log groups and the budget. CloudFront distributions take a few minutes to disable and
+user accounts and progress**: bucket and its files, distribution, user pool, table, API and
+runner functions, the runners' VPC, log groups, the budget and its action. CloudFront distributions take a few minutes to disable and
 delete.
 
 Left behind afterwards (all negligible cost):
 
 - Log groups that Lambda created for CDK's helper functions (`/aws/lambda/PracStack-dev-Custom…`),
   with no expiry. Delete them in the CloudWatch console if you want a clean account.
+- Runner **images** in the bootstrap ECR repository (`cdk-hnb659fds-container-assets-<account>-<region>`):
+  CDK never deletes assets. Delete the images in the ECR console (≈ $0.10/GB-month otherwise).
 - The **CDKToolkit** bootstrap stack and its staging bucket (shared by every CDK app in the
   account/region). To remove it: empty the `cdk-hnb659fds-assets-<account>-<region>` bucket, then
   delete the `CDKToolkit` stack in the CloudFormation console. Its staging bucket is retained by
@@ -133,4 +174,5 @@ Left behind afterwards (all negligible cost):
 npm test -w @pracstack/infra           # CDK assertions + cdk-nag, no AWS calls
 npm test -w @pracstack/api             # includes DynamoDB Local and a smoke test of the built bundle
 npx playwright test e2e/auth.e2e.ts    # sign-in flow against a fake Cognito, under the real CSP
+npm test -w @pracstack/runners         # builds the runner images and attacks them (Docker)
 ```

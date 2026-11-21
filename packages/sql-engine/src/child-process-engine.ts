@@ -13,6 +13,16 @@ export interface ChildProcessEngineOptions {
   readonly limits?: Partial<SqlLimits>;
   /** Queued jobs beyond this are refused as busy (protects the runner from floods). */
   readonly maxQueue?: number;
+  /**
+   * The runner process to start. Defaults to the TypeScript source run with
+   * tsx; bundled deployments (the AWS SQL runner function) pass plain JavaScript.
+   */
+  readonly runner?: { readonly path: string; readonly execArgv: readonly string[] };
+  /**
+   * Environment of the runner process. Defaults to this process's environment;
+   * the AWS runner passes a minimal one so no credentials reach it.
+   */
+  readonly env?: Readonly<Record<string, string>>;
 }
 
 interface Pending {
@@ -36,7 +46,7 @@ export class ChildProcessSqlEngine implements SqlEngine {
   private readonly limits: SqlLimits;
   private readonly maxQueue: number;
 
-  constructor(options: ChildProcessEngineOptions = {}) {
+  constructor(private readonly options: ChildProcessEngineOptions = {}) {
     this.limits = { ...DEFAULT_SQL_LIMITS, ...options.limits };
     this.maxQueue = options.maxQueue ?? 20;
   }
@@ -72,10 +82,16 @@ export class ChildProcessSqlEngine implements SqlEngine {
 
   private ensureChild(): ChildProcess {
     if (this.child && this.child.connected) return this.child;
-    const runner = fileURLToPath(new URL('./runtime/runner.ts', import.meta.url));
-    const child = fork(runner, [], {
+    const runner = this.options.runner ?? {
+      path: fileURLToPath(new URL('./runtime/runner.ts', import.meta.url)),
       execArgv: ['--import', 'tsx'],
-      env: { ...process.env, PRACSTACK_SQL_LIMITS: JSON.stringify(this.limits) },
+    };
+    const child = fork(runner.path, [], {
+      execArgv: [...runner.execArgv],
+      env: {
+        ...(this.options.env ?? process.env),
+        PRACSTACK_SQL_LIMITS: JSON.stringify(this.limits),
+      },
       serialization: 'advanced',
       stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
     });

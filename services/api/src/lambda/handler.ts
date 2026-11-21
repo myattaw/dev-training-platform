@@ -2,8 +2,9 @@
  * AWS Lambda entry point (bundled by scripts/build-lambda.ts).
  *
  * Runs only the API logic: progress, scoring and question serving. It never
- * executes learner code or SQL; without a SQL engine or code runner those
- * requests return 503 until the isolated runners exist on AWS (Phase 7).
+ * executes learner code or SQL itself: those go to the isolated runner
+ * functions (services/runners), named by RUNNER_*_FUNCTION. Without them,
+ * those requests return 503.
  */
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +14,10 @@ import { loadContentSource } from '../content/content-source';
 import { DynamoRateLimiter } from '../store/dynamo-rate-limit';
 import { DynamoProgressStore } from '../store/dynamo-store';
 import { createLambdaHandler } from './adapter';
+import { GloballyLimitedCodeRunner, GloballyLimitedSqlEngine } from './global-limit';
+import { lambdaInvoke } from './invoke';
+import { InvokedCodeRunner } from '@pracstack/code-runner';
+import { InvokedSqlEngine } from '@pracstack/sql-engine';
 
 function env(name: string): string {
   const value = process.env[name];
@@ -24,7 +29,34 @@ const tableName = env('TABLE_NAME');
 const limiter = (name: string, limit: number) =>
   new DynamoRateLimiter({ tableName, name, limit, windowMs: 60_000 });
 
+const runnerFunctions = {
+  typescript: process.env['RUNNER_TYPESCRIPT_FUNCTION'],
+  java: process.env['RUNNER_JAVA_FUNCTION'],
+  sql: process.env['RUNNER_SQL_FUNCTION'],
+};
+const invoke = lambdaInvoke();
+/** Runs per minute across all users: bounds runner cost (see docs/aws.md). */
+export const GLOBAL_RUNS_PER_MINUTE = { code: 30, sql: 60 };
+const codeRunner =
+  runnerFunctions.typescript && runnerFunctions.java
+    ? new GloballyLimitedCodeRunner(
+        new InvokedCodeRunner(invoke, {
+          typescript: runnerFunctions.typescript,
+          java: runnerFunctions.java,
+        }),
+        limiter('code-global', GLOBAL_RUNS_PER_MINUTE.code),
+      )
+    : undefined;
+const sqlEngine = runnerFunctions.sql
+  ? new GloballyLimitedSqlEngine(
+      new InvokedSqlEngine(invoke, runnerFunctions.sql),
+      limiter('sql-global', GLOBAL_RUNS_PER_MINUTE.sql),
+    )
+  : undefined;
+
 const api = createApi({
+  ...(codeRunner ? { codeRunner } : {}),
+  ...(sqlEngine ? { sqlEngine } : {}),
   auth: new VerifiedJwtAuthenticator({
     issuer: env('JWT_ISSUER'),
     audience: env('JWT_AUDIENCE'),

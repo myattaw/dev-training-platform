@@ -41,7 +41,9 @@ let workerReady: Promise<Worker> | undefined;
 
 function getWorker(): Promise<Worker> {
   workerReady ??= new Promise<Worker>((resolve, reject) => {
-    const w = new Worker(new URL('./sql-worker.boot.mjs', import.meta.url));
+    // Bundled deployments name a plain-JavaScript worker; source runs use the tsx boot file.
+    const bundled = process.env['PRACSTACK_SQL_WORKER'];
+    const w = new Worker(bundled ?? new URL('./sql-worker.boot.mjs', import.meta.url));
     w.once('message', (m) =>
       m === 'ready' ? resolve(w) : reject(new Error('Unexpected worker message')),
     );

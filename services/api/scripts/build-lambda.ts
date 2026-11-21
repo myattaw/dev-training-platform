@@ -55,7 +55,12 @@ export async function buildLambda(
     logLevel: 'warning',
   });
 
-  const inputs = Object.keys(result.metafile.inputs);
+  // Files whose code actually ended up in the bundle (parsed-but-tree-shaken files have 0 bytes).
+  const inputs = Object.values(result.metafile.outputs).flatMap((output) =>
+    Object.entries(output.inputs)
+      .filter(([, info]) => info.bytesInOutput > 0)
+      .map(([file]) => file),
+  );
   const forbidden = inputs.filter((file) => FORBIDDEN.some((re) => re.test(file)));
   if (forbidden.length > 0) {
     throw new Error(

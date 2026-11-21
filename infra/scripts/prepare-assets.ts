@@ -4,6 +4,7 @@
  *   web-immutable/   content-hashed files (cached for a year)
  *   web-revalidate/  everything else: index.html, content/, … (revalidated)
  *   lambda/          the bundled API function
+ *   runners/         Docker build contexts of the runner functions
  *
  * Run by `npm run deploy:prepare` after the web and Lambda builds. Refuses
  * output that contains private content.
@@ -35,6 +36,7 @@ function listFiles(dir: string): string[] {
 export function prepareAssets(
   web = join(repoRoot, 'dist', 'web', 'browser'),
   lambdaDir = join(repoRoot, 'services', 'api', 'dist', 'lambda'),
+  runnersDir = join(repoRoot, 'services', 'runners', 'dist'),
   out = BUILD_DIR,
 ): void {
   if (!existsSync(join(web, 'index.html')))
@@ -56,6 +58,11 @@ export function prepareAssets(
     cpSync(file, target);
   }
   cpSync(lambdaDir, join(out, 'lambda'), { recursive: true });
+  if (!existsSync(join(runnersDir, 'typescript', 'Dockerfile')))
+    throw new Error(
+      `No runner build contexts in ${runnersDir}. Run "npm run build -w @pracstack/runners".`,
+    );
+  cpSync(runnersDir, join(out, 'runners'), { recursive: true });
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

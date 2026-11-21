@@ -76,6 +76,9 @@ multiple-selection question. SQL answers are graded by running them; see [sql.md
 | Fill-in-blank answer       | 200 characters per blank      | `ANSWER_LIMITS`        |
 | Ids                        | kebab-case, ≤ 100 characters  | validation             |
 
+On AWS, code runs and SQL runs are also capped across all users (30 and 60 per minute), which
+bounds the cost of the runner functions (see [aws.md](aws.md)).
+
 Locally the limits are counted in memory (`SlidingWindowRateLimiter`, sliding window). On AWS
 every Lambda instance has its own memory, so they are counted in DynamoDB (`DynamoRateLimiter`:
 one atomic counter per user and minute, removed by TTL), and API Gateway additionally throttles

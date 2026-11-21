@@ -7,8 +7,8 @@ import {
   RUNNER_IMAGES,
   type RunnerInput,
   type RunnerLanguage,
-  type RunnerOutput,
 } from './protocol';
+import { interpret } from './interpret';
 
 export interface DockerRunnerLimits {
   /** Wall-clock limit per run, including container start and compilation. */
@@ -203,7 +203,15 @@ export class DockerCodeRunner implements CodeRunner {
       child.on('close', (code) => {
         clearTimeout(timer);
         if (settled) return resolve(settled);
-        resolve(interpret(Buffer.concat(stdout).toString('utf8'), nonce, code, stderr));
+        resolve(
+          interpret(
+            Buffer.concat(stdout).toString('utf8'),
+            nonce,
+            code,
+            stderr,
+            request.tests.length,
+          ),
+        );
       });
 
       child.stdin.on('error', () => undefined);
@@ -224,44 +232,6 @@ export class DockerCodeRunner implements CodeRunner {
     if (next) next();
     else this.running--;
   }
-}
-
-/** Turns container output and exit status into a result. Exported for tests. */
-export function interpret(
-  stdout: string,
-  nonce: string,
-  exitCode: number | null,
-  stderr: string,
-): CodeRunResult {
-  const line = stdout.split('\n').find((l) => l.startsWith(nonce));
-  if (line) {
-    try {
-      return JSON.parse(line.slice(nonce.length)) as RunnerOutput;
-    } catch {
-      return { kind: 'load-error', message: 'The runner produced an unreadable result.', logs: [] };
-    }
-  }
-  if (exitCode === 125 || /Unable to find image|No such image/i.test(stderr)) {
-    return {
-      kind: 'unavailable',
-      message: /No such image|Unable to find image/i.test(stderr)
-        ? 'Runner images are missing. Build them with "npm run runners:build".'
-        : 'The code runner could not start a container.',
-    };
-  }
-  // 137: killed by the kernel at the container memory limit. 134 with a heap
-  // message: the runtime's own heap limit (Node's --max-old-space-size, Java's heap).
-  if (exitCode === 137 || /heap out of memory|OutOfMemoryError/i.test(stderr)) {
-    return {
-      kind: 'resource-limit',
-      message: 'Your program used too much memory and was stopped.',
-    };
-  }
-  return {
-    kind: 'load-error',
-    message: `Your program stopped before reporting any results (exit code ${exitCode ?? 'unknown'}).`,
-    logs: [],
-  };
 }
 
 function exec(command: string, args: string[]): Promise<{ code: number | null; stderr: string }> {

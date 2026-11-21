@@ -17,6 +17,7 @@ import {
   aws_logs as logs,
   aws_s3 as s3,
   aws_s3_deployment as s3deploy,
+  aws_ec2 as ec2,
 } from 'aws-cdk-lib';
 import {
   HttpApi,
@@ -27,6 +28,7 @@ import {
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { AccessLogFormat } from 'aws-cdk-lib/aws-apigateway';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
 import type { Construct } from 'constructs';
 import {
   appContentSecurityPolicy,
@@ -41,7 +43,18 @@ export interface PracStackAssets {
   readonly webRevalidate: string;
   /** The bundled API function (services/api/dist/lambda). */
   readonly lambda: string;
+  /** Docker build contexts of the runner functions (services/runners/dist/*). */
+  readonly runners: Readonly<Record<RunnerName, string>>;
 }
+
+export type RunnerName = 'typescript' | 'java' | 'sql';
+
+/** Memory (MB) and timeout (s) per runner function. Timeouts include a cold start. */
+export const RUNNER_SIZES: Readonly<Record<RunnerName, { memoryMb: number; timeoutS: number }>> = {
+  typescript: { memoryMb: 1024, timeoutS: 20 },
+  java: { memoryMb: 1024, timeoutS: 25 },
+  sql: { memoryMb: 1536, timeoutS: 10 },
+};
 
 export interface PracStackProps extends StackProps {
   /** e.g. `dev`. Part of resource names; lets several copies coexist. */
@@ -229,6 +242,65 @@ export class PracStackStack extends Stack {
     });
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
 
+    // ---------------------------------------------------------------- runners (learner code + SQL)
+    // An isolated VPC: no internet gateway, no NAT, no endpoints, no routes out.
+    const runnerVpc = new ec2.Vpc(this, 'RunnerVpc', {
+      natGateways: 0,
+      maxAzs: 2,
+      subnetConfiguration: [
+        { name: 'runners', subnetType: ec2.SubnetType.PRIVATE_ISOLATED, cidrMask: 24 },
+      ],
+    });
+    const flowLogs = new logs.LogGroup(this, 'RunnerVpcFlowLogs', {
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    // Rejected connection attempts (e.g. learner code trying to reach the network).
+    runnerVpc.addFlowLog('RejectedTraffic', {
+      destination: ec2.FlowLogDestination.toCloudWatchLogs(flowLogs),
+      trafficType: ec2.FlowLogTrafficType.REJECT,
+    });
+    const runnerSecurityGroup = new ec2.SecurityGroup(this, 'RunnerSecurityGroup', {
+      vpc: runnerVpc,
+      description: 'PracStack runners: no inbound and no outbound traffic.',
+      allowAllOutbound: false,
+    });
+
+    const runners = {} as Record<RunnerName, lambda.DockerImageFunction>;
+    for (const name of ['typescript', 'java', 'sql'] as const) {
+      const id = `${name[0]?.toUpperCase()}${name.slice(1)}Runner`;
+      const runnerLogs = new logs.LogGroup(this, `${id}Logs`, {
+        retention: logs.RetentionDays.TWO_WEEKS,
+        removalPolicy: RemovalPolicy.DESTROY,
+      });
+      // Logs, plus the network-interface permissions Lambda needs to attach to the VPC.
+      // The runner never uses these: its entrypoint removes the credentials (see services/runners).
+      const role = new iam.Role(this, `${id}Role`, {
+        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+        description: `PracStack ${name} runner: no access to any AWS data.`,
+        managedPolicies: [
+          iam.ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaVPCAccessExecutionRole',
+          ),
+        ],
+      });
+      runnerLogs.grantWrite(role);
+      runners[name] = new lambda.DockerImageFunction(this, id, {
+        description: `PracStack ${name} runner: executes learner ${name === 'sql' ? 'SQL' : 'code'} in isolation. No network, no permissions.`,
+        code: lambda.DockerImageCode.fromImageAsset(props.assets.runners[name], {
+          platform: Platform.LINUX_AMD64,
+        }),
+        architecture: lambda.Architecture.X86_64,
+        memorySize: RUNNER_SIZES[name].memoryMb,
+        timeout: Duration.seconds(RUNNER_SIZES[name].timeoutS),
+        role,
+        logGroup: runnerLogs,
+        vpc: runnerVpc,
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+        securityGroups: [runnerSecurityGroup],
+      });
+    }
+
     const apiFunction = new lambda.Function(this, 'ApiFunction', {
       description: 'PracStack API: progress, scoring, question serving. Never runs learner code.',
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -236,7 +308,8 @@ export class PracStackStack extends Stack {
       handler: 'index.handler',
       code: lambda.Code.fromAsset(props.assets.lambda),
       memorySize: 512,
-      timeout: Duration.seconds(10),
+      // Long enough for a Java submission with a cold runner; API Gateway's limit is 30 s.
+      timeout: Duration.seconds(29),
       role: functionRole,
       logGroup: functionLogs,
       environment: {
@@ -244,8 +317,18 @@ export class PracStackStack extends Stack {
         JWT_ISSUER: issuer,
         JWT_AUDIENCE: client.userPoolClientId,
         NODE_OPTIONS: '--enable-source-maps',
+        RUNNER_TYPESCRIPT_FUNCTION: runners.typescript.functionName,
+        RUNNER_JAVA_FUNCTION: runners.java.functionName,
+        RUNNER_SQL_FUNCTION: runners.sql.functionName,
       },
     });
+    // The API may invoke the three runners, and nothing else.
+    functionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['lambda:InvokeFunction'],
+        resources: Object.values(runners).map((runner) => runner.functionArn),
+      }),
+    );
 
     const apiAccessLogs = new logs.LogGroup(this, 'ApiAccessLogs', {
       retention: logs.RetentionDays.TWO_WEEKS,
@@ -316,7 +399,7 @@ export class PracStackStack extends Stack {
     void domain;
 
     // ---------------------------------------------------------------- cost guardrail
-    new budgets.CfnBudget(this, 'MonthlyBudget', {
+    const budget = new budgets.CfnBudget(this, 'MonthlyBudget', {
       budget: {
         budgetName: `pracstack-${props.stage}-monthly`,
         budgetType: 'COST',
@@ -338,13 +421,60 @@ export class PracStackStack extends Stack {
       })),
     });
 
+    // Kill switch: when actual spend passes the budget, AWS Budgets attaches this
+    // policy to the API function's role. Learner code and SQL then stop running
+    // ("busy"); browsing, sign-in and progress keep working. Undo: docs/aws.md.
+    const stopRunners = new iam.ManagedPolicy(this, 'StopRunnersPolicy', {
+      description:
+        'Attached automatically by the PracStack budget action: stops all runner invocations.',
+      statements: [
+        new iam.PolicyStatement({
+          effect: iam.Effect.DENY,
+          actions: ['lambda:InvokeFunction'],
+          resources: Object.values(runners).map((runner) => runner.functionArn),
+        }),
+      ],
+    });
+    const budgetActionRole = new iam.Role(this, 'BudgetActionRole', {
+      assumedBy: new iam.ServicePrincipal('budgets.amazonaws.com'),
+      description:
+        'Lets AWS Budgets attach the stop-runners policy to the API function role, and nothing else.',
+    });
+    budgetActionRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['iam:AttachRolePolicy', 'iam:DetachRolePolicy'],
+        resources: [functionRole.roleArn],
+        conditions: { ArnEquals: { 'iam:PolicyARN': stopRunners.managedPolicyArn } },
+      }),
+    );
+    const killSwitch = new budgets.CfnBudgetsAction(this, 'StopRunnersOverBudget', {
+      budgetName: budget.ref,
+      notificationType: 'ACTUAL',
+      actionType: 'APPLY_IAM_POLICY',
+      actionThreshold: { type: 'PERCENTAGE', value: 100 },
+      approvalModel: 'AUTOMATIC',
+      executionRoleArn: budgetActionRole.roleArn,
+      definition: {
+        iamActionDefinition: {
+          policyArn: stopRunners.managedPolicyArn,
+          roles: [functionRole.roleName],
+        },
+      },
+      subscribers: [{ type: 'EMAIL', address: props.alertEmail }],
+    });
+    killSwitch.node.addDependency(budgetActionRole);
+
     // ---------------------------------------------------------------- outputs
     new CfnOutput(this, 'SiteUrl', { value: siteUrl });
     new CfnOutput(this, 'SignInDomain', { value: cognitoOrigin });
     new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new CfnOutput(this, 'TableName', { value: table.tableName });
+    for (const [name, runner] of Object.entries(runners))
+      new CfnOutput(this, `${name[0]?.toUpperCase()}${name.slice(1)}RunnerName`, {
+        value: runner.functionName,
+      });
 
-    this.acknowledgeReviewedFindings({ distribution, webBucket, userPool, apiFunction });
+    this.acknowledgeReviewedFindings({ distribution, webBucket, userPool, apiFunction, runners });
   }
 
   private securityHeaders(id: string, csp: string): cloudfront.ResponseHeadersPolicy {
@@ -386,6 +516,7 @@ export class PracStackStack extends Stack {
     webBucket: s3.Bucket;
     userPool: cognito.UserPool;
     apiFunction: lambda.Function;
+    runners: Record<RunnerName, lambda.DockerImageFunction>;
   }): void {
     const ack = (scope: Construct, findings: Record<string, string>) => {
       for (const [id, reason] of Object.entries(findings))
@@ -407,6 +538,13 @@ export class PracStackStack extends Stack {
     ack(r.apiFunction, {
       L1: 'Node.js 22 (supported by Lambda until 2027) is the version the API bundle is built for and tested on.',
     });
+    for (const runner of Object.values(r.runners)) {
+      if (!runner.role) continue;
+      ack(runner.role, {
+        'IAM4[Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole]':
+          'Lambda needs these network-interface permissions to attach the runner to its isolated VPC. The runner never holds them at run time: its entrypoint removes the credentials before the runtime starts, which the runner tests check.',
+      });
+    }
     // CDK's helper function that copies the web build into the bucket.
     for (const child of this.node.children) {
       if (!child.node.id.startsWith('Custom::CDKBucketDeployment')) continue;

@@ -28,6 +28,11 @@ function fakeAssets() {
     webImmutable: dir('web-immutable', 'main-ABCDEFGH.js'),
     webRevalidate: dir('web-revalidate', 'index.html'),
     lambda: dir('lambda', 'index.mjs'),
+    runners: {
+      typescript: dir('runner-typescript', 'Dockerfile'),
+      java: dir('runner-java', 'Dockerfile'),
+      sql: dir('runner-sql', 'Dockerfile'),
+    },
   };
 }
 
@@ -60,6 +65,10 @@ interface Resource {
 }
 const resources = (): Record<string, Resource> =>
   template.toJSON()['Resources'] as Record<string, Resource>;
+const runnerSizes = () =>
+  resourcesOf('AWS::Lambda::Function')
+    .filter((f) => f.Properties.PackageType === 'Image')
+    .map((f) => [f.Properties.MemorySize, f.Properties.Timeout]);
 const resourcesOf = (type: string): Resource[] =>
   Object.values(template.findResources(type)) as Resource[];
 
@@ -92,6 +101,15 @@ describe('cost safety', () => {
       'AWS::IAM::Policy',
       'AWS::Logs::LogGroup',
       'AWS::Budgets::Budget',
+      'AWS::Budgets::BudgetsAction',
+      'AWS::IAM::ManagedPolicy',
+      // The runners' isolated VPC (no gateways, endpoints or routes: all free).
+      'AWS::EC2::VPC',
+      'AWS::EC2::Subnet',
+      'AWS::EC2::RouteTable',
+      'AWS::EC2::SubnetRouteTableAssociation',
+      'AWS::EC2::SecurityGroup',
+      'AWS::EC2::FlowLog',
       'Custom::CDKBucketDeployment',
       'Custom::S3AutoDeleteObjects',
     ]);
@@ -130,6 +148,48 @@ describe('cost safety', () => {
     });
   });
 
+  it('stops the runners automatically when actual spend passes the budget', () => {
+    template.hasResourceProperties('AWS::Budgets::BudgetsAction', {
+      NotificationType: 'ACTUAL',
+      ActionType: 'APPLY_IAM_POLICY',
+      ApprovalModel: 'AUTOMATIC',
+      ActionThreshold: { Type: 'PERCENTAGE', Value: 100 },
+      Definition: {
+        IamActionDefinition: {
+          PolicyArn: { Ref: Match.stringLikeRegexp('^StopRunnersPolicy') },
+          Roles: [{ Ref: Match.stringLikeRegexp('^ApiFunctionRole') }],
+        },
+      },
+    });
+    const deny = resourcesOf('AWS::IAM::ManagedPolicy')[0]?.Properties.PolicyDocument.Statement[0];
+    expect(deny).toMatchObject({ Effect: 'Deny', Action: 'lambda:InvokeFunction' });
+    expect(deny.Resource).toHaveLength(3);
+    // The budget service may attach exactly that policy, to exactly that role.
+    template.hasResourceProperties('AWS::IAM::Policy', {
+      PolicyDocument: {
+        Statement: [
+          Match.objectLike({
+            Action: ['iam:AttachRolePolicy', 'iam:DetachRolePolicy'],
+            Condition: {
+              ArnEquals: { 'iam:PolicyARN': { Ref: Match.stringLikeRegexp('^StopRunnersPolicy') } },
+            },
+          }),
+        ],
+      },
+    });
+  });
+
+  it('caps runner sizes, which bound the cost of each run', () => {
+    const sizes = runnerSizes();
+    expect(sizes).toEqual(
+      expect.arrayContaining([
+        [1024, 20],
+        [1024, 25],
+        [1536, 10],
+      ]),
+    );
+  });
+
   it('can be removed completely by `cdk destroy` when retainData is false', () => {
     const json = resources() as Record<string, { Type: string; DeletionPolicy?: string }>;
     const retained = Object.entries(json).filter(([, r]) => r.DeletionPolicy === 'Retain');
@@ -162,7 +222,7 @@ describe('security', () => {
     });
   });
 
-  it('gives the API function only its table and its logs; no runners, no wildcards', () => {
+  it('gives the API function only its table, its logs and invoking the runners; no wildcards', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Runtime: 'nodejs22.x',
       Architectures: ['arm64'],
@@ -182,7 +242,11 @@ describe('security', () => {
       (p) => p.Properties.PolicyDocument.Statement as { Action: string[]; Resource: unknown }[],
     );
     const actions = statements.flatMap((s) => [s.Action].flat());
-    expect(actions.every((a) => a.startsWith('dynamodb:') || a.startsWith('logs:'))).toBe(true);
+    expect(
+      actions.every(
+        (a) => a.startsWith('dynamodb:') || a.startsWith('logs:') || a === 'lambda:InvokeFunction',
+      ),
+    ).toBe(true);
     expect(JSON.stringify(statements.map((s) => s.Resource))).not.toContain('"*"');
     expect(actions).not.toContain('dynamodb:DeleteTable');
   });
@@ -243,6 +307,106 @@ describe('security', () => {
       AllowedOAuthFlowsUserPoolClient: true,
       PreventUserExistenceErrors: 'ENABLED',
       CallbackURLs: [{ 'Fn::Join': ['', ['https://', Match.anyValue(), '/auth/callback']] }],
+    });
+  });
+});
+
+describe('runners (learner code and SQL)', () => {
+  const runnerFunctions = () =>
+    resourcesOf('AWS::Lambda::Function').filter((f) => f.Properties.PackageType === 'Image');
+
+  it('gives the runner VPC no way out: no gateways, NAT, endpoints or routes', () => {
+    for (const type of [
+      'AWS::EC2::InternetGateway',
+      'AWS::EC2::VPCGatewayAttachment',
+      'AWS::EC2::NatGateway',
+      'AWS::EC2::EIP',
+      'AWS::EC2::VPCEndpoint',
+      'AWS::EC2::Route',
+      'AWS::EC2::TransitGatewayAttachment',
+      'AWS::EC2::VPCPeeringConnection',
+    ])
+      expect(resourcesOf(type), type).toEqual([]);
+  });
+
+  it('allows no traffic in or out of the runners', () => {
+    const groups = resourcesOf('AWS::EC2::SecurityGroup');
+    expect(groups).toHaveLength(1);
+    const props = groups[0]?.Properties;
+    expect(props.SecurityGroupIngress).toBeUndefined();
+    // CDK's placeholder rule that matches no real traffic.
+    expect(props.SecurityGroupEgress).toEqual([
+      expect.objectContaining({
+        CidrIp: '255.255.255.255/32',
+        IpProtocol: 'icmp',
+        FromPort: 252,
+        ToPort: 86,
+      }),
+    ]);
+    template.hasResourceProperties('AWS::EC2::FlowLog', { TrafficType: 'REJECT' });
+  });
+
+  it('runs three container-image functions inside that VPC', () => {
+    const fns = runnerFunctions();
+    expect(fns).toHaveLength(3);
+    for (const fn of fns) {
+      expect(fn.Properties.VpcConfig.SecurityGroupIds).toHaveLength(1);
+      expect(fn.Properties.VpcConfig.SubnetIds).toHaveLength(2);
+      expect(fn.Properties.Architectures).toEqual(['x86_64']);
+      expect(fn.Properties.Environment).toBeUndefined();
+    }
+  });
+
+  it('gives runner roles no access to any data (logs and VPC attachment only)', () => {
+    const roleIds = Object.keys(template.findResources('AWS::IAM::Role')).filter((id) =>
+      /RunnerRole/.test(id),
+    );
+    expect(roleIds).toHaveLength(3);
+    for (const id of roleIds) {
+      const policies = Object.values(
+        template.findResources('AWS::IAM::Policy', { Properties: { Roles: [{ Ref: id }] } }),
+      ) as Resource[];
+      const actions = policies.flatMap((p) =>
+        (p.Properties.PolicyDocument.Statement as { Action: string | string[] }[]).flatMap((st) =>
+          [st.Action].flat(),
+        ),
+      );
+      expect(
+        actions.every((a) => a.startsWith('logs:')),
+        id,
+      ).toBe(true);
+    }
+  });
+
+  it('lets the API invoke exactly the three runners, and tells it their names', () => {
+    const policies = template.findResources('AWS::IAM::Policy', {
+      Properties: { Roles: [{ Ref: Match.stringLikeRegexp('^ApiFunctionRole') }] },
+    });
+    const invoke = (Object.values(policies) as Resource[])
+      .flatMap(
+        (p) => p.Properties.PolicyDocument.Statement as { Action: unknown; Resource: unknown }[],
+      )
+      .filter((st) => st.Action === 'lambda:InvokeFunction');
+    expect(invoke).toHaveLength(1);
+    const targets = invoke[0]?.Resource as { 'Fn::GetAtt': [string, string] }[];
+    expect(targets.map((t) => t['Fn::GetAtt'][0]).sort()).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^JavaRunner/),
+        expect.stringMatching(/^SqlRunner/),
+        expect.stringMatching(/^TypescriptRunner/),
+      ]),
+    );
+    expect(targets.every((t) => t['Fn::GetAtt'][1] === 'Arn')).toBe(true);
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'index.handler',
+      Timeout: 29,
+      Environment: {
+        Variables: Match.objectLike({
+          RUNNER_TYPESCRIPT_FUNCTION: { Ref: Match.stringLikeRegexp('^TypescriptRunner') },
+          RUNNER_JAVA_FUNCTION: { Ref: Match.stringLikeRegexp('^JavaRunner') },
+          RUNNER_SQL_FUNCTION: { Ref: Match.stringLikeRegexp('^SqlRunner') },
+        }),
+      },
     });
   });
 });

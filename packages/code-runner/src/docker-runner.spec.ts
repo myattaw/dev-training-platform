@@ -1,6 +1,7 @@
 import type { TestInput } from '@pracstack/challenge-runtime';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { DockerCodeRunner, interpret } from './docker-runner';
+import { DockerCodeRunner } from './docker-runner';
+import { interpret } from './interpret';
 import type { CodeRunResult, RunnerLanguage } from './protocol';
 
 /*
@@ -299,7 +300,7 @@ describe('interpret', () => {
   const nonce = '<<N>>';
   it('reads only the line with the nonce', () => {
     expect(
-      interpret(`noise\n${nonce}{"kind":"load-error","message":"m","logs":[]}\n`, nonce, 0, ''),
+      interpret(`noise\n${nonce}{"kind":"load-error","message":"m","logs":[]}\n`, nonce, 0, '', 1),
     ).toEqual({
       kind: 'load-error',
       message: 'm',
@@ -308,16 +309,30 @@ describe('interpret', () => {
   });
 
   it('maps exit codes to outcomes', () => {
-    expect(interpret('', nonce, 137, '').kind).toBe('resource-limit');
+    expect(interpret('', nonce, 137, '', 1).kind).toBe('resource-limit');
     expect(
       interpret(
         '',
         nonce,
         134,
         'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory',
+        1,
       ).kind,
     ).toBe('resource-limit');
-    expect(interpret('', nonce, 125, 'Unable to find image').kind).toBe('unavailable');
-    expect(interpret('', nonce, 0, '').kind).toBe('load-error');
+    expect(interpret('', nonce, 125, 'Unable to find image', 1).kind).toBe('unavailable');
+    expect(interpret('', nonce, 0, '', 1).kind).toBe('load-error');
+  });
+
+  it('rejects results of the wrong shape, or claiming a different number of tests', () => {
+    const done = (outcomes: unknown[]) =>
+      `${nonce}${JSON.stringify({ kind: 'completed', outcomes, logs: [] })}
+`;
+    expect(interpret(done([{ kind: 'call', value: 1 }]), nonce, 0, '', 1).kind).toBe('completed');
+    expect(interpret(done([{ kind: 'call', value: 1 }]), nonce, 0, '', 2).kind).toBe('load-error');
+    expect(interpret(done([{ kind: 'bogus' }]), nonce, 0, '', 1).kind).toBe('load-error');
+    // A harness never reports "unavailable" or "timeout"; forged ones are rejected.
+    expect(interpret(`${nonce}{"kind":"unavailable","message":"x"}`, nonce, 0, '', 1).kind).toBe(
+      'load-error',
+    );
   });
 });

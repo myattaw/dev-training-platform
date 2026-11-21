@@ -1,17 +1,25 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { execFile } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildLambda } from '../../scripts/build-lambda';
+// The runner image build of services/runners (a test-only cross-workspace import).
+import { buildContexts, buildLocalImages, localImage } from '../../../runners/scripts/build';
 import { type DynamoDbLocal, skipDockerTests, startDynamoDbLocal } from '../testing/dynamodb-local';
 
 /*
  * Builds the real Lambda bundle and invokes it the way AWS would, with the
- * DynamoDB store pointed at DynamoDB Local. Catches bundling problems
- * (missing files, ESM/CJS issues) that unit tests of the source can't.
+ * DynamoDB store pointed at DynamoDB Local, and the Lambda client pointed at
+ * the real TypeScript runner image running under the Lambda Runtime Interface
+ * Emulator (which serves the same Invoke API). So a submission goes:
+ * bundle → AWS SDK Invoke → runner container → validation → grading → DynamoDB.
+ * Catches bundling and wiring problems that unit tests of the source can't.
  */
+const exec = promisify(execFile);
 
 const ISSUER = 'https://cognito-idp.us-east-2.amazonaws.com/us-east-2_SMOKE';
 const CLIENT = 'smoke-client';
@@ -57,13 +65,39 @@ const anyAnswer = (format: string) =>
 describe.skipIf(skipDockerTests)('the built Lambda bundle', { timeout: 120_000 }, () => {
   let local: DynamoDbLocal;
   let handler: Handler;
+  let runnerContainer = '';
   const outDir = mkdtempSync(join(tmpdir(), 'pracstack-lambda-'));
 
   beforeAll(async () => {
     local = await startDynamoDbLocal();
     const tableName = await local.createTable();
     const endpoint = await local.client.config.endpoint?.();
+    await buildContexts();
+    buildLocalImages(['typescript']);
+    runnerContainer = (
+      await exec('docker', [
+        'run',
+        '-d',
+        '--rm',
+        '-p',
+        '127.0.0.1::8080',
+        '--user',
+        '993:990',
+        '--read-only',
+        '--tmpfs',
+        '/tmp:rw,exec,size=512m',
+        localImage('typescript'),
+      ])
+    ).stdout.trim();
+    const runnerPort = (await exec('docker', ['port', runnerContainer, '8080/tcp'])).stdout
+      .trim()
+      .split(':')
+      .pop();
     Object.assign(process.env, {
+      // The emulator serves one function, named "function".
+      RUNNER_TYPESCRIPT_FUNCTION: 'function',
+      RUNNER_JAVA_FUNCTION: 'function',
+      AWS_ENDPOINT_URL_LAMBDA: `http://127.0.0.1:${runnerPort}`,
       TABLE_NAME: tableName,
       JWT_ISSUER: ISSUER,
       JWT_AUDIENCE: CLIENT,
@@ -77,9 +111,10 @@ describe.skipIf(skipDockerTests)('the built Lambda bundle', { timeout: 120_000 }
       handler: Handler;
     };
     handler = mod.handler;
-  }, 180_000);
+  }, 900_000);
 
   afterAll(async () => {
+    if (runnerContainer) await exec('docker', ['rm', '-f', runnerContainer]).catch(() => undefined);
     await local?.stop();
     rmSync(outDir, { recursive: true, force: true });
   });
@@ -102,7 +137,7 @@ describe.skipIf(skipDockerTests)('the built Lambda bundle', { timeout: 120_000 }
     expect(JSON.parse(again.body).token).toBe(JSON.parse(next.body).token);
   });
 
-  it('never serves SQL-writing questions, and returns 503 for code submissions (no runners here)', async () => {
+  it('never serves SQL-writing questions when no SQL runner is configured', async () => {
     // PostgreSQL skills also have multiple-choice questions; only those are served.
     for (let i = 0; i < 5; i++) {
       const sql = await handler(
@@ -120,12 +155,36 @@ describe.skipIf(skipDockerTests)('the built Lambda bundle', { timeout: 120_000 }
       );
       expect(answered.statusCode, answered.body).toBe(200);
     }
-    const code = await handler(
+  });
+
+  it('grades a submission through the runner function: visible and hidden tests', async () => {
+    const reference = readFileSync(
+      new URL('../../../../content/src/challenges/pangram/reference.ts', import.meta.url),
+      'utf8',
+    );
+    const accepted = await handler(
       event('POST', '/api/challenges/pangram/submissions', {
         language: 'typescript',
-        code: 'export const x = 1;',
+        code: reference,
       }),
     );
-    expect(code.statusCode, code.body).toBe(503);
+    expect(accepted.statusCode, accepted.body).toBe(200);
+    expect(JSON.parse(accepted.body)).toMatchObject({
+      submission: { status: 'accepted', hiddenPassed: 4, hiddenTotal: 4 },
+      solvedNow: true,
+    });
+
+    const wrong = await handler(
+      event('POST', '/api/challenges/pangram/submissions', {
+        language: 'typescript',
+        code: 'export function isPangram(s: string): boolean { return s.length > 25; }',
+      }),
+    );
+    expect(JSON.parse(wrong.body)).toMatchObject({ submission: { status: 'failed' } });
+
+    const progress = await handler(event('GET', '/api/challenges/progress'));
+    expect(JSON.parse(progress.body)).toMatchObject({
+      challenges: [{ challengeId: 'pangram', solved: true, attempts: 2 }],
+    });
   });
 });

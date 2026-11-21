@@ -35,6 +35,11 @@ new PracStackStack(app, `PracStack-${stage}`, {
     webImmutable: join(BUILD_DIR, 'web-immutable'),
     webRevalidate: join(BUILD_DIR, 'web-revalidate'),
     lambda: join(BUILD_DIR, 'lambda'),
+    runners: {
+      typescript: join(BUILD_DIR, 'runners', 'typescript'),
+      java: join(BUILD_DIR, 'runners', 'java'),
+      sql: join(BUILD_DIR, 'runners', 'sql'),
+    },
   },
   description: `PracStack (${stage}): web app, sign-in, API and progress storage.`,
 });

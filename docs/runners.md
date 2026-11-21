@@ -1,7 +1,7 @@
 # Code runners (coding-challenge submissions)
 
-Submissions are graded on the server, in throwaway Docker containers, against the visible tests
-and the hidden tests. TypeScript also runs in the learner's browser for instant feedback on
+Submissions are graded on the server against the visible tests and the hidden tests: locally in
+throwaway Docker containers, on AWS in isolated Lambda functions (see "On AWS" below). TypeScript also runs in the learner's browser for instant feedback on
 visible tests; that browser run is a convenience and never counts.
 
 ```
@@ -82,13 +82,70 @@ and Submit / Java runs return a clear "not available" message (HTTP 503).
 The container tests fail loudly when Docker is unavailable, so a missing runner can't silently
 pass CI. Set `PRACSTACK_SKIP_DOCKER_TESTS=1` to skip them deliberately.
 
+## On AWS: Lambda runner functions (`services/runners`)
+
+Chosen in Phase 7 over a Fargate task per run (strongest isolation, but 30–60 s per run and
+about $25/month for VPC endpoints) and an always-on EC2 Docker host (about $14/month, a server
+to patch, one shared kernel).
+
+```
+API function ──Invoke (IAM, 3 ARNs only)──▶ runner function (container image, x86_64)
+  validates the result,                        VPC: isolated subnets, no gateway/NAT/endpoints/routes
+  grades it                                    security group: no inbound, no outbound
+                                               role: logs + VPC attachment; credentials removed at start
+                                               per run: fresh process, prlimit, time/memory/output caps
+```
+
+Three functions: TypeScript, Java and SQL. Each image holds the language runtime, the same
+harness as the local Docker images (or the PGlite engine), and a small Node.js supervisor
+(`src/code-handler.ts`, `src/isolate.ts`, `src/sql-handler.ts`).
+
+| Layer | What it does |
+| --- | --- |
+| **Firecracker microVM** (Lambda) | Each execution environment is its own microVM; nothing is shared with other functions or accounts |
+| **No network** | The VPC has no internet gateway, NAT, endpoints or routes, and the security group allows no traffic; rejected attempts are logged (VPC flow logs) |
+| **No credentials** | `docker/entrypoint.sh` removes the role's keys from the environment *before* the Lambda runtime starts. Without it, learner code could read them from `/proc/<supervisor>/environ` (it runs as the same OS user); the tests reproduce that and prove the fix |
+| **Nothing to steal anyway** | The runner role can write its own logs and attach to the VPC; it can read no data |
+| **Per-run process** | Fresh working directory, minimal environment, `prlimit` (256 processes/threads, 256 open files, 16 MB files), time limit (10 s TypeScript, 15 s Java), memory limit on the whole process tree, 1 MB output limit |
+| **Clean between runs** | Environments are reused for later runs, so before and after every run the supervisor kills every other process (including ones that detached with `setsid`) and empties `/tmp` |
+| **Untrusted answers** | The API validates every runner response (shape, sizes, test count) before grading; a forged response still cannot pass a test, because expected values never leave the API |
+| **Cost and capacity** | Per-user limits, global limits across all users (30 code runs and 60 SQL runs per minute), and a budget action that stops runner invocations when actual spend passes the budget |
+
+### Testing
+
+- `services/runners/src/runner-images.spec.ts` builds the real images and attacks them under
+  the Lambda Runtime Interface Emulator, run as Lambda runs them (non-root, read-only
+  filesystem, writable `/tmp`, credentials in the environment, one warm container across runs):
+  credential theft from any process, leftover files, detached and `setsid` processes, infinite
+  loops, heap and native memory bombs, fork bombs, output floods, forged result lines, killing the
+  supervisor; SQL timeouts and the read-only role.
+- `services/api/src/lambda/bundle.spec.ts` sends a submission through the built API bundle, the
+  AWS SDK's Lambda client and the real runner image, and checks the graded result.
+- `infra/test` asserts that the VPC has no way out, that the security group allows nothing, the
+  roles' permissions, and the kill switch.
+- **After deploying**, `infra/scripts/verify-runners.ts` runs the same hostile probes against the
+  real functions: network (HTTPS to AWS and the internet, a raw IP, DNS) and credentials in any
+  process, including Lambda's own init process, which cannot be checked locally.
+
 ## Known limits (stated plainly)
 
-- **Containers share the host kernel.** Docker isolation with seccomp, no capabilities, no
-  network and a non-root user is strong, but it is not a virtual machine. A kernel exploit could
-  escape a container. For the public service (Phase 7) this is the decision we deferred in
-  Phase 0: AWS Lambda container functions (Firecracker microVMs, but warm containers are reused
-  across invocations) versus per-run microVMs at higher cost. The protocol does not change.
+- **Locally, containers share the host kernel.** Docker isolation with seccomp, no capabilities,
+  no network and a non-root user is strong, but it is not a virtual machine.
+- **On AWS, an environment is reused for later runs.** Runs are separated by a fresh process and
+  the clean-up above, not by a fresh microVM. The learner's program runs as the same OS user as
+  the supervisor, so it can kill the supervisor (that invocation fails and Lambda starts a fresh
+  environment) and could, in principle, interfere with the supervisor while its own run is in
+  progress. From there it still cannot reach the network or AWS, and cannot make a test pass
+  without computing the right answer. What such an escape could do is tamper with *later runs in
+  the same environment*: slow them, fail them, or read their code. A fresh microVM per run
+  (Fargate) would close this, at the cost described above.
+- **The Lambda runtime API is reachable from learner code** (on the loopback interface, as in
+  every Lambda function). A program that found the current request ID could post its own
+  response for its own run; the API treats it like any runner response: validated, and graded
+  against expected values the runner never saw.
+- **Account concurrency.** New AWS accounts can run only 10 Lambda functions at once, shared by
+  the API and the runners; busy runners can then delay or fail API requests. Request a quota
+  increase (free) before real use; see [aws.md](aws.md).
 - **Hidden-test inputs are visible to the code under test.** That is inherent: the code must
   receive them to compute answers. They are never shown to the learner, but code could, for
   example, behave differently on specific inputs. Hidden tests detect unhandled cases; they are

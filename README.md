@@ -52,27 +52,29 @@ packages/
   web-security/              Security headers (CSP etc.) shared by CloudFront and the local server
 services/
   api/                       API logic, Lambda adapter + bundle, local server, grading, stores (memory, file, DynamoDB)
-infra/                       AWS CDK app: one stack (CloudFront, S3, Cognito, API Gateway, Lambda, DynamoDB, Budgets)
+  runners/                   AWS runner functions (TypeScript, Java, SQL): images, supervisor, per-run isolation
+infra/                       AWS CDK app: one stack (CloudFront, S3, Cognito, API Gateway, Lambda, runners in an isolated VPC, DynamoDB, Budgets)
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
 docs/                        api.md, aws.md, content.md, runners.md, scoring.md, sql.md
 ```
 
 Dependencies point one way: `web → (api-contracts, challenge-runtime, content-model)`,
-`api → (api-contracts, challenge-runtime, code-runner, content-model, scoring, sql-engine, web-security)`, `infra → web-security`,
+`api → (api-contracts, challenge-runtime, code-runner, content-model, scoring, sql-engine, web-security)`, `runners → (code-runner, sql-engine, challenge-runtime)`, `infra → (web-security, runners)`,
 `content → (content-model, challenge-runtime, sql-engine)`;
 `scoring` stands alone. The `content` package is Node-only (it compiles and
 runs code); the browser only ever loads its generated **public** JSON.
 
-## Current status (end of Phase 6)
+## Current status (end of Phase 7)
 
 | Works today                                                                       | Not built yet                                          |
 | --------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Code and SQL runners **on AWS** (Phase 7)              |
+| Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Deployment to AWS (awaiting approval)                  |
 | Isolated Docker runners: no network, resource limits, expected values kept outside | Oracle SQL (deferred), Angular track                   |
 | Skill Mastery: TypeScript and PostgreSQL (40 questions), server-side scoring      | My Progress, Profile pages                             |
 | SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | CI/CD, WAF, custom domain (Phase 9)                    |
 | AWS stack in CDK: sign-in (Cognito), API on Lambda, DynamoDB, CloudFront + strict CSP — **written and tested, not deployed** | |
+| Runners on AWS: isolated Lambda container functions (no network, no credentials), attacked in tests — **not deployed** | |
 
 **Security notes:** submitted code runs only in locked-down containers, and expected values never
 enter them (see [docs/runners.md](docs/runners.md), including its known limits). Learner SQL runs in a separate process with database-level restrictions,
@@ -123,6 +125,6 @@ and linked on first use; the production builder does not load CSS imported from 
 4. **PostgreSQL practice (PGlite)** ✅
 5. **Server-side challenge evaluation (TypeScript, Java) in local containers** ✅
 6. **AWS foundation (CDK)** ✅ _(code and tests; deployment awaits approval)_
-7. Isolated runners on AWS _(approval)_
+7. **Isolated runners on AWS** ✅ _(Lambda container functions; code and tests, deployment awaits approval)_
 8. Oracle SQL track _(deferred)_
 9. CI/CD and production hardening

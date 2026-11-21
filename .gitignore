@@ -62,3 +62,4 @@ Thumbs.db
 services/api/dist/
 infra/cdk.out/
 infra/.build/
+services/runners/dist/
