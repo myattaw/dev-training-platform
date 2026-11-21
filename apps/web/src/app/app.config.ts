@@ -7,6 +7,7 @@ import {
 } from '@angular/router';
 
 import { routes } from './app.routes';
+import { ApiClient, FetchApiClient } from './core/api/api-client';
 import { ContentRepository, HttpContentRepository } from './core/content/content-repository';
 import { AppTitleStrategy } from './core/title-strategy';
 
@@ -21,5 +22,6 @@ export const appConfig: ApplicationConfig = {
     ),
     { provide: TitleStrategy, useExisting: AppTitleStrategy },
     { provide: ContentRepository, useClass: HttpContentRepository },
+    { provide: ApiClient, useClass: FetchApiClient },
   ],
 };

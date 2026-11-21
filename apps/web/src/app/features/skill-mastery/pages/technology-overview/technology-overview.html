@@ -1,0 +1,90 @@
+@let state = track.state();
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading skills…" />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="Skills could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="track.reload()">
+      Try again
+    </button>
+  </app-alert>
+} @else if (!state.value) {
+  <app-not-found
+    heading="Technology not found"
+    message="There is no such technology in Skill Mastery."
+    backLink="/skills"
+    backLabel="Browse technologies"
+  />
+} @else {
+  @let tech = state.value.technology;
+  <app-page-header
+    [heading]="tech.name"
+    [description]="tech.description"
+    [breadcrumbs]="[{ label: 'Skill Mastery', link: '/skills' }, { label: tech.name }]"
+  >
+    @if (progress.state().status === 'ready') {
+      <p headerBadge class="summary text-secondary">
+        {{ mastered() }} of {{ state.value.skills.length }} skills mastered
+      </p>
+    }
+  </app-page-header>
+
+  @let progressState = progress.state();
+  @if (progressState.status === 'error') {
+    <app-alert class="progress-error" type="warning" heading="Your progress could not be loaded">
+      {{ progressState.error }}
+      <button alertAction type="button" class="btn btn--sm" (click)="progress.reload()">
+        Try again
+      </button>
+    </app-alert>
+  }
+
+  <div class="topics">
+    @for (group of topics(); track group.topic.id) {
+      <app-panel
+        [heading]="group.topic.name"
+        [headingId]="'topic-' + group.topic.id"
+        [description]="group.topic.description"
+        [flush]="true"
+      >
+        <div class="table-scroll">
+          <table class="table" [attr.aria-labelledby]="'topic-' + group.topic.id">
+            <thead>
+              <tr>
+                <th scope="col">Skill</th>
+                <th scope="col" class="score-col">Mastery</th>
+                <th scope="col">Status</th>
+                <th scope="col"><span class="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of group.skills; track row.skill.id) {
+                <tr>
+                  <td class="name">
+                    <a [routerLink]="[row.skill.id]">{{ row.skill.name }}</a>
+                    <span class="skill-description text-secondary">
+                      <app-inline-text [text]="row.skill.description" />
+                    </span>
+                  </td>
+                  <td class="score-col">
+                    <app-mastery-meter
+                      [score]="row.progress?.score ?? 0"
+                      [label]="row.skill.name + ' mastery'"
+                    />
+                  </td>
+                  <td><app-skill-status [progress]="row.progress" /></td>
+                  <td class="action">
+                    <a class="btn btn--sm" [routerLink]="[row.skill.id, 'practice']">
+                      {{ row.progress?.attempts ? 'Continue' : 'Practice' }}
+                      <span class="sr-only">{{ row.skill.name }}</span>
+                    </a>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </app-panel>
+    }
+  </div>
+}

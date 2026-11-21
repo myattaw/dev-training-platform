@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  max-width: var(--content-max-width);
+}
+
+.summary {
+  margin: 0;
+}
+
+.progress-error {
+  display: flex;
+  margin-bottom: var(--space-5);
+}
+
+.topics {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.name {
+  min-width: 240px;
+}
+
+.name a {
+  font-weight: var(--font-weight-bold);
+}
+
+.skill-description {
+  display: block;
+  font-size: var(--font-size-sm);
+}
+
+.score-col {
+  width: 220px;
+}
+
+.action {
+  text-align: right;
+  white-space: nowrap;
+}

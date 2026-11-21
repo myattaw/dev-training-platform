@@ -47,27 +47,52 @@
       }
     </app-panel>
 
-    <app-panel heading="Coding Challenges" headingId="summary-heading">
-      <dl class="summary">
-        <div>
-          <dt>Available</dt>
-          <dd>{{ summary().total }}</dd>
-        </div>
-        <div>
-          <dt>Visible tests passed</dt>
-          <dd>{{ summary().passed }}</dd>
-        </div>
-        <div>
-          <dt>In progress</dt>
-          <dd>{{ summary().inProgress }}</dd>
-        </div>
-        <div>
-          <dt>Not started</dt>
-          <dd>{{ summary().notStarted }}</dd>
-        </div>
-      </dl>
-      <a panelFooter routerLink="/challenges">View all challenges</a>
-    </app-panel>
+    <div class="side">
+      <app-panel heading="Skill Mastery" headingId="skills-heading">
+        @let skills = recentSkills.state();
+        @if (skills.status === 'loading') {
+          <app-loading-state label="Loading skills…" />
+        } @else if (skills.status === 'error') {
+          <app-alert type="warning"> Skill progress is unavailable. {{ skills.error }} </app-alert>
+        } @else if (skills.value.length === 0) {
+          <app-empty-state heading="No skills practiced yet">
+            <a class="btn" routerLink="/skills">Browse skills</a>
+          </app-empty-state>
+        } @else {
+          <ul class="divided-list skills" aria-labelledby="skills-heading">
+            @for (s of skills.value; track s.skillId) {
+              <li>
+                <a [routerLink]="['/skills', s.technologyId, s.skillId]">{{ s.name }}</a>
+                <app-mastery-meter [score]="s.score" [label]="s.name + ' mastery'" />
+              </li>
+            }
+          </ul>
+        }
+        <a panelFooter routerLink="/skills">All skills</a>
+      </app-panel>
+
+      <app-panel heading="Coding Challenges" headingId="summary-heading">
+        <dl class="summary">
+          <div>
+            <dt>Available</dt>
+            <dd>{{ summary().total }}</dd>
+          </div>
+          <div>
+            <dt>Visible tests passed</dt>
+            <dd>{{ summary().passed }}</dd>
+          </div>
+          <div>
+            <dt>In progress</dt>
+            <dd>{{ summary().inProgress }}</dd>
+          </div>
+          <div>
+            <dt>Not started</dt>
+            <dd>{{ summary().notStarted }}</dd>
+          </div>
+        </dl>
+        <a panelFooter routerLink="/challenges">View all challenges</a>
+      </app-panel>
+    </div>
 
     <app-panel
       class="up-next"

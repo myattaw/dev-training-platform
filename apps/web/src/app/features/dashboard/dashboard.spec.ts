@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideTestContent } from '../../../testing/content-fixtures';
+import { provideFakeApi } from '../../../testing/fake-api';
 import { ChallengeProgressService } from '../challenges/data-access/challenge-progress.service';
 import { Dashboard } from './dashboard';
 
@@ -10,7 +11,7 @@ describe('Dashboard', () => {
   async function setup(arrange?: (progress: ChallengeProgressService) => void) {
     await TestBed.configureTestingModule({
       imports: [Dashboard],
-      providers: [provideRouter([]), provideTestContent()],
+      providers: [provideRouter([]), provideTestContent(), provideFakeApi()],
     }).compileComponents();
     arrange?.(TestBed.inject(ChallengeProgressService));
     const fixture = TestBed.createComponent(Dashboard);

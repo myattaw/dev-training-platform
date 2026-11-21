@@ -78,6 +78,12 @@ export interface FillInBlankQuestion extends QuestionBase {
 export type Question = MultipleChoiceQuestion | PredictOutputQuestion | FillInBlankQuestion;
 export type QuestionFormat = Question['format'];
 
+export const QUESTION_FORMATS: readonly QuestionFormat[] = [
+  'multiple-choice',
+  'predict-output',
+  'fill-in-blank',
+];
+
 /** Public question plus how many hints exist (the hints themselves are private). */
 export type PublicQuestion = Question & { readonly hintCount: number };
 

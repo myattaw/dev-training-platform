@@ -10,11 +10,12 @@ interface NavItem {
 }
 
 /**
- * Primary navigation. Only areas that actually work are listed; Skill Mastery,
- * My Progress and Profile are added as they are built.
+ * Primary navigation. Only areas that actually work are listed; My Progress
+ * and Profile are added as they are built.
  */
 const ITEMS: readonly NavItem[] = [
   { label: 'Dashboard', link: '/', icon: 'dashboard', exact: true },
+  { label: 'Skill Mastery', link: '/skills', icon: 'target', exact: false },
   { label: 'Coding Challenges', link: '/challenges', icon: 'code', exact: false },
 ];
 

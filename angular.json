@@ -80,7 +80,10 @@
               "buildTarget": "pracstack:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "apps/web/proxy.conf.json"
+          }
         },
         "test": {
           "builder": "@angular/build:unit-test",

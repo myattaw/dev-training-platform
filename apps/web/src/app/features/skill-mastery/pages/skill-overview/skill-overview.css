@@ -1,0 +1,39 @@
+:host {
+  display: block;
+  max-width: var(--content-max-width);
+}
+
+.skill-description {
+  margin: calc(-1 * var(--space-2)) 0 var(--space-5);
+  color: var(--color-text-secondary);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.stats {
+  margin-top: var(--space-4);
+}
+
+.score {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.up {
+  color: var(--color-success);
+}
+
+.down {
+  color: var(--color-error);
+}
+
+@media (max-width: 1023px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

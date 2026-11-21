@@ -1,4 +1,11 @@
+import { QUESTION_FORMATS } from '@pracstack/content-model';
 import type { FileSet } from './build';
+
+/**
+ * Schema vocabulary that appears in private files but is not content (the
+ * browser legitimately knows these names from the API contract).
+ */
+const SCHEMA_VOCABULARY: ReadonlySet<string> = new Set<string>(QUESTION_FORMATS);
 
 /**
  * Finds private content inside a browser bundle.
@@ -22,7 +29,9 @@ export function sensitiveStrings(privateFiles: FileSet, publicFiles: FileSet): s
   const sensitive = new Set<string>();
   for (const value of privateFiles.values()) {
     collectStrings(value, (s) => {
-      if (s.length >= MIN_SENSITIVE_LENGTH && !publicValues.has(s)) sensitive.add(s);
+      if (s.length >= MIN_SENSITIVE_LENGTH && !publicValues.has(s) && !SCHEMA_VOCABULARY.has(s)) {
+        sensitive.add(s);
+      }
     });
   }
   return [...sensitive];

@@ -5,6 +5,8 @@ import {
   MANIFEST_FILE,
   type PublicManifest,
   SCHEMA_VERSION,
+  trackFile,
+  type TrackCatalog,
 } from '@pracstack/content-model';
 
 /**
@@ -14,6 +16,7 @@ import {
 export abstract class ContentRepository {
   abstract manifest(): Promise<PublicManifest>;
   abstract challenge(id: string, version: number): Promise<Challenge>;
+  abstract track(technologyId: string): Promise<TrackCatalog>;
 }
 
 export class ContentLoadError extends Error {
@@ -44,6 +47,11 @@ export class HttpContentRepository extends ContentRepository {
   override challenge(id: string, version: number): Promise<Challenge> {
     // Versioned file names never change content, so the browser cache can be used freely.
     return this.get<Challenge>(challengeFile(id, version), 'default');
+  }
+
+  override track(technologyId: string): Promise<TrackCatalog> {
+    // Not versioned in the file name, so revalidate like the manifest.
+    return this.get<TrackCatalog>(trackFile(technologyId), 'no-cache');
   }
 
   private get<T>(path: string, cache: RequestCache): Promise<T> {

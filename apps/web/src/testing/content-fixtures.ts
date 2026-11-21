@@ -5,6 +5,7 @@ import {
   type PublicManifest,
   SCHEMA_VERSION,
   splitChallenge,
+  type TrackCatalog,
 } from '@pracstack/content-model';
 import { ContentRepository } from '../app/core/content/content-repository';
 
@@ -46,6 +47,37 @@ export const FIXTURE_CHALLENGES: readonly Challenge[] = [
   challenge('merge-intervals', 'Merge Intervals', { category: 'arrays', difficulty: 'medium' }),
 ];
 
+export const FIXTURE_TRACK: TrackCatalog = {
+  technology: { id: 'typescript', name: 'TypeScript', description: 'Types for JavaScript.' },
+  topics: [
+    { id: 'basics', technologyId: 'typescript', name: 'Basics', description: 'The basics.' },
+    { id: 'narrowing', technologyId: 'typescript', name: 'Narrowing', description: 'Narrowing.' },
+  ],
+  skills: [
+    {
+      id: 'primitives',
+      topicId: 'basics',
+      name: 'Primitive types',
+      description: 'Primitives.',
+      questionCount: 5,
+    },
+    {
+      id: 'unions',
+      topicId: 'basics',
+      name: 'Union types',
+      description: 'Unions.',
+      questionCount: 5,
+    },
+    {
+      id: 'typeof',
+      topicId: 'narrowing',
+      name: 'typeof narrowing',
+      description: 'typeof.',
+      questionCount: 5,
+    },
+  ],
+};
+
 export class InMemoryContentRepository extends ContentRepository {
   constructor(
     private readonly challenges: readonly Challenge[] = FIXTURE_CHALLENGES,
@@ -62,8 +94,15 @@ export class InMemoryContentRepository extends ContentRepository {
       challenges: this.challenges.map(
         (c) => splitChallenge({ challenge: c, hiddenTests: [] }).summary,
       ),
-      technologies: [],
+      technologies: [{ ...FIXTURE_TRACK.technology, skillCount: FIXTURE_TRACK.skills.length }],
     });
+  }
+
+  override track(technologyId: string): Promise<TrackCatalog> {
+    if (this.failure) return Promise.reject(this.failure);
+    return technologyId === FIXTURE_TRACK.technology.id
+      ? Promise.resolve(FIXTURE_TRACK)
+      : Promise.reject(new Error(`No fixture track ${technologyId}`));
   }
 
   override challenge(id: string, version: number): Promise<Challenge> {

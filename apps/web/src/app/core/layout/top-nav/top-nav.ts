@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Icon } from '../../../shared/ui/icon/icon';
+import { SessionService } from '../../session/session.service';
 import { LayoutService } from '../layout.service';
 
 @Component({
@@ -32,10 +33,19 @@ import { LayoutService } from '../layout.service';
         <span>PracStack</span>
       </a>
 
-      <p class="storage-note">
-        <app-icon name="info" />
-        <span>Progress is saved in this browser</span>
-      </p>
+      @if (session.me(); as me) {
+        <p class="user">
+          @if (me.user.mode === 'local-dev') {
+            <span
+              class="mode"
+              title="Local development: no sign-in, progress is stored by the local API on this computer."
+              >Local mode</span
+            >
+          }
+          <span class="name">{{ me.user.displayName }}</span>
+          <span class="xp text-secondary">{{ me.xp }} XP</span>
+        </p>
+      }
     </header>
   `,
   styles: `
@@ -75,16 +85,31 @@ import { LayoutService } from '../layout.service';
     .layer-3 {
       fill: var(--color-text);
     }
-    .storage-note {
+    .user {
       display: inline-flex;
       align-items: center;
-      gap: var(--space-1);
-      margin-left: auto;
-      color: var(--color-text-secondary);
+      gap: var(--space-3);
+      margin: 0 0 0 auto;
       font-size: var(--font-size-sm);
     }
+    .mode {
+      padding: 0 6px;
+      border: 1px solid var(--color-warning);
+      border-radius: var(--radius-sm);
+      background: var(--color-warning-bg);
+      color: var(--color-warning);
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      cursor: help;
+    }
+    .name {
+      font-weight: var(--font-weight-bold);
+    }
+    .xp {
+      font-variant-numeric: tabular-nums;
+    }
     @media (max-width: 599px) {
-      .storage-note {
+      .name {
         display: none;
       }
     }
@@ -92,5 +117,6 @@ import { LayoutService } from '../layout.service';
 })
 export class TopNav {
   protected readonly layout = inject(LayoutService);
+  protected readonly session = inject(SessionService);
   readonly toggleNav = output<void>();
 }

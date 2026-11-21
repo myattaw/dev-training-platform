@@ -1,0 +1,30 @@
+/**
+ * Sliding-window rate limiter, per key, in memory.
+ *
+ * Sufficient for the single-process local server. On AWS, API Gateway
+ * throttling and a shared store replace it (Phase 7); the interface stays.
+ */
+export interface RateLimiter {
+  /** Records a hit and returns how many ms to wait, or 0 if allowed. */
+  hit(key: string, nowMs: number): number;
+}
+
+export class SlidingWindowRateLimiter implements RateLimiter {
+  private readonly hits = new Map<string, number[]>();
+
+  constructor(
+    private readonly limit: number,
+    private readonly windowMs: number,
+  ) {}
+
+  hit(key: string, nowMs: number): number {
+    const recent = (this.hits.get(key) ?? []).filter((t) => t > nowMs - this.windowMs);
+    if (recent.length >= this.limit) {
+      this.hits.set(key, recent);
+      return (recent[0] ?? nowMs) + this.windowMs - nowMs;
+    }
+    recent.push(nowMs);
+    this.hits.set(key, recent);
+    return 0;
+  }
+}

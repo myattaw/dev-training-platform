@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { provideFakeApi } from '../testing/fake-api';
 import { App } from './app';
 
 describe('App shell', () => {
@@ -8,7 +9,7 @@ describe('App shell', () => {
   async function setup() {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), provideFakeApi()],
     }).compileComponents();
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
@@ -21,7 +22,7 @@ describe('App shell', () => {
     const links = [...el.querySelectorAll('nav[aria-label="Primary"] a')].map((a) =>
       a.textContent?.trim(),
     );
-    expect(links).toEqual(['Dashboard', 'Coding Challenges']);
+    expect(links).toEqual(['Dashboard', 'Skill Mastery', 'Coding Challenges']);
   });
 
   it('only lists areas that exist (no placeholder navigation)', async () => {

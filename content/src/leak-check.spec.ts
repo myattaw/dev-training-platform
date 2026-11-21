@@ -12,6 +12,11 @@ describe('leak check', () => {
     expect(sensitive.length).toBeGreaterThan(50);
   });
 
+  it('does not treat schema vocabulary such as question format names as content', () => {
+    expect(sensitive).not.toContain('multiple-choice');
+    expect(sensitive).not.toContain('fill-in-blank');
+  });
+
   it('does not flag text that is also public', () => {
     expect(sensitive).not.toContain(
       'Check whether a sentence contains every letter of the alphabet.',

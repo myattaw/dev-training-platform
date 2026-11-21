@@ -10,13 +10,27 @@ import { Panel } from '../../shared/ui/panel/panel';
 import { ChallengeCatalogService } from '../challenges/data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../challenges/data-access/challenge-progress.service';
 import { DifficultyBadge } from '../challenges/ui/difficulty-badge';
+import { PracticeApi } from '../skill-mastery/data-access/practice-api';
+import { SkillCatalog } from '../skill-mastery/data-access/skill-catalog';
+import { MasteryMeter } from '../skill-mastery/ui/mastery-meter';
+import { asyncResource } from '../../shared/async/async-state';
 
 const CONTINUE_LIMIT = 5;
 const UP_NEXT_LIMIT = 3;
+const RECENT_SKILLS_LIMIT = 4;
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, PageHeader, Panel, EmptyState, Alert, LoadingState, DifficultyBadge],
+  imports: [
+    RouterLink,
+    PageHeader,
+    Panel,
+    EmptyState,
+    Alert,
+    LoadingState,
+    DifficultyBadge,
+    MasteryMeter,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
@@ -24,6 +38,34 @@ const UP_NEXT_LIMIT = 3;
 export class Dashboard {
   protected readonly catalog = inject(ChallengeCatalogService);
   private readonly progress = inject(ChallengeProgressService);
+  private readonly skillCatalog = inject(SkillCatalog);
+  private readonly practiceApi = inject(PracticeApi);
+
+  /** Recently practiced skills across all technologies (needs the API). */
+  protected readonly recentSkills = asyncResource(
+    () => this.practiceApi.progressVersion(),
+    async () => {
+      const technologies = await this.skillCatalog.technologies();
+      const perTechnology = await Promise.all(
+        technologies.map(async (tech) => {
+          const [track, progress] = await Promise.all([
+            this.skillCatalog.track(tech.id),
+            this.practiceApi.progress(tech.id),
+          ]);
+          return progress.skills.map((p) => ({
+            ...p,
+            technologyId: tech.id,
+            technologyName: tech.name,
+            name: track?.skills.find((s) => s.id === p.skillId)?.name ?? p.skillId,
+          }));
+        }),
+      );
+      return perTechnology
+        .flat()
+        .sort((a, b) => (b.lastPracticedAt ?? '').localeCompare(a.lastPracticedAt ?? ''))
+        .slice(0, RECENT_SKILLS_LIMIT);
+    },
+  );
 
   private readonly rows = computed(() => {
     const state = this.catalog.summaries();

@@ -3,9 +3,8 @@
 A developer learning platform with two product areas:
 
 - **Coding Challenges**: complete programming problems solved in a Monaco editor, with tests.
-- **Skill Mastery**: adaptive practice for individual concepts (TypeScript first; PostgreSQL,
-  Oracle SQL and Angular later) with a 0–100 mastery score. _Content model and scoring engine
-  are built; the practice UI arrives in Phase 3._
+- **Skill Mastery**: adaptive practice for individual concepts (TypeScript today; PostgreSQL,
+  Oracle SQL and Angular later) with a 0–100 mastery score computed by the server.
 
 ## Getting started
 
@@ -15,17 +14,19 @@ Requires Node 22+.
 npm install
 npx playwright install chromium   # once, for end-to-end tests
 
-npm start              # builds content, then dev server at http://localhost:4200
+npm start              # content build, then API (:3100) + web dev server (http://localhost:4200)
+npm run api            # API only (local developer user; see docs/api.md)
 npm test               # unit tests: packages (Vitest) + web app (Angular/Vitest)
 npm run typecheck      # tsc for every workspace package
 npm run lint           # ESLint (TypeScript, Angular templates, accessibility rules)
 npm run format         # Prettier
 npm run build          # content build → web build → private-content leak check
-npm run e2e            # Playwright against the production build (port 4317)
+npm run e2e            # Playwright: production build served by the local API (port 4317)
 npm run verify         # everything above, in CI order
 ```
 
 After editing content while `npm start` is running, run `npm run content:build` to regenerate it.
+Local Skill Mastery progress lives in `.local/progress.json`; delete it to start over.
 
 ## Repository layout
 
@@ -35,34 +36,38 @@ npm workspaces, with the Angular workspace (`angular.json`) at the root.
 apps/web/                    Angular 21 app (standalone, signals, zoneless, lazy routes)
   src/app/core/              Shell layout, content repository, title strategy, storage helpers
   src/app/shared/            Design-system UI, async state, Monaco editor, formatting
-  src/app/features/          dashboard/, challenges/ (catalog, detail, workspace, local runner)
-  src/testing/               In-memory content fixtures for unit tests
+  src/app/features/          dashboard/, challenges/ (catalog, detail, workspace, local runner),
+                             skill-mastery/ (technologies, skills, practice, results)
+  src/testing/               In-memory content and fake API for unit tests
 packages/
+  api-contracts/             HTTP request/response types shared by web and API
   content-model/             Content types, validation, public/private split, manifest layout
   challenge-runtime/         Runs challenge tests (call + operations); shared by browser, build, runners
   scoring/                   Skill Mastery engine: pure, configurable, deterministic
+services/
+  api/                       API logic (Lambda-ready), local server, grading, file/in-memory stores
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
-docs/                        content.md (authoring + guarantees), scoring.md (algorithm)
+docs/                        api.md, content.md, scoring.md
 ```
 
-Dependencies point one way: `web → challenge-runtime → content-model`, `content → (content-model,
-challenge-runtime)`, `scoring` stands alone. The `content` package is Node-only (it compiles and
+Dependencies point one way: `web → (api-contracts, challenge-runtime, content-model)`,
+`api → (api-contracts, content-model, scoring)`, `content → (content-model, challenge-runtime)`;
+`scoring` stands alone. The `content` package is Node-only (it compiles and
 runs code); the browser only ever loads its generated **public** JSON.
 
-## Current status (end of Phase 2)
+## Current status (end of Phase 3)
 
-| Works today                                                                   | Not built yet                                       |
-| ----------------------------------------------------------------------------- | --------------------------------------------------- |
-| Dashboard, challenge catalog (URL filters), detail page, workspace            | Skill Mastery practice UI and API (Phase 3)         |
-| 5 challenges incl. class-style LRU Cache; visible tests run in the browser    | Server-side grading with hidden tests (Phase 5)     |
-| Content loaded over HTTP with loading/error/retry states                      | Accounts, My Progress, Profile                      |
-| Content build: validation, reference-solution and snippet execution checks    | PostgreSQL (Phase 4), Java, Oracle SQL (deferred)   |
-| Leak check: build fails if private content reaches the browser bundle         | Any AWS infrastructure (Phase 6+)                   |
-| Scoring engine with documented, tested invariants                             |                                                     |
-| TypeScript track: 4 skills × 5 questions, answers verified by execution       |                                                     |
+| Works today                                                                     | Not built yet                                       |
+| ------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Skill Mastery**: technologies, topics, skills, practice, results/history      | Accounts and sign-in (Phase 6); one local user now  |
+| Server-side scoring, question selection, hints, idempotent answers              | My Progress, Profile pages                          |
+| Local API with validation, rate limiting, file-backed progress                  | Server-side grading of coding challenges (Phase 5)  |
+| Coding Challenges: catalog, detail, workspace, 5 challenges, browser test runs  | PostgreSQL (Phase 4), Java, Oracle SQL (deferred)   |
+| Content build with execution checks and private-content leak check              | Any AWS infrastructure (Phase 6+)                   |
 
-**Security note:** the in-browser runner gives fast feedback on _visible_ tests for code the
+**Security notes:** the local API has no authentication; it serves a single "Local
+developer" user and listens on `127.0.0.1` only (see [docs/api.md](docs/api.md)). The in-browser runner gives fast feedback on _visible_ tests for code the
 learner wrote in their own browser. It is **not** a security boundary and never a source of
 truth for progress. Hidden tests exist only in `content/dist/private/` and will be run by
 isolated server-side runners.
@@ -92,6 +97,7 @@ and linked on first use; the production builder does not load CSS imported from 
 
 ## More documentation
 
+- [docs/api.md](docs/api.md): endpoints, the rules that keep scores honest, limits, storage.
 - [docs/content.md](docs/content.md): adding challenges and questions, what is public vs
   private, and every check the content build enforces.
 - [docs/scoring.md](docs/scoring.md): the mastery algorithm, with simulated learner journeys.
@@ -100,7 +106,7 @@ and linked on first use; the production builder does not load CSS imported from 
 
 1. **Frontend foundation** ✅
 2. **Content model, scoring engine, monorepo** ✅
-3. Skill Mastery vertical slice: local API (Lambda-compatible handlers), practice UI, server-side scoring
+3. **Skill Mastery vertical slice** ✅
 4. PostgreSQL practice (PGlite)
 5. Server-side challenge evaluation (TypeScript, Java) in local containers
 6. AWS foundation (CDK) _(requires cost estimate and approval)_

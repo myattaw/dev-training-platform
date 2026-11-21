@@ -1,0 +1,123 @@
+@let loc = location.state();
+@if (loc.status === 'loading') {
+  <app-loading-state label="Loading skill…" />
+} @else if (loc.status === 'error') {
+  <app-alert type="error" heading="This skill could not be loaded">
+    {{ loc.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="location.reload()">
+      Try again
+    </button>
+  </app-alert>
+} @else if (!loc.value) {
+  <app-not-found
+    heading="Skill not found"
+    message="There is no such skill. It may have been renamed or removed."
+    backLink="/skills"
+    backLabel="Browse skills"
+  />
+} @else {
+  @let l = loc.value;
+  <app-page-header
+    [heading]="l.skill.name"
+    [description]="l.topic.name"
+    [breadcrumbs]="[
+      { label: 'Skill Mastery', link: '/skills' },
+      { label: l.technology.name, link: ['/skills', l.technology.id] },
+      { label: l.skill.name },
+    ]"
+  >
+    <a headerActions class="btn btn--primary" [routerLink]="['practice']">Practice</a>
+  </app-page-header>
+
+  <p class="skill-description"><app-inline-text [text]="l.skill.description" /></p>
+
+  @let h = history.state();
+  @if (h.status === 'loading') {
+    <app-loading-state label="Loading your results…" />
+  } @else if (h.status === 'error') {
+    <app-alert type="warning" heading="Your results could not be loaded">
+      {{ h.error }}
+      <button alertAction type="button" class="btn btn--sm" (click)="history.reload()">
+        Try again
+      </button>
+    </app-alert>
+  } @else {
+    <div class="layout">
+      <app-panel heading="Mastery">
+        <app-mastery-meter [score]="h.value.skill.score" [label]="l.skill.name + ' mastery'" />
+        <dl class="kv-list stats">
+          <div>
+            <dt>Status</dt>
+            <dd><app-skill-status [progress]="h.value.skill" /></dd>
+          </div>
+          <div>
+            <dt>Questions answered</dt>
+            <dd>{{ h.value.skill.attempts }}</dd>
+          </div>
+          @if (accuracy() !== undefined) {
+            <div>
+              <dt>Correct (recent)</dt>
+              <dd>{{ accuracy() }}%</dd>
+            </div>
+          }
+          <div>
+            <dt>Questions in this skill</dt>
+            <dd>{{ l.skill.questionCount }}</dd>
+          </div>
+        </dl>
+      </app-panel>
+
+      <app-panel
+        heading="Recent answers"
+        headingId="history-heading"
+        [counter]="rows().length"
+        [flush]="true"
+      >
+        @if (rows().length > 0) {
+          <div class="table-scroll">
+            <table class="table" aria-labelledby="history-heading">
+              <thead>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">Level</th>
+                  <th scope="col">Result</th>
+                  <th scope="col">Hints</th>
+                  <th scope="col">Score</th>
+                  <th scope="col">XP</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of rows(); track row.attemptId) {
+                  <tr>
+                    <td>{{ row.when }}</td>
+                    <td>{{ row.difficulty }}</td>
+                    <td>
+                      <app-status-indicator [type]="row.display.type">{{
+                        row.display.label
+                      }}</app-status-indicator>
+                    </td>
+                    <td>{{ row.hintsUsed }}</td>
+                    <td class="score">
+                      {{ row.scoreBefore }} → {{ row.scoreAfter }}
+                      <span [class.up]="row.change > 0" [class.down]="row.change < 0">
+                        ({{ row.change >= 0 ? '+' : '' }}{{ row.change }})
+                      </span>
+                    </td>
+                    <td>+{{ row.xpAwarded }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <app-empty-state
+            heading="No answers yet"
+            message="Start practicing to build your mastery score."
+          >
+            <a class="btn btn--primary" [routerLink]="['practice']">Start practicing</a>
+          </app-empty-state>
+        }
+      </app-panel>
+    </div>
+  }
+}

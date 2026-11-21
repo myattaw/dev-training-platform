@@ -1,0 +1,21 @@
+{
+  "name": "@pracstack/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@pracstack/api-contracts": "*",
+    "@pracstack/content-model": "*",
+    "@pracstack/scoring": "*"
+  },
+  "devDependencies": {
+    "@pracstack/content": "*"
+  }
+}

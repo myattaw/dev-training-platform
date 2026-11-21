@@ -5,11 +5,15 @@
   "packageManager": "npm@10.9.2",
   "workspaces": [
     "packages/*",
+    "services/*",
     "content"
   ],
   "scripts": {
-    "start": "ng serve",
+    "start": "node scripts/dev.mjs",
     "prestart": "npm run content:build",
+    "start:web": "ng serve",
+    "api": "tsx services/api/src/local/server.ts",
+    "api:watch": "tsx watch services/api/src/local/server.ts",
     "build": "ng build",
     "prebuild": "npm run content:build",
     "postbuild": "npm run content:check-leaks",
@@ -20,9 +24,9 @@
     "test:web": "ng test --watch=false",
     "test:packages": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "lint": "ng lint && eslint packages content e2e",
-    "format": "prettier --write \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\"",
-    "format:check": "prettier --check \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\"",
+    "lint": "ng lint && eslint packages services content e2e",
+    "format": "prettier --write \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"services/*/src/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\"",
+    "format:check": "prettier --check \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"services/*/src/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\"",
     "e2e": "playwright test",
     "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run e2e"
   },

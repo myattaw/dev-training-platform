@@ -1,11 +1,16 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 // Uncommon port so the tests never attach to an unrelated local dev server.
 const PORT = 4317;
+// A fresh progress file per run, so Skill Mastery tests start from zero.
+const DATA_FILE = join(tmpdir(), `pracstack-e2e-${Date.now()}.json`);
 
 /**
- * End-to-end tests run against the production build (not `ng serve`), so they
- * catch problems that only appear in optimized output.
+ * End-to-end tests run against the production build (not `ng serve`), served
+ * by the local API server, so they exercise the real stack and catch problems
+ * that only appear in optimized output.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -33,7 +38,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `npm run build && node e2e/support/static-server.mjs dist/web/browser ${PORT}`,
+    command: `npm run build && npx tsx services/api/src/local/server.ts --port ${PORT} --static dist/web/browser --data "${DATA_FILE}"`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
     timeout: 180_000,

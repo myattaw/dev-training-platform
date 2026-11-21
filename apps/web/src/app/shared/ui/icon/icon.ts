@@ -38,6 +38,7 @@ const ICONS = {
   reset: { paths: ['M2.75 3.5v3.25h3.25', 'M3.1 6.5A5.25 5.25 0 1 1 3.75 10.5'] },
   terminal: { paths: ['M2 3h12v10H2z', 'M4.5 6.5l2 1.5-2 1.5', 'M8 10h3'] },
   external: { paths: ['M9.5 2.5h4v4', 'M13.5 2.5L8 8', 'M12 9.5v4H2.5V4h4'] },
+  target: { paths: [CIRCLE, 'M11.5 8a3.5 3.5 0 1 1-7 0a3.5 3.5 0 1 1 7 0', 'M8 7.4v1.2'] },
   'panel-left': { paths: ['M2 2.5h12v11H2z', 'M6 2.5v11'] },
 } as const satisfies Record<string, IconDef>;
 

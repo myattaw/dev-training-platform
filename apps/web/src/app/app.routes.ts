@@ -12,6 +12,11 @@ export const routes: Routes = [
     loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
   },
   {
+    path: 'skills',
+    loadChildren: () =>
+      import('./features/skill-mastery/skill-mastery.routes').then((m) => m.SKILL_MASTERY_ROUTES),
+  },
+  {
     path: 'challenges',
     loadChildren: () =>
       import('./features/challenges/challenges.routes').then((m) => m.CHALLENGE_ROUTES),
