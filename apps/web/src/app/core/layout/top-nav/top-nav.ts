@@ -35,8 +35,11 @@ import { LayoutService } from '../layout.service';
       </a>
 
       @if (auth.status() === 'signed-out') {
-        <p class="user">
-          <button type="button" class="btn btn--sm btn--primary" (click)="signIn()">Sign in</button>
+        <p class="user account-actions">
+          <button type="button" class="btn btn--sm" (click)="signIn()">Sign in</button>
+          <button type="button" class="btn btn--sm btn--primary create" (click)="signIn(true)">
+            Create account
+          </button>
         </p>
       } @else if (session.me(); as me) {
         <p class="user">
@@ -100,6 +103,9 @@ import { LayoutService } from '../layout.service';
       margin: 0 0 0 auto;
       font-size: var(--font-size-sm);
     }
+    .account-actions {
+      gap: var(--space-2);
+    }
     .mode {
       padding: 0 6px;
       border: 1px solid var(--color-warning);
@@ -121,6 +127,12 @@ import { LayoutService } from '../layout.service';
         display: none;
       }
     }
+    /* Narrow phones: Sign in only (Cognito's sign-in page links to sign-up). */
+    @media (max-width: 379px) {
+      .create {
+        display: none;
+      }
+    }
   `,
 })
 export class TopNav {
@@ -128,8 +140,9 @@ export class TopNav {
   protected readonly session = inject(SessionService);
   protected readonly auth = inject(AuthService);
 
-  protected signIn(): void {
-    void this.auth.signIn();
+  /** Sign in, or create an account (Cognito's sign-up page); both return to this page. */
+  protected signIn(signUp = false): void {
+    void this.auth.signIn(undefined, { signUp });
   }
   readonly toggleNav = output<void>();
 }

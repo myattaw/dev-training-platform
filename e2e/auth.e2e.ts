@@ -88,6 +88,11 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     const fake = await cognitoMode(page);
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
+    // Header: Sign in and Create account side by side, not a lone button in the corner.
+    const header = page.getByRole('banner');
+    const signIn = await header.getByRole('button', { name: 'Sign in' }).boundingBox();
+    const create = await header.getByRole('button', { name: 'Create account' }).boundingBox();
+    expect(signIn && create && create.x - (signIn.x + signIn.width)).toBeLessThan(24);
     await expect(page.getByText('Local mode')).toHaveCount(0);
 
     await page.goto('/skills/typescript');
