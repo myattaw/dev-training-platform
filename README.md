@@ -59,7 +59,7 @@ services/
 infra/                       AWS CDK app: one stack (CloudFront, S3, Cognito, API Gateway, Lambda, runners in an isolated VPC, DynamoDB, Budgets)
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
-docs/                        api.md, aws.md, content.md, operations.md, runners.md, scoring.md, sql.md, company-*.md, accounts-and-auth.md, monetization.md
+docs/                        api.md, aws.md, content.md, operations.md, runners.md, scoring.md, sql.md, company-*.md, accounts-and-auth.md, monetization.md, staging-launch.md
 .github/                     CI workflow (fast checks), Dependabot, pull-request template
 ```
 
@@ -116,6 +116,7 @@ and linked on first use; the production builder does not load CSS imported from 
 - [docs/api.md](docs/api.md): endpoints, the rules that keep scores honest, limits, storage.
 - [docs/operations.md](docs/operations.md): CI (and what it skips), alarms, kill switch, logs, rollback, secrets.
 - [docs/aws.md](docs/aws.md): the AWS architecture, cost estimate, deploying and removing it.
+- [docs/staging-launch.md](docs/staging-launch.md): launching staging step by step: prerequisites, GitHub Actions, test plan, rollback, costs.
 - [docs/runners.md](docs/runners.md): how submissions are isolated and graded, and the known limits.
 - [docs/sql.md](docs/sql.md): how SQL runs (PostgreSQL and Oracle), every security boundary and its known limits, grading.
 - [docs/content.md](docs/content.md): adding challenges and questions, what is public vs

@@ -33,9 +33,13 @@ with `npm run oracle:stop` if you need the memory (about 2.5 GB).
 
 ## Deploying
 
-Deployment is manual, from a developer machine; there is no deployment from CI. Steps, costs and
-removal: [aws.md](aws.md). After every deployment that changes the runners, run
-`npx tsx scripts/verify-runners.ts` in `infra/` and do not open the site until it passes.
+Deployment is always manual: from a developer machine, or with the **Deploy** workflow
+(`.github/workflows/deploy.yml`), which is started by hand, diffs with a read-only role, waits
+for a reviewer to approve the environment, and uses short-lived OIDC credentials (no access
+keys). CI never deploys. Step-by-step guide, test plan and costs:
+[staging-launch.md](staging-launch.md); architecture: [aws.md](aws.md). After every deployment
+that changes the runners, run `npx tsx scripts/verify-runners.ts <stack>` in `infra/` and do not
+open the site until it passes; `npx tsx scripts/smoke-test.ts --stack <stack>` checks the rest.
 
 ## Alarms
 

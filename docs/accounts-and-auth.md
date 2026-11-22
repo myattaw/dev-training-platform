@@ -6,7 +6,7 @@
 | --- | --- |
 | Sign up, email verification, sign in, password reset | Amazon Cognito managed login. `/account/sign-in` opens Cognito's sign-in or sign-up page (authorization code + PKCE, public client, no secret in the browser). Passwords never reach PracStack. |
 | Persistent sessions | ID token in `sessionStorage`, refreshed with the refresh token; Cognito's own cookie makes re-sign-in one redirect |
-| Sign out | Clears tokens and calls Cognito `/logout` |
+| Sign out | Revokes the refresh token (`/oauth2/revoke`), clears tokens and calls Cognito `/logout` |
 | Protected routes | `requireSignIn` guard (company pages, timed practice, account); the API also rejects unauthenticated calls (API Gateway JWT authorizer plus a re-check in the function) |
 | Profile | `GET`/`PATCH /api/me`: display name (sanitised, 1–60 characters) |
 | Saved progress across devices | Everything is stored per user in DynamoDB |
@@ -70,6 +70,8 @@ authenticator-app MFA), the managed-login domain, the public PKCE client and the
 it also writes `config.json`. After deploying:
 
 - Add an administrator: `aws cognito-idp admin-add-user-to-group --user-pool-id <UserPoolId> --username <email> --group-name admins`.
-- Cognito's default email sender is limited to a few emails a day; configure Amazon SES before
-  real users sign up.
+- Cognito's default email sender allows 50 emails a day per AWS account (sign-up codes and
+  password resets): enough for a private beta, not for public sign-up. Configure Amazon SES
+  before then. Details: [staging-launch.md](staging-launch.md#5-cognito-and-email).
+- Private staging: `-c signUpAllowlist=…` limits self sign-up to listed emails or domains.
 - No credentials are needed in the repository.
