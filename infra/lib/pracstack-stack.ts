@@ -137,6 +137,14 @@ export class PracStackStack extends Stack {
       deletionProtection: props.retainData,
       removalPolicy,
     });
+    // Members of this group get the ADMIN plan (services/api/src/account/entitlements.ts).
+    // Cognito puts group names in the ID token's `cognito:groups` claim; add users with
+    // `aws cognito-idp admin-add-user-to-group`. Groups are free.
+    new cognito.CfnUserPoolGroup(this, 'AdminsGroup', {
+      userPoolId: userPool.userPoolId,
+      groupName: 'admins',
+      description: 'PracStack administrators (ADMIN plan).',
+    });
     const domainPrefix = `pracstack-${props.stage}-${stableSuffix(this.account, this.region)}`;
     const domain = userPool.addDomain('Domain', {
       cognitoDomain: { domainPrefix },

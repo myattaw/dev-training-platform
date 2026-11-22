@@ -21,6 +21,7 @@ npm run oracle:start              # needs Docker: local Oracle for the Oracle SQ
 
 npm start              # content build, then API (:3100) + web dev server (http://localhost:4200)
 npm run api            # API only (local developer user; see docs/api.md)
+PRACSTACK_LOCAL_PLAN=pro npm run api   # preview Pro features locally (local developer only)
 npm test               # unit tests: packages (Vitest) + web app (Angular/Vitest)
 npm run typecheck      # tsc for every workspace package
 npm run lint           # ESLint (TypeScript, Angular templates, accessibility rules)
@@ -58,7 +59,7 @@ services/
 infra/                       AWS CDK app: one stack (CloudFront, S3, Cognito, API Gateway, Lambda, runners in an isolated VPC, DynamoDB, Budgets)
 content/                     Authored challenges and Skill Mastery tracks + the content build
 e2e/                         Playwright tests (desktop + phone)
-docs/                        api.md, aws.md, content.md, operations.md, runners.md, scoring.md, sql.md
+docs/                        api.md, aws.md, content.md, operations.md, runners.md, scoring.md, sql.md, company-*.md, accounts-and-auth.md, monetization.md
 .github/                     CI workflow (fast checks), Dependabot, pull-request template
 ```
 
@@ -120,6 +121,10 @@ and linked on first use; the production builder does not load CSS imported from 
 - [docs/content.md](docs/content.md): adding challenges and questions, what is public vs
   private, and every check the content build enforces.
 - [docs/scoring.md](docs/scoring.md): the mastery algorithm, with simulated learner journeys.
+- [docs/company-interview-prep.md](docs/company-interview-prep.md): company search, reported questions vs recommended practice, the import pipeline, recommendations, timed sessions.
+- [docs/company-data-licensing.md](docs/company-data-licensing.md): why only a demo sample of the company dataset is imported.
+- [docs/accounts-and-auth.md](docs/accounts-and-auth.md): sign-in, account linking, importing browser progress, the GitHub sign-in evaluation.
+- [docs/monetization.md](docs/monetization.md): FREE/PRO/ADMIN entitlements and what is needed before payments.
 
 ## Roadmap
 
