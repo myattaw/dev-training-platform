@@ -1,5 +1,9 @@
 import { computed, inject, Injectable, InjectionToken, signal } from '@angular/core';
-import { type AuthConfig, RuntimeConfigService } from '../config/runtime-config';
+import {
+  type AuthConfig,
+  RuntimeConfigService,
+  type SocialProvider,
+} from '../config/runtime-config';
 import { codeChallenge, randomString, readJwtPayload, safeReturnPath } from './pkce';
 
 /** Where the browser goes; replaceable in tests. */
@@ -88,9 +92,13 @@ export class AuthService {
   /**
    * Starts sign-in; the browser leaves the app and returns to the callback.
    * `signUp` opens the account-creation page of the same managed login
-   * (email verification and password reset are handled there).
+   * (email verification and password reset are handled there); `provider`
+   * goes straight to a social provider such as Google.
    */
-  async signIn(returnPath = currentPath(), options: { signUp?: boolean } = {}): Promise<void> {
+  async signIn(
+    returnPath = currentPath(),
+    options: { signUp?: boolean; provider?: SocialProvider } = {},
+  ): Promise<void> {
     const auth = this.cognito();
     const pending: PendingSignIn = {
       state: randomString(),
@@ -98,8 +106,13 @@ export class AuthService {
       returnPath: safeReturnPath(returnPath),
     };
     session.write(PENDING_KEY, pending);
-    const url = new URL(options.signUp ? '/signup' : '/oauth2/authorize', auth.domain);
+    const url = new URL(
+      options.signUp && !options.provider ? '/signup' : '/oauth2/authorize',
+      auth.domain,
+    );
     url.search = new URLSearchParams({
+      // Straight to the provider (e.g. Google) instead of Cognito's own page.
+      ...(options.provider ? { identity_provider: options.provider } : {}),
       response_type: 'code',
       client_id: auth.clientId,
       redirect_uri: redirectUri(),

@@ -56,6 +56,18 @@ describe('post-deployment smoke checks', () => {
     expect(await failures(healthySite())).toEqual([]);
   });
 
+  it('accept social sign-in providers in config.json', async () => {
+    const site = healthySite();
+    site[`${SITE}/config.json`] = () =>
+      new Response(
+        JSON.stringify({
+          auth: { mode: 'cognito', domain: COGNITO, clientId: 'abc', providers: ['Google'] },
+        }),
+        { status: 200, headers: { 'cache-control': 'no-cache' } },
+      );
+    expect(await failures(site)).toEqual([]);
+  });
+
   it('catch a missing SPA fallback', async () => {
     const site = healthySite();
     delete site[`${SITE}/challenges/smoke-test-route/workspace`];

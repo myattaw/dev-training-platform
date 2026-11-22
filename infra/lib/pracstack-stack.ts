@@ -3,6 +3,7 @@ import {
   CfnOutput,
   Duration,
   RemovalPolicy,
+  SecretValue,
   Stack,
   type StackProps,
   Token,
@@ -88,6 +89,12 @@ export interface PracStackProps extends StackProps {
    * quota is the new-account 10, because AWS keeps 10 unreserved at all times).
    */
   readonly runnerConcurrency?: number;
+  /**
+   * "Continue with Google". The client ID is public; the client secret is read at
+   * deploy time from AWS Secrets Manager (plain-text secret named `clientSecretName`)
+   * and never appears in the repository or the template. Absent: email sign-in only.
+   */
+  readonly google?: { readonly clientId: string; readonly clientSecretName: string };
 }
 
 /** Overall request rate for the API (all users together). A cost ceiling, not a per-user limit. */
@@ -268,6 +275,24 @@ export class PracStackStack extends Stack {
     });
     const siteUrl = `https://${distribution.distributionDomainName}`;
 
+    // Optional social sign-in. Google accounts become their own Cognito users (not merged
+    // with an email account by address; the Account page links identities with proof from
+    // both). The sign-up allowlist trigger applies to them too.
+    const google = props.google
+      ? new cognito.UserPoolIdentityProviderGoogle(this, 'GoogleSignIn', {
+          userPool,
+          clientId: props.google.clientId,
+          clientSecretValue: SecretValue.secretsManager(props.google.clientSecretName),
+          scopes: ['openid', 'email', 'profile'],
+          attributeMapping: {
+            email: cognito.ProviderAttribute.GOOGLE_EMAIL,
+            emailVerified: cognito.ProviderAttribute.GOOGLE_EMAIL_VERIFIED,
+            fullname: cognito.ProviderAttribute.GOOGLE_NAME,
+          },
+        })
+      : undefined;
+    const signInProviders = google ? ['Google'] : [];
+
     const client = userPool.addClient('WebClient', {
       // A browser app: public client, PKCE, no secret.
       generateSecret: false,
@@ -278,13 +303,17 @@ export class PracStackStack extends Stack {
         callbackUrls: [`${siteUrl}/auth/callback`],
         logoutUrls: [`${siteUrl}/`],
       },
-      supportedIdentityProviders: [cognito.UserPoolClientIdentityProvider.COGNITO],
+      supportedIdentityProviders: [
+        cognito.UserPoolClientIdentityProvider.COGNITO,
+        ...(google ? [cognito.UserPoolClientIdentityProvider.GOOGLE] : []),
+      ],
       preventUserExistenceErrors: true,
       idTokenValidity: Duration.hours(1),
       accessTokenValidity: Duration.hours(1),
       refreshTokenValidity: Duration.days(30),
       enableTokenRevocation: true,
     });
+    if (google) client.node.addDependency(google);
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
 
     // ---------------------------------------------------------------- runners (learner code + SQL)
@@ -433,7 +462,10 @@ export class PracStackStack extends Stack {
       sources: [
         s3deploy.Source.asset(props.assets.webRevalidate),
         // Public settings only (see apps/web/src/app/core/config/runtime-config.ts).
-        s3deploy.Source.jsonData('config.json', webConfig(cognitoOrigin, client.userPoolClientId)),
+        s3deploy.Source.jsonData(
+          'config.json',
+          webConfig(cognitoOrigin, client.userPoolClientId, signInProviders),
+        ),
       ],
       destinationBucket: webBucket,
       cacheControl: [s3deploy.CacheControl.fromString('no-cache')],
@@ -746,8 +778,20 @@ export class PracStackStack extends Stack {
  * The web app's /config.json (see apps/web/src/app/core/config/runtime-config.ts).
  * Public values only: it is served to every visitor.
  */
-export function webConfig(cognitoOrigin: string, clientId: string) {
-  return { auth: { mode: 'cognito', domain: cognitoOrigin, clientId } } as const;
+export function webConfig(
+  cognitoOrigin: string,
+  clientId: string,
+  providers: readonly string[] = [],
+) {
+  return {
+    auth: {
+      mode: 'cognito',
+      domain: cognitoOrigin,
+      clientId,
+      // Social sign-in buttons the app shows (Cognito identity provider names).
+      ...(providers.length > 0 ? { providers } : {}),
+    },
+  } as const;
 }
 
 /**

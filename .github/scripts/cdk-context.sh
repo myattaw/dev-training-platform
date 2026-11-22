@@ -29,6 +29,10 @@ if [[ -n "${RUNNER_CONCURRENCY:-}" ]]; then
   check RUNNER_CONCURRENCY "$RUNNER_CONCURRENCY" '^[0-9]{1,2}$'
   args+=(-c "runnerConcurrency=$RUNNER_CONCURRENCY")
 fi
+if [[ -n "${GOOGLE_CLIENT_ID:-}" ]]; then
+  check GOOGLE_CLIENT_ID "$GOOGLE_CLIENT_ID" '^[0-9]+-[a-z0-9]+\.apps\.googleusercontent\.com$'
+  args+=(-c "googleClientId=$GOOGLE_CLIENT_ID")
+fi
 # Production keeps users and progress if the stack is ever deleted.
 if [[ "$STAGE" == production ]]; then args+=(-c retainData=true); fi
 

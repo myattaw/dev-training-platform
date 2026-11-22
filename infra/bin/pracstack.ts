@@ -13,6 +13,9 @@
  *   retainData         "true": keep users and progress on destroy (default false)
  *   signUpAllowlist    comma-separated emails or @domains allowed to sign up (default: anyone)
  *   runnerConcurrency  reserved concurrency per runner (default none; needs a raised quota)
+ *   googleClientId     enables "Continue with Google" (OAuth client ID from Google Cloud)
+ *   googleClientSecretName  Secrets Manager secret holding its client secret
+ *                      (default pracstack/<stage>/google-client-secret)
  *
  * GitHub Actions deployment access (a separate, one-time stack; no assets needed):
  *   npx cdk deploy PracStack-GitHubDeploy -c githubRepo=owner/repo [-c githubStages=staging,production]
@@ -68,6 +71,10 @@ if (githubRepo) {
   )
     throw new Error('runnerConcurrency must be a whole number from 1 to 50.');
 
+  const googleClientId = context('googleClientId');
+  if (googleClientId && !/^[0-9]+-[a-z0-9]+.apps.googleusercontent.com$/.test(googleClientId))
+    throw new Error('googleClientId must look like 1234-abc.apps.googleusercontent.com.');
+
   new PracStackStack(app, `PracStack-${stage}`, {
     env: { account, region },
     stage,
@@ -76,6 +83,15 @@ if (githubRepo) {
     retainData: context('retainData') === 'true',
     signUpAllowlist: (context('signUpAllowlist') ?? '').split(','),
     ...(runnerConcurrency !== undefined ? { runnerConcurrency } : {}),
+    ...(googleClientId
+      ? {
+          google: {
+            clientId: googleClientId,
+            clientSecretName:
+              context('googleClientSecretName') ?? `pracstack/${stage}/google-client-secret`,
+          },
+        }
+      : {}),
     assets: {
       webImmutable: join(BUILD_DIR, 'web-immutable'),
       webRevalidate: join(BUILD_DIR, 'web-revalidate'),

@@ -15,7 +15,13 @@ export type AuthConfig =
       readonly domain: string;
       /** Public app client (no secret; PKCE). */
       readonly clientId: string;
+      /** Social sign-in offered next to email (Cognito identity provider names). */
+      readonly providers?: readonly SocialProvider[];
     };
+
+/** Social identity providers the app knows how to offer. */
+export const SOCIAL_PROVIDERS = ['Google'] as const;
+export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 
 export interface RuntimeConfig {
   readonly auth: AuthConfig;
@@ -32,7 +38,10 @@ export function isRuntimeConfig(value: unknown): value is RuntimeConfig {
     typeof auth['domain'] === 'string' &&
     /^https:\/\/[a-z0-9.-]+$/.test(auth['domain']) &&
     typeof auth['clientId'] === 'string' &&
-    auth['clientId'] !== ''
+    auth['clientId'] !== '' &&
+    (auth['providers'] === undefined ||
+      (Array.isArray(auth['providers']) &&
+        auth['providers'].every((p) => (SOCIAL_PROVIDERS as readonly unknown[]).includes(p))))
   );
 }
 

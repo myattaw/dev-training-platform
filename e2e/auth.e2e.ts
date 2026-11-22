@@ -24,14 +24,29 @@ const idToken = (() => {
 interface FakeCognito {
   readonly tokenRequests: URLSearchParams[];
   readonly revokeRequests: URLSearchParams[];
+  readonly authorizeRequests: URLSearchParams[];
   readonly apiAuthHeaders: (string | undefined)[];
 }
 
-async function cognitoMode(page: Page): Promise<FakeCognito> {
-  const fake: FakeCognito = { tokenRequests: [], revokeRequests: [], apiAuthHeaders: [] };
+async function cognitoMode(page: Page, providers?: string[]): Promise<FakeCognito> {
+  const fake: FakeCognito = {
+    tokenRequests: [],
+    revokeRequests: [],
+    authorizeRequests: [],
+    apiAuthHeaders: [],
+  };
 
   await page.route('**/config.json', (route) =>
-    route.fulfill({ json: { auth: { mode: 'cognito', domain: DOMAIN, clientId: CLIENT } } }),
+    route.fulfill({
+      json: {
+        auth: {
+          mode: 'cognito',
+          domain: DOMAIN,
+          clientId: CLIENT,
+          ...(providers ? { providers } : {}),
+        },
+      },
+    }),
   );
   // Documents get the production CSP for this Cognito origin.
   await page.route(
@@ -50,6 +65,7 @@ async function cognitoMode(page: Page): Promise<FakeCognito> {
   );
   await page.route(`${DOMAIN}/oauth2/authorize?*`, (route) => {
     const q = new URL(route.request().url()).searchParams;
+    fake.authorizeRequests.push(q);
     expect(q.get('code_challenge_method')).toBe('S256');
     const back = new URL(q.get('redirect_uri') ?? '');
     back.search = new URLSearchParams({ code: 'code-1', state: q.get('state') ?? '' }).toString();
@@ -150,5 +166,24 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     await expect.poll(() => fake.revokeRequests.length).toBe(1);
     expect(fake.revokeRequests[0]?.get('token')).toBe('r1');
     expect(fake.revokeRequests[0]?.get('client_id')).toBe(CLIENT);
+  });
+
+  test('Continue with Google goes to Google through Cognito and signs in', async ({ page }) => {
+    const fake = await cognitoMode(page, ['Google']);
+    await page.goto('/account/sign-in');
+    await page.getByRole('button', { name: 'Continue with Google' }).click();
+
+    await expect(page.getByRole('banner').getByRole('button', { name: 'Sign out' })).toBeVisible();
+    await expect(page).toHaveURL(/\/account$/);
+    expect(fake.authorizeRequests).toHaveLength(1);
+    expect(fake.authorizeRequests[0]?.get('identity_provider')).toBe('Google');
+    expect(fake.tokenRequests[0]?.get('grant_type')).toBe('authorization_code');
+  });
+
+  test('the sign-in page offers no social button unless configured', async ({ page }) => {
+    await cognitoMode(page);
+    await page.goto('/account/sign-in');
+    await expect(page.getByRole('heading', { name: 'Have an account?' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Continue with/ })).toHaveCount(0);
   });
 });

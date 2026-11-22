@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/auth/auth.service';
 import { safeReturnPath } from '../../../core/auth/pkce';
+import { RuntimeConfigService, type SocialProvider } from '../../../core/config/runtime-config';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { PageHeader } from '../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../shared/ui/panel/panel';
@@ -32,6 +33,17 @@ import { Panel } from '../../../shared/ui/panel/panel';
       }
       @default {
         <app-panel>
+          @if (providers().length > 0) {
+            <div class="social">
+              @for (provider of providers(); track provider) {
+                <button type="button" class="btn social-btn" (click)="continueWith(provider)">
+                  Continue with {{ provider }}
+                </button>
+              }
+              <p class="text-secondary small">New here? This creates your PracStack account too.</p>
+            </div>
+            <p class="divider text-secondary"><span>or use your email</span></p>
+          }
           <div class="choices">
             <section>
               <h2>Have an account?</h2>
@@ -52,7 +64,6 @@ import { Panel } from '../../../shared/ui/panel/panel';
             Forgot your password? Choose Sign in, then "Forgot your password?" on the sign-in page.
             Sign-in pages are provided by Amazon Cognito; PracStack never sees your password.
           </p>
-          <p class="text-secondary small">Continue with GitHub is not available yet.</p>
         </app-panel>
       }
     }
@@ -77,6 +88,30 @@ import { Panel } from '../../../shared/ui/panel/panel';
     section p {
       margin: 0 0 var(--space-3);
     }
+    .social {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+    .social-btn {
+      min-width: 240px;
+      justify-content: center;
+      font-weight: var(--font-weight-bold);
+    }
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin: var(--space-4) 0;
+      font-size: var(--font-size-sm);
+    }
+    .divider::before,
+    .divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--color-border);
+    }
     .small {
       margin: var(--space-2) 0 0;
       font-size: var(--font-size-sm);
@@ -87,8 +122,22 @@ export class SignInPage {
   /** Where to return after signing in (`?returnTo=`); only same-site paths are used. */
   readonly returnTo = input<string>();
   protected readonly auth = inject(AuthService);
+  private readonly runtime = inject(RuntimeConfigService);
+  /** Social sign-in configured for this deployment (config.json), e.g. Google. */
+  protected readonly providers = computed<readonly SocialProvider[]>(() => {
+    const auth = this.runtime.config().auth;
+    return auth.mode === 'cognito' ? (auth.providers ?? []) : [];
+  });
 
   protected signIn(signUp: boolean): void {
-    void this.auth.signIn(safeReturnPath(this.returnTo() ?? '/account'), { signUp });
+    void this.auth.signIn(this.returnPath(), { signUp });
+  }
+
+  protected continueWith(provider: SocialProvider): void {
+    void this.auth.signIn(this.returnPath(), { provider });
+  }
+
+  private returnPath(): string {
+    return safeReturnPath(this.returnTo() ?? '/account');
   }
 }

@@ -91,6 +91,7 @@ jobs:
           SIGN_UP_ALLOWLIST: ${{ secrets.SIGN_UP_ALLOWLIST }}
           BUDGET_USD: ${{ vars.BUDGET_USD }}
           RUNNER_CONCURRENCY: ${{ vars.RUNNER_CONCURRENCY }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
         run: |
           ../.github/scripts/cdk-context.sh > ../cdk-context.args
           # --no-change-set: a read-only diff (creating a change set needs the deploy role).
@@ -156,6 +157,7 @@ jobs:
           SIGN_UP_ALLOWLIST: ${{ secrets.SIGN_UP_ALLOWLIST }}
           BUDGET_USD: ${{ vars.BUDGET_USD }}
           RUNNER_CONCURRENCY: ${{ vars.RUNNER_CONCURRENCY }}
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
         # The reviewer approved the diff above (IAM changes included), so the CLI does not ask again.
         run: |
           ../.github/scripts/cdk-context.sh > ../cdk-context.args

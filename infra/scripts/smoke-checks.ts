@@ -94,7 +94,10 @@ export async function runSmokeChecks(
       /^https:\/\/[a-z0-9-]+\.auth\.[a-z0-9-]+\.amazoncognito\.com$/.test(domain) &&
       clientId !== '' &&
       JSON.stringify(Object.keys(config as object)) === '["auth"]' &&
-      JSON.stringify(Object.keys(auth).sort()) === '["clientId","domain","mode"]',
+      Object.keys(auth).every((k) => ['mode', 'domain', 'clientId', 'providers'].includes(k)) &&
+      (auth['providers'] === undefined ||
+        (Array.isArray(auth['providers']) &&
+          auth['providers'].every((p: unknown) => typeof p === 'string' && /^[A-Za-z]+$/.test(p)))),
     JSON.stringify(config),
   );
   check(

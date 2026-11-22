@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { App, Validations } from 'aws-cdk-lib';
@@ -504,6 +504,14 @@ describe('web hosting', () => {
   });
 
   it('writes only public settings to config.json', () => {
+    expect(webConfig('https://x.auth.us-east-2.amazoncognito.com', 'client', ['Google'])).toEqual({
+      auth: {
+        mode: 'cognito',
+        domain: 'https://x.auth.us-east-2.amazoncognito.com',
+        clientId: 'client',
+        providers: ['Google'],
+      },
+    });
     expect(webConfig('https://x.auth.us-east-2.amazoncognito.com', 'client')).toEqual({
       auth: {
         mode: 'cognito',
@@ -598,6 +606,54 @@ describe('private staging options', () => {
     const reserved = fns.filter((f) => f.Properties.ReservedConcurrentExecutions === 3);
     expect(reserved).toHaveLength(3);
     expect(reserved.every((f) => f.Properties.PackageType === 'Image')).toBe(true);
+  });
+
+  it('offers only email sign-in unless Google is configured', () => {
+    template.resourceCountIs('AWS::Cognito::UserPoolIdentityProvider', 0);
+    template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      SupportedIdentityProviders: ['COGNITO'],
+    });
+  });
+
+  it('adds Google sign-in with the client secret read from Secrets Manager at deploy time', () => {
+    const { app, template: t } = synth(false, {
+      google: {
+        clientId: '1234-abc.apps.googleusercontent.com',
+        clientSecretName: 'pracstack/test/google-client-secret',
+      },
+    });
+    t.hasResourceProperties('AWS::Cognito::UserPoolIdentityProvider', {
+      ProviderName: 'Google',
+      ProviderType: 'Google',
+      ProviderDetails: Match.objectLike({
+        client_id: '1234-abc.apps.googleusercontent.com',
+        authorize_scopes: 'openid email profile',
+      }),
+      AttributeMapping: Match.objectLike({ email: 'email', email_verified: 'email_verified' }),
+    });
+    const secret = JSON.stringify(
+      Object.values(t.findResources('AWS::Cognito::UserPoolIdentityProvider')).map(
+        (r) => (r as Json).Properties.ProviderDetails.client_secret,
+      ),
+    );
+    // A CloudFormation dynamic reference, never the secret itself.
+    expect(secret).toContain('{{resolve:secretsmanager:pracstack/test/google-client-secret');
+    t.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+      SupportedIdentityProviders: Match.arrayWith(['COGNITO', 'Google']),
+    });
+    // The deployed config.json (an asset file) tells the app to offer Google.
+    const configs = readdirSync(app.synth().directory, { recursive: true })
+      .map(String)
+      .filter((f) => f.endsWith('config.json'))
+      .map((f) => readFileSync(join(app.synth().directory, f), 'utf8'));
+    expect(configs.some((c) => c.includes('"providers":["Google"]'))).toBe(true);
+  });
+
+  it('passes the AWS Solutions checks with Google sign-in', () => {
+    const { app } = synth(true, {
+      google: { clientId: '1-a.apps.googleusercontent.com', clientSecretName: 'x/y' },
+    });
+    expect(() => app.synth()).not.toThrow();
   });
 
   it('outputs what the manual kill switch and smoke tests need', () => {

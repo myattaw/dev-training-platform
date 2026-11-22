@@ -200,6 +200,32 @@ describe('AuthService', () => {
   });
 });
 
+describe('AuthService: social sign-in', () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it('sends the browser straight to Google through Cognito, with PKCE', async () => {
+    const { auth, visited } = setup();
+    await auth.signIn('/skills', { provider: 'Google' });
+    const url = new URL(visited[0] ?? '');
+    expect(url.origin + url.pathname).toBe(`${DOMAIN}/oauth2/authorize`);
+    expect(url.searchParams.get('identity_provider')).toBe('Google');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(url.searchParams.get('redirect_uri')).toBe(`${location.origin}/auth/callback`);
+  });
+
+  it('never uses the email sign-up page for a social provider', async () => {
+    const { auth, visited } = setup();
+    await auth.signIn('/', { provider: 'Google', signUp: true });
+    expect(new URL(visited[0] ?? '').pathname).toBe('/oauth2/authorize');
+  });
+
+  it('sends no identity_provider for email sign-in', async () => {
+    const { auth, visited } = setup();
+    await auth.signIn('/');
+    expect(new URL(visited[0] ?? '').searchParams.has('identity_provider')).toBe(false);
+  });
+});
+
 describe('PKCE helpers', () => {
   it('computes the RFC 7636 example challenge', async () => {
     expect(await codeChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')).toBe(
