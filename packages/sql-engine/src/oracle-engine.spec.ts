@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { type OracleContainer, oracleForTests } from './oracle-container';
-import { dateValue, numberValue, OracleSqlEngine } from './oracle-engine';
+import { dateValue, isConnectFailure, numberValue, OracleSqlEngine } from './oracle-engine';
 import type { SqlRunRequest, SqlRunResult } from './types';
 
 /*
@@ -199,3 +199,13 @@ describe.skipIf(skip)(
     });
   },
 );
+
+describe('connectWithRetry: which failures are retried', () => {
+  it('retries only failures to establish the network connection', () => {
+    for (const code of ['NJS-510', 'NJS-503', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT'])
+      expect(isConnectFailure({ code }), code).toBe(true);
+    // Database answers (wrong password, ORA-…) and unknown errors are never retried.
+    for (const err of [{ code: 'ORA-01017', errorNum: 1017 }, { errorNum: 1013 }, {}, null])
+      expect(isConnectFailure(err), JSON.stringify(err)).toBe(false);
+  });
+});

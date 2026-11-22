@@ -171,7 +171,7 @@ export class OracleSqlEngine implements SqlEngine {
   /** One-time hardening and shared objects. Idempotent. */
   private setUp(): Promise<void> {
     this.ready ??= (async () => {
-      const sys = await oracledb.getConnection({
+      const sys = await connectWithRetry({
         user: 'sys',
         password: this.options.connection.adminPassword,
         connectString: this.options.connection.connectString,
@@ -313,7 +313,7 @@ export class OracleSqlEngine implements SqlEngine {
    */
   private async learnerConnection(dataset: Dataset): Promise<oracledb.Connection> {
     const connect = () =>
-      oracledb.getConnection({
+      connectWithRetry({
         user: dataset.learner,
         password: dataset.password,
         connectString: this.options.connection.connectString,
@@ -333,7 +333,7 @@ export class OracleSqlEngine implements SqlEngine {
   }
 
   private admin(): Promise<oracledb.Connection> {
-    return oracledb.getConnection({
+    return connectWithRetry({
       user: 'system',
       password: this.options.connection.adminPassword,
       connectString: this.options.connection.connectString,
@@ -438,6 +438,37 @@ export function normalizeOracleValue(value: unknown): SqlValue {
 function oracleMessage(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   return message.split('\n')[0] ?? message;
+}
+
+/**
+ * Opens a connection, retrying when the network connection itself could not be
+ * made. Every query logs in afresh as its dataset's read-only user, so a build
+ * opens hundreds of connections; through Docker Desktop's port forwarding some
+ * of them stall (NJS-510 after the default 20 s). Nothing has run on a
+ * connection that was never established, so retrying is safe; database errors
+ * (wrong password, ORA-…) are never retried.
+ */
+export async function connectWithRetry(
+  attributes: oracledb.ConnectionAttributes,
+  attempts = 3,
+): Promise<oracledb.Connection> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await oracledb.getConnection({ transportConnectTimeout: 5, ...attributes });
+    } catch (err) {
+      if (attempt >= attempts || !isConnectFailure(err)) throw err;
+    }
+  }
+}
+
+/** Network-level failures to establish a connection (node-oracledb NJS-5xx, socket errors). */
+export function isConnectFailure(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false;
+  const code = (err as { code?: unknown }).code;
+  return (
+    typeof code === 'string' &&
+    (/^NJS-5\d\d$/.test(code) || ['ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT'].includes(code))
+  );
 }
 
 function errorNum(err: unknown): number | undefined {
