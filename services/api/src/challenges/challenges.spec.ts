@@ -141,7 +141,12 @@ describe('challenge submissions', () => {
       status: 'passed',
       results: [expect.objectContaining({ description: 'two' })],
     });
-    const json = JSON.stringify(res);
+    // The submission id is a random UUID, which can contain "-14" by chance:
+    // check it is one, then scan everything else.
+    expect(res.submission.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
+    const json = JSON.stringify({ ...res, submission: { ...res.submission, id: 'ID' } });
     for (const leak of ['secret hidden test', '31337', '62674', '-14', 'log line'])
       expect(json).not.toContain(leak);
   });
