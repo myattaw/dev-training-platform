@@ -462,6 +462,12 @@ describe('runners (learner code and SQL)', () => {
 });
 
 describe('web hosting', () => {
+  it('serves HTTP/2, not HTTP/3 (which stalled page loads on some networks)', () => {
+    template.hasResourceProperties('AWS::CloudFront::Distribution', {
+      DistributionConfig: Match.objectLike({ HttpVersion: 'http2' }),
+    });
+  });
+
   it('rewrites client-side routes to index.html and leaves files alone', () => {
     const handler = new Function(`${SPA_REWRITE_SOURCE}; return handler;`)() as (e: {
       request: { uri: string };

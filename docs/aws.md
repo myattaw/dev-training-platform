@@ -23,7 +23,7 @@ AWS Budgets ──email──▶ you
 
 | Piece | What it does | Configuration |
 | --- | --- | --- |
-| **CloudFront** | Serves the web app and proxies `/api/*`; same origin, so no CORS | Price class 100; HTTP/2+3; security headers from `@pracstack/web-security` (strict CSP, HSTS, frame-deny); SPA routes rewritten by a CloudFront Function |
+| **CloudFront** | Serves the web app and proxies `/api/*`; same origin, so no CORS | Price class 100; HTTP/2 (HTTP/3 off: it stalled page loads on a network that breaks QUIC); security headers from `@pracstack/web-security` (strict CSP, HSTS, frame-deny); SPA routes rewritten by a CloudFront Function |
 | **S3** | Web build output | Private, encrypted, TLS-only; hashed files cached 1 year, pages/content revalidated |
 | **Cognito** | Accounts and sign-in | Lite plan (free); email sign-in; 12+ character passwords; optional authenticator-app MFA; public client (no secret), authorization code + PKCE; 1 h ID tokens; `admins` group (ADMIN plan, free) |
 | **API Gateway** | HTTP API in front of the function | Every route requires a valid Cognito ID token (signature, expiry, issuer, audience checked by API Gateway); overall throttle 10 req/s (burst 20); JSON access logs without query strings or bodies |

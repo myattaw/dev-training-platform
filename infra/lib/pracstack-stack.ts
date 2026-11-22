@@ -237,7 +237,9 @@ export class PracStackStack extends Stack {
       logFilePrefix: 'cloudfront/',
       defaultRootObject: 'index.html',
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
-      httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
+      // HTTP/2 only. With HTTP/3 offered, Chromium on a network that half-breaks QUIC
+      // never finished loading the app's scripts (0.24 s with HTTP/3 off, no load in 20 s on).
+      httpVersion: cloudfront.HttpVersion.HTTP2,
       defaultBehavior: {
         origin: s3Origin,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
