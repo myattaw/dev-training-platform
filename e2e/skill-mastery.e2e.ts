@@ -7,6 +7,13 @@ import { replaceCode, waitForEditor } from './support/workspace';
  */
 test.describe.configure({ mode: 'serial' });
 
+/**
+ * For assertions that wait on SQL run or graded by the local API (PGlite, WebAssembly, in a
+ * child process): its first query is a cold start, and grading runs the query on the sample
+ * and hidden datasets. With the rest of the suite in parallel, that exceeds the default 5 s.
+ */
+const SQL = { timeout: 20_000 };
+
 test.describe('Skill Mastery', () => {
   test('browse technologies, topics and skills', async ({ page }) => {
     await page.goto('/');
@@ -156,15 +163,15 @@ test.describe('Skill Mastery', () => {
     // A typo: Run shows PostgreSQL's error, nothing is scored.
     await replaceCode(page, 'SELECT nme, salary FROM employees');
     await page.getByRole('button', { name: 'Run query' }).click();
-    await expect(page.locator('.result')).toContainText('column "nme" does not exist');
+    await expect(page.locator('.result')).toContainText('column "nme" does not exist', SQL);
 
     await replaceCode(page, 'SELECT name, salary FROM employees');
     await page.getByRole('button', { name: 'Run query' }).click();
-    await expect(page.locator('.result')).toContainText('8 rows');
+    await expect(page.locator('.result')).toContainText('8 rows', SQL);
     await expect(page.locator('.result')).toContainText('Grace Hopper');
 
     await page.getByRole('button', { name: 'Submit answer' }).click();
-    await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible(SQL);
     // Feedback opens in the output panel, with a correct query.
     await expect(page.getByRole('tab', { name: 'Feedback' })).toHaveAttribute(
       'aria-selected',
@@ -186,7 +193,7 @@ test.describe('Skill Mastery', () => {
       "SELECT name, salary FROM employees WHERE name IN ('Ada Lovelace','Alan Turing','Barbara Liskov','Dennis Ritchie','Grace Hopper','Ken Thompson','Linus Torvalds','Margaret Hamilton') ORDER BY salary",
     );
     await page.getByRole('button', { name: 'Submit answer' }).click();
-    await expect(page.getByRole('heading', { name: 'Not quite' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Not quite' })).toBeVisible(SQL);
     await expect(
       page.getByText('right result for the sample data, but not for other data'),
     ).toBeVisible();

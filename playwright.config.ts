@@ -45,6 +45,10 @@ export default defineConfig({
     command: `npm run build && npx tsx services/api/src/local/server.ts --port ${PORT} --static dist/web/browser --data "${DATA_FILE}" --requests-per-minute 100000 --sql-per-minute 100000 --code-per-minute 100000`,
     url: `http://localhost:${PORT}`,
     reuseExistingServer: false,
-    timeout: 180_000,
+    // The command rebuilds everything: content build (~85 s, engine-checked
+    // questions), Angular (~20 s) and the private-content leak check (~90 s,
+    // which builds the content again). That reached 191 s on a developer
+    // machine and overran the previous 180 s limit before any test ran.
+    timeout: 480_000,
   },
 });
