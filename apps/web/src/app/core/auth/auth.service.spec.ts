@@ -177,6 +177,26 @@ describe('AuthService', () => {
     const logout = new URL(visited.at(-1) ?? '');
     expect(logout.pathname).toBe('/logout');
     expect(logout.searchParams.get('client_id')).toBe(CLIENT);
+    // The refresh token is revoked at Cognito (public client: client_id, no secret).
+    const [url, init] = fetchMock.mock.calls.at(-1) as [URL, RequestInit];
+    expect(String(url)).toBe(`${DOMAIN}/oauth2/revoke`);
+    expect(init.method).toBe('POST');
+    expect(init.keepalive).toBe(true);
+    const body = new URLSearchParams(String(init.body));
+    expect(body.get('token')).toBe('refresh-1');
+    expect(body.get('client_id')).toBe(CLIENT);
+  });
+
+  it('still signs out when revoking the refresh token fails', async () => {
+    const { auth, visited } = setup();
+    await auth.signIn('/');
+    const state = new URL(visited[0] ?? '').searchParams.get('state') ?? '';
+    fetchMock.mockResolvedValueOnce(tokenResponse());
+    await auth.completeSignIn(new URLSearchParams({ code: 'c1', state }));
+    fetchMock.mockRejectedValueOnce(new TypeError('offline'));
+    auth.signOut();
+    expect(auth.status()).toBe('signed-out');
+    expect(new URL(visited.at(-1) ?? '').pathname).toBe('/logout');
   });
 });
 

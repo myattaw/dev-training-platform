@@ -167,8 +167,24 @@ export class AuthService {
 
   signOut(): void {
     const auth = this.runtime.config().auth;
+    const refreshToken = this.tokens()?.refreshToken;
     this.store(undefined);
     if (auth.mode !== 'cognito') return;
+    // Revoke the refresh token (and the tokens issued from it), so a copy of it
+    // left anywhere stops working. `keepalive` lets the request finish while the
+    // browser leaves for Cognito's logout page; a failure changes nothing here.
+    if (refreshToken) {
+      try {
+        void fetch(new URL('/oauth2/revoke', auth.domain), {
+          method: 'POST',
+          keepalive: true,
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ token: refreshToken, client_id: auth.clientId }).toString(),
+        }).catch(() => undefined);
+      } catch {
+        /* fetch unavailable: Cognito's logout still ends the session */
+      }
+    }
     const url = new URL('/logout', auth.domain);
     url.search = new URLSearchParams({
       client_id: auth.clientId,

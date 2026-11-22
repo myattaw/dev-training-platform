@@ -23,11 +23,12 @@ const idToken = (() => {
 
 interface FakeCognito {
   readonly tokenRequests: URLSearchParams[];
+  readonly revokeRequests: URLSearchParams[];
   readonly apiAuthHeaders: (string | undefined)[];
 }
 
 async function cognitoMode(page: Page): Promise<FakeCognito> {
-  const fake: FakeCognito = { tokenRequests: [], apiAuthHeaders: [] };
+  const fake: FakeCognito = { tokenRequests: [], revokeRequests: [], apiAuthHeaders: [] };
 
   await page.route('**/config.json', (route) =>
     route.fulfill({ json: { auth: { mode: 'cognito', domain: DOMAIN, clientId: CLIENT } } }),
@@ -64,6 +65,10 @@ async function cognitoMode(page: Page): Promise<FakeCognito> {
       json: { id_token: idToken, refresh_token: 'r1', expires_in: 3600 },
       headers: { 'access-control-allow-origin': '*' },
     });
+  });
+  await page.route(`${DOMAIN}/oauth2/revoke`, (route) => {
+    fake.revokeRequests.push(new URLSearchParams(route.request().postData() ?? ''));
+    return route.fulfill({ status: 200, headers: { 'access-control-allow-origin': '*' } });
   });
   await page.route(`${DOMAIN}/logout?*`, (route) => {
     const back = new URL(route.request().url()).searchParams.get('logout_uri') ?? '/';
@@ -126,8 +131,8 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     expect(fake.tokenRequests).toHaveLength(1);
   });
 
-  test('signing out clears the session', async ({ page }) => {
-    await cognitoMode(page);
+  test('signing out clears the session and revokes the refresh token', async ({ page }) => {
+    const fake = await cognitoMode(page);
     await page.goto('/challenges/pangram/workspace');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
@@ -136,5 +141,9 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     await page.getByRole('button', { name: 'Sign out' }).click();
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible();
     expect(await page.evaluate(() => sessionStorage.getItem('pracstack:auth:tokens'))).toBeNull();
+    // Sent under the production CSP (connect-src allows the Cognito origin).
+    await expect.poll(() => fake.revokeRequests.length).toBe(1);
+    expect(fake.revokeRequests[0]?.get('token')).toBe('r1');
+    expect(fake.revokeRequests[0]?.get('client_id')).toBe(CLIENT);
   });
 });
