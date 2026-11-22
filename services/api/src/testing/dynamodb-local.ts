@@ -1,11 +1,7 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
-import {
-  CreateTableCommand,
-  DynamoDBClient,
-  UpdateTimeToLiveCommand,
-} from '@aws-sdk/client-dynamodb';
+import { CreateTableCommand, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 const exec = promisify(execFile);
 
@@ -74,12 +70,11 @@ export async function startDynamoDbLocal(): Promise<DynamoDbLocal> {
         BillingMode: 'PAY_PER_REQUEST',
       }),
     );
-    await client.send(
-      new UpdateTimeToLiveCommand({
-        TableName: tableName,
-        TimeToLiveSpecification: { AttributeName: 'ttl', Enabled: true },
-      }),
-    );
+    // TTL is deliberately NOT enabled (production enables it on `ttl`). Its
+    // deletion is a background sweep driven by the real clock, so fixtures with
+    // fixed timestamps started vanishing mid-test once those dates had passed
+    // (a token read back as undefined right after it was written). The stores
+    // still write `ttl` exactly as in production; nothing relies on deletion.
     return tableName;
   };
 
