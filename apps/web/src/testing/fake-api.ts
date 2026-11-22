@@ -33,6 +33,18 @@ export class FakeApiClient extends ApiClient {
     return this.dispatch<T>(`POST ${path}`, body);
   }
 
+  override put<T>(path: string, body: unknown): Promise<T> {
+    return this.dispatch<T>(`PUT ${path}`, body);
+  }
+
+  override patch<T>(path: string, body: unknown): Promise<T> {
+    return this.dispatch<T>(`PATCH ${path}`, body);
+  }
+
+  override delete<T>(path: string): Promise<T> {
+    return this.dispatch<T>(`DELETE ${path}`, undefined);
+  }
+
   private async dispatch<T>(route: string, input: unknown): Promise<T> {
     this.calls.push({ route, input });
     const handler = this.handlers[route];

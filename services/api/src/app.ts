@@ -1,5 +1,12 @@
-import type { MeResponse } from '@pracstack/api-contracts';
-import type { Authenticator } from './auth';
+import type { Plan } from '@pracstack/api-contracts';
+import { AccountService } from './account/account-service';
+import { EntitlementService } from './account/entitlements';
+import { IdentityService } from './account/identity';
+import { CompanyService } from './companies/company-service';
+import { InterviewService } from './interview/interview-service';
+import type { AccountStore } from './store/account-store';
+import type { ProgressStore } from './store/progress-store';
+import type { Authenticator, Caller } from './auth';
 import { ApiError, type ApiRequest, type ApiResponse, notFound } from './http';
 import { ChallengeService } from './challenges/challenge-service';
 import { PracticeService, type PracticeDeps } from './practice/practice-service';
@@ -13,9 +20,28 @@ import {
   parseNextQuestionRequest,
   parseRunSqlRequest,
 } from './validation';
+import {
+  parseCompanyQuery,
+  parseCreateInterviewSession,
+  parseDisplayName,
+  parseFinishInterview,
+  parseLanguage,
+  parseProgressImport,
+  parseQuestionId,
+  parseQuestionStatus,
+  parseUuid,
+} from './prep-validation';
 
 export interface ApiDeps extends PracticeDeps {
   readonly auth: Authenticator;
+  readonly store: ProgressStore;
+  /** Profiles, plans, identities, company preparation, interview sessions, drafts. */
+  readonly accounts: AccountStore;
+  /**
+   * Local development only: the plan of the local developer, to try Pro
+   * features. Refused with any real authenticator.
+   */
+  readonly localPlanOverride?: Plan;
   readonly rateLimiter: RateLimiter;
   /**
    * Stricter limit for requests that run SQL ("Run query" and answers), which
@@ -44,6 +70,9 @@ export function createApi(deps: ApiDeps): ApiHandler {
       'The local developer user has no authentication; it requires allowLocalDevUser.',
     );
   }
+  if (deps.localPlanOverride && deps.auth.kind !== 'local-dev') {
+    throw new Error('localPlanOverride is for the local developer user only.');
+  }
   const practice = new PracticeService(deps);
   const sqlRateLimiter = deps.sqlRateLimiter ?? new SlidingWindowRateLimiter(30, 60_000);
   const codeRateLimiter = deps.codeRateLimiter ?? new SlidingWindowRateLimiter(10, 60_000);
@@ -53,6 +82,32 @@ export function createApi(deps: ApiDeps): ApiHandler {
     now: deps.now,
     newId: deps.newId,
     ...(deps.codeRunner ? { runner: deps.codeRunner } : {}),
+  });
+  const entitlements = new EntitlementService({
+    store: deps.accounts,
+    now: deps.now,
+    ...(deps.localPlanOverride ? { localPlanOverride: deps.localPlanOverride } : {}),
+  });
+  const identities = new IdentityService(deps.accounts, deps.now, deps.newId);
+  const accounts = new AccountService({
+    content: deps.content,
+    store: deps.store,
+    accounts: deps.accounts,
+    now: deps.now,
+  });
+  const companies = new CompanyService({
+    content: deps.content,
+    store: deps.store,
+    accounts: deps.accounts,
+    entitlements,
+    now: deps.now,
+  });
+  const interviews = new InterviewService({
+    content: deps.content,
+    accounts: deps.accounts,
+    challenges,
+    now: deps.now,
+    newId: deps.newId,
   });
   const limit = async (limiter: RateLimiter, key: string): Promise<void> => {
     const wait = await limiter.hit(key, deps.now().getTime());
@@ -65,17 +120,145 @@ export function createApi(deps: ApiDeps): ApiHandler {
   };
   const logError = deps.logError ?? ((err) => console.error(err));
 
+  const ok = (body: unknown): ApiResponse => ({ status: 200, body });
+  const segment = (value: string | undefined, field: string): string =>
+    parseId(decodeURIComponent(value ?? ''), field);
+
+  /** /api/me and below: the caller's own account. */
+  async function routeMe(
+    request: ApiRequest,
+    raw: Caller,
+    user: Caller,
+  ): Promise<ApiResponse | undefined> {
+    const { method, path } = request;
+    if (path === '/api/me') {
+      if (method === 'GET') return ok(await accounts.me(user));
+      if (method === 'PATCH') {
+        return ok(await accounts.updateProfile(user, parseDisplayName(request.body)));
+      }
+    }
+    if (method === 'GET' && path === '/api/me/entitlements') {
+      return ok(await entitlements.describe(user));
+    }
+    if (method === 'GET' && path === '/api/me/progress') return ok(await accounts.progress(user));
+    if (method === 'POST' && path === '/api/me/progress/import') {
+      await limit(sqlRateLimiter, user.id);
+      return ok(await accounts.importProgress(user, parseProgressImport(request.body)));
+    }
+    const draft = /^\/api\/me\/drafts\/([^/]+)\/([^/]+)$/.exec(path);
+    if (method === 'GET' && draft) {
+      return ok(
+        await accounts.draft(
+          user,
+          segment(draft[1], 'challengeId'),
+          parseLanguage(decodeURIComponent(draft[2] ?? '')),
+        ),
+      );
+    }
+    if (method === 'GET' && path === '/api/me/identities') {
+      return ok({ identities: await identities.list(user.id) });
+    }
+    if (method === 'POST' && path === '/api/me/identities/link-intents') {
+      return ok(await identities.createLinkIntent(user));
+    }
+    if (method === 'POST' && path === '/api/me/identities/link') {
+      const body = request.body as Record<string, unknown> | undefined;
+      // The identity being linked is the raw caller, before mapping.
+      return ok(await identities.completeLink(raw, parseUuid(body?.['token'], 'token')));
+    }
+    if (method === 'GET' && path === '/api/me/companies') return ok(await companies.saved(user));
+    const save = /^\/api\/me\/companies\/([^/]+)\/save$/.exec(path);
+    if (save) {
+      const slug = segment(save[1], 'companySlug');
+      if (method === 'POST') return ok(await companies.save(user, slug));
+      if (method === 'DELETE') return ok(await companies.unsave(user, slug));
+    }
+    const mark = /^\/api\/me\/companies\/([^/]+)\/questions\/([^/]+)$/.exec(path);
+    if (method === 'PUT' && mark) {
+      return ok(
+        await companies.setQuestionStatus(
+          user,
+          segment(mark[1], 'companySlug'),
+          parseQuestionId(decodeURIComponent(mark[2] ?? '')),
+          parseQuestionStatus(request.body),
+        ),
+      );
+    }
+    return undefined;
+  }
+
+  /** /api/companies and below: the catalog (signed-in users). */
+  async function routeCompanies(
+    request: ApiRequest,
+    user: Caller,
+  ): Promise<ApiResponse | undefined> {
+    const { method, path } = request;
+    if (method !== 'GET') return undefined;
+    if (path === '/api/companies') {
+      return ok(await companies.list(user, parseCompanyQuery(request.query)));
+    }
+    const detail = /^\/api\/companies\/([^/]+)(\/questions|\/recommendations)?$/.exec(path);
+    if (!detail) return undefined;
+    const slug = segment(detail[1], 'companySlug');
+    if (detail[2] === '/recommendations') return ok(await companies.recommendations(user, slug));
+    const body = await companies.detail(user, slug);
+    return ok(detail[2] === '/questions' ? { questions: body.questions } : body);
+  }
+
+  /** /api/interview-sessions: timed practice with a server-side deadline. */
+  async function routeInterviews(
+    request: ApiRequest,
+    user: Caller,
+  ): Promise<ApiResponse | undefined> {
+    const { method, path } = request;
+    if (path === '/api/interview-sessions') {
+      if (method === 'POST') {
+        return ok(await interviews.create(user, parseCreateInterviewSession(request.body)));
+      }
+      if (method === 'GET') {
+        const company = request.query['companySlug'];
+        return ok(
+          await interviews.list(
+            user,
+            company === undefined ? undefined : parseId(company, 'companySlug'),
+          ),
+        );
+      }
+    }
+    const route = /^\/api\/interview-sessions\/([^/]+)(\/submit|\/finish)?$/.exec(path);
+    if (!route) return undefined;
+    const id = parseUuid(decodeURIComponent(route[1] ?? ''), 'sessionId');
+    if (method === 'GET' && !route[2]) return ok(await interviews.get(user, id));
+    if (method === 'POST' && route[2] === '/submit') {
+      const code = parseChallengeCodeRequest(request.body);
+      await limit(codeRateLimiter, user.id);
+      return ok(await interviews.submit(user, id, code));
+    }
+    if (method === 'POST' && route[2] === '/finish') {
+      return ok(await interviews.finish(user, id, parseFinishInterview(request.body).outcome));
+    }
+    return undefined;
+  }
+
   return async (request) => {
     try {
-      const user = await deps.auth.authenticate(request);
+      const raw = await deps.auth.authenticate(request);
+      const user = await identities.resolve(raw);
       await limit(deps.rateLimiter, user.id);
 
       const { method, path } = request;
-      const ok = (body: unknown): ApiResponse => ({ status: 200, body });
 
-      if (method === 'GET' && path === '/api/me') {
-        const body: MeResponse = { user, xp: await deps.store.getXp(user.id) };
-        return ok(body);
+      if (path === '/api/me' || path.startsWith('/api/me/')) {
+        const response = await routeMe(request, raw, user);
+        if (response) return response;
+      }
+      if (path.startsWith('/api/companies')) {
+        const response = await routeCompanies(request, user);
+        if (response) return response;
+      }
+      if (path.startsWith('/api/interview-sessions')) {
+        const response = await routeInterviews(request, user);
+        if (response) return response;
       }
       if (method === 'GET' && path === '/api/skill-mastery/progress') {
         return ok(

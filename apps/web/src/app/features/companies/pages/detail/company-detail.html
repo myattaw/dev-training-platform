@@ -1,0 +1,369 @@
+@let state = detail.state();
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading company…" />
+} @else if (notFound()) {
+  <app-not-found
+    heading="Company not found"
+    [message]="'PracStack has no company with the ID “' + slug() + '”.'"
+    backLink="/companies"
+    backLabel="Browse companies"
+  />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="This company could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="detail.reload()">
+      Try again
+    </button>
+  </app-alert>
+} @else if (company(); as c) {
+  <app-page-header
+    [heading]="c.company.displayName"
+    [breadcrumbs]="breadcrumbs()"
+    description="Reported questions from a third-party dataset, and PracStack practice for the skills behind them."
+  />
+
+  <div class="actions">
+    <a class="btn btn--primary" [routerLink]="['practice']">
+      <app-icon name="clock" />Start timed practice
+    </a>
+    <button
+      type="button"
+      class="btn"
+      [disabled]="saving()"
+      [attr.aria-pressed]="c.company.saved"
+      (click)="toggleSaved(c)"
+    >
+      <app-icon [name]="c.company.saved ? 'bookmark-filled' : 'bookmark'" />
+      {{ c.company.saved ? 'Saved' : 'Save company' }}
+    </button>
+  </div>
+
+  @if (actionError(); as err) {
+    <app-alert type="error">{{ err }}</app-alert>
+  }
+
+  <app-panel heading="Your preparation">
+    <dl class="progress">
+      <div>
+        <dt>Status</dt>
+        <dd><app-prep-status [status]="c.progress.status" /></dd>
+      </div>
+      <div>
+        <dt>Reported questions marked</dt>
+        <dd>
+          {{ c.progress.questionsReviewed + c.progress.questionsSolvedExternally }} of
+          {{ c.progress.questionsTotal }}
+        </dd>
+      </div>
+      <div>
+        <dt>Recommended practice solved</dt>
+        <dd>{{ c.progress.practiceSolved }} of {{ c.progress.practiceTotal }}</dd>
+      </div>
+      <div>
+        <dt>Timed sessions completed</dt>
+        <dd>{{ c.progress.timedSessionsCompleted }}</dd>
+      </div>
+    </dl>
+    <p class="note text-secondary">
+      Practice counts as solved only when a submission passes PracStack's tests. Questions on other
+      sites count only when you mark them yourself.
+    </p>
+  </app-panel>
+
+  <app-panel
+    heading="Reported interview questions"
+    headingId="questions-heading"
+    [counter]="c.questions.length"
+    [flush]="true"
+  >
+    @if (c.company.sourceQuestionCount) {
+      <div class="state">
+        <app-alert type="info" heading="Sample only">
+          PracStack shows {{ c.company.questionCount }} of the
+          {{ c.company.sourceQuestionCount }} questions the source lists for
+          {{ c.company.displayName }}. The full list is not imported until its licensing is
+          confirmed.
+        </app-alert>
+      </div>
+    }
+    <div class="filters">
+      <label>
+        <span class="sr-only">Difficulty</span>
+        <select class="select" (change)="setDifficulty($event)">
+          <option value="">Any difficulty</option>
+          @for (d of difficulties; track d) {
+            <option [value]="d">{{ difficultyLabels[d] }}</option>
+          }
+        </select>
+      </label>
+      @if (windows().length > 1) {
+        <label>
+          <span class="sr-only">Time window</span>
+          <select class="select" (change)="setWindow($event)">
+            <option value="">Any time window</option>
+            @for (w of windows(); track w) {
+              <option [value]="w">{{ windowLabel(w) }}</option>
+            }
+          </select>
+        </label>
+      }
+      <p class="match-count text-secondary" aria-live="polite">
+        {{ questions().length }} of {{ c.questions.length }} shown
+      </p>
+    </div>
+
+    @if (questions().length > 0) {
+      <div class="table-scroll">
+        <table class="table" aria-labelledby="questions-heading">
+          <thead>
+            <tr>
+              <th scope="col">Question</th>
+              <th scope="col">Difficulty</th>
+              <th scope="col">
+                Source lists
+                <span class="th-hint text-secondary">(frequency*)</span>
+              </th>
+              <th scope="col">Practice</th>
+              <th scope="col">Your mark</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (q of questions(); track q.id) {
+              <tr>
+                <td class="name">
+                  <a [routerLink]="['questions', q.id]">{{ q.title }}</a>
+                  <span class="summary text-secondary">
+                    {{ q.provider }} #{{ q.externalId }}
+                    @if (q.acceptanceRate !== undefined) {
+                      · {{ q.acceptanceRate }}% acceptance on {{ q.provider }}
+                    }
+                  </span>
+                </td>
+                <td><app-difficulty-badge [difficulty]="q.difficulty" /></td>
+                <td>
+                  <ul class="windows">
+                    @for (w of q.windows; track w.window) {
+                      <li>
+                        {{ windowLabel(w.window) }}
+                        @if (w.reportedFrequency !== undefined) {
+                          <span class="text-secondary">({{ w.reportedFrequency }})</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </td>
+                <td class="practice">
+                  <a
+                    class="external"
+                    [href]="q.externalUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Solve on {{ q.provider }}<app-icon name="external" [size]="12" />
+                    <span class="sr-only">(opens a new tab)</span>
+                  </a>
+                  @for (r of q.relatedChallenges; track r.id) {
+                    <a class="related" [routerLink]="['/challenges', r.id]"
+                      >Related: {{ r.title }}</a
+                    >
+                  }
+                </td>
+                <td>
+                  <label>
+                    <span class="sr-only">Your mark for {{ q.title }}</span>
+                    <select class="select select--sm" (change)="setStatus(q, $event)">
+                      @for (s of questionStatuses; track s[0]) {
+                        <option [value]="s[0]" [selected]="q.status === s[0]">{{ s[1] }}</option>
+                      }
+                    </select>
+                  </label>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <app-empty-state heading="No matches" message="No reported questions match these filters." />
+    }
+
+    <div class="source-note text-secondary">
+      @for (s of c.sources; track s.id) {
+        <p>
+          Listed in a third-party company-question dataset:
+          <a [href]="s.url" target="_blank" rel="noopener noreferrer">{{ s.name }}</a>. Source
+          snapshot: {{ formatMonth(s.snapshotDate) }} ({{ formatDate(s.snapshotDate) }}). Each row
+          is a reported association, not a confirmed or current interview question.
+        </p>
+      }
+      <p>
+        *Frequency is the source's own relative ranking of questions within this company's list (100
+        = the most often reported). It is not the chance of being asked a question.
+      </p>
+    </div>
+  </app-panel>
+
+  <app-panel heading="Recommended practice" headingId="recs-heading" [flush]="true">
+    <p class="panel-intro text-secondary">
+      Original PracStack challenges that practise related skills. They are not questions
+      {{ c.company.displayName }} is known to ask.
+    </p>
+    @let recs = recommendations.state();
+    @if (recs.status === 'loading') {
+      <app-loading-state label="Loading recommendations…" />
+    } @else if (recs.status === 'error') {
+      <div class="state">
+        <app-alert type="error" heading="Recommendations could not be loaded">
+          {{ recs.error }}
+          <button alertAction type="button" class="btn btn--sm" (click)="recommendations.reload()">
+            Try again
+          </button>
+        </app-alert>
+      </div>
+    } @else if (recs.value.recommendations.length === 0) {
+      <app-empty-state
+        heading="No recommendations yet"
+        message="PracStack has no practice that closely matches this company's questions yet."
+      />
+    } @else {
+      <ul class="recs" aria-labelledby="recs-heading">
+        @for (r of recs.value.recommendations; track r.challengeId) {
+          <li class="rec" [class.locked]="r.locked" [class.soon]="r.availability === 'coming-soon'">
+            <div class="rec-main">
+              <div class="rec-title">
+                @if (r.availability === 'available' && !r.locked) {
+                  <a [routerLink]="['/challenges', r.challengeId]">{{ r.title }}</a>
+                } @else {
+                  <span class="title-text">{{ r.title }}</span>
+                }
+                <app-difficulty-badge [difficulty]="r.difficulty" />
+                @if (r.access === 'pro') {
+                  <app-badge color="blue">
+                    @if (r.locked) {
+                      <app-icon name="lock" [size]="12" />
+                    }
+                    Pro
+                  </app-badge>
+                }
+                @if (r.availability === 'coming-soon') {
+                  <app-badge color="grey">Coming soon</app-badge>
+                }
+              </div>
+              <p class="rec-reason">{{ r.reason }}</p>
+              <p class="rec-meta text-secondary">
+                {{ r.summary }}
+                @if (r.competencies.length > 0) {
+                  <br />Practises: {{ r.competencies.join(', ') }}.
+                }
+                @if (r.relatedQuestion) {
+                  Related to “{{ r.relatedQuestion.title }}”.
+                }
+                {{ r.origin === 'curated' ? 'Chosen by an editor.' : 'Matched on shared skills.' }}
+              </p>
+            </div>
+            <div class="rec-status">
+              @if (r.availability === 'available') {
+                @if (r.solved) {
+                  <app-status-indicator type="success">Solved</app-status-indicator>
+                } @else {
+                  <a class="btn btn--sm" [routerLink]="['/challenges', r.challengeId, 'workspace']">
+                    Practise
+                  </a>
+                }
+              } @else {
+                <span class="text-secondary unavailable">Not available yet</span>
+              }
+            </div>
+          </li>
+        }
+      </ul>
+      @if (recs.value.plan === 'free' && recs.value.recommendations.some((r) => r.locked)) {
+        <p class="pro-note text-secondary">
+          <app-icon name="lock" [size]="12" />
+          Pro practice is coming soon. Paid plans are not available yet, and nothing can be bought
+          today.
+        </p>
+      }
+    }
+  </app-panel>
+
+  @for (path of c.preparationPaths; track path.id) {
+    <app-panel [heading]="path.title">
+      <p class="panel-intro-tight text-secondary">{{ path.summary }}</p>
+      <ol class="steps">
+        @for (step of path.steps; track $index) {
+          <li [class.done]="step.done">
+            <app-icon
+              [name]="step.done ? 'check-circle' : 'not-started'"
+              [label]="step.done ? 'Done' : 'Not done'"
+            />
+            <div>
+              <p class="step-title">
+                @switch (step.target.kind) {
+                  @case ('challenge') {
+                    @if (step.target.kind === 'challenge') {
+                      <a [routerLink]="['/challenges', step.target.challengeId]">{{
+                        step.title
+                      }}</a>
+                    }
+                  }
+                  @case ('timed-session') {
+                    <a [routerLink]="['practice']">{{ step.title }}</a>
+                  }
+                  @default {
+                    {{ step.title }}
+                  }
+                }
+              </p>
+              <p class="step-description text-secondary">{{ step.description }}</p>
+            </div>
+          </li>
+        }
+      </ol>
+    </app-panel>
+  }
+
+  @let sessionState = sessions.state();
+  @if (sessionState.status === 'ready' && sessionState.value.sessions.length > 0) {
+    <app-panel heading="Timed sessions" headingId="sessions-heading" [flush]="true">
+      <div class="table-scroll">
+        <table class="table" aria-labelledby="sessions-heading">
+          <thead>
+            <tr>
+              <th scope="col">Challenge</th>
+              <th scope="col">Started</th>
+              <th scope="col">Status</th>
+              <th scope="col">Time used</th>
+              <th scope="col">Best result</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of sessionState.value.sessions; track s.id) {
+              <tr>
+                <td>
+                  <a [routerLink]="['practice', s.id]">{{ s.challengeTitle }}</a>
+                  <span class="summary text-secondary">{{ s.durationMinutes }} minutes</span>
+                </td>
+                <td>{{ formatDate(s.startedAt) }}</td>
+                <td>{{ sessionStatus[s.status] }}</td>
+                <td>
+                  {{ s.timeUsedSeconds !== undefined ? formatMinutes(s.timeUsedSeconds) : '—' }}
+                </td>
+                <td>
+                  @if (s.best; as b) {
+                    {{ b.visiblePassed + b.hiddenPassed }} of {{ b.visibleTotal + b.hiddenTotal }}
+                    tests
+                  } @else {
+                    <span class="text-secondary">No submission</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-panel>
+  }
+
+  <app-not-affiliated />
+}

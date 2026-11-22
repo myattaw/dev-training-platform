@@ -373,9 +373,11 @@ describe('rate limiting', () => {
 
 describe('local developer user', () => {
   it('must be explicitly allowed', () => {
+    const store = new InMemoryProgressStore();
     const deps = {
       content: fixtureContent(),
-      store: new InMemoryProgressStore(),
+      store,
+      accounts: store.accounts,
       rateLimiter: new SlidingWindowRateLimiter(10, 1000),
       now: () => new Date(),
       random: Math.random,

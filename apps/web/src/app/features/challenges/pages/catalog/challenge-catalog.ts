@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Alert } from '../../../../shared/ui/alert/alert';
+import { Badge } from '../../../../shared/ui/badge/badge';
 import { EmptyState } from '../../../../shared/ui/empty-state/empty-state';
 import { LoadingState } from '../../../../shared/ui/loading-state/loading-state';
 import { Icon } from '../../../../shared/ui/icon/icon';
@@ -39,6 +40,7 @@ type FilterKey = 'q' | 'difficulty' | 'category';
     Icon,
     ChallengeStatus,
     DifficultyBadge,
+    Badge,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './challenge-catalog.html',

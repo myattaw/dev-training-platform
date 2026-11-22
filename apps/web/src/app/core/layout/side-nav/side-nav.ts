@@ -16,8 +16,8 @@ interface NavGroup {
 }
 
 /**
- * Primary navigation. Only areas that actually work are listed; My Progress
- * and Profile are added as they are built.
+ * Primary navigation. Only areas that actually work are listed; planned
+ * features appear inside the pages they belong to, marked Coming soon.
  */
 const GROUPS: readonly NavGroup[] = [
   { items: [{ label: 'Dashboard', link: '/', icon: 'dashboard', exact: true }] },
@@ -26,6 +26,14 @@ const GROUPS: readonly NavGroup[] = [
     items: [
       { label: 'Skill Mastery', link: '/skills', icon: 'target', exact: false },
       { label: 'Coding Challenges', link: '/challenges', icon: 'code', exact: false },
+      { label: 'Company Interview Prep', link: '/companies', icon: 'building', exact: false },
+    ],
+  },
+  {
+    heading: 'You',
+    items: [
+      { label: 'My Progress', link: '/progress', icon: 'check-circle', exact: false },
+      { label: 'Account', link: '/account', icon: 'user', exact: false },
     ],
   },
 ];

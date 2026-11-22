@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type { ChallengeSource } from '@pracstack/content-model';
+import { source as applyEditCommands } from './apply-edit-commands/challenge';
+import * as applyEditCommandsRef from './apply-edit-commands/reference';
 import { source as balancedBrackets } from './balanced-brackets/challenge';
 import * as balancedBracketsRef from './balanced-brackets/reference';
 import { source as lruCache } from './lru-cache/challenge';
@@ -8,6 +10,10 @@ import { source as mergeIntervals } from './merge-intervals/challenge';
 import * as mergeIntervalsRef from './merge-intervals/reference';
 import { source as pangram } from './pangram/challenge';
 import * as pangramRef from './pangram/reference';
+import { source as textCursorBuffer } from './text-cursor-buffer/challenge';
+import * as textCursorBufferRef from './text-cursor-buffer/reference';
+import { source as undoRedoHistory } from './undo-redo-history/challenge';
+import * as undoRedoHistoryRef from './undo-redo-history/reference';
 import { source as reverseString } from './reverse-string/challenge';
 import * as reverseStringRef from './reverse-string/reference';
 
@@ -44,4 +50,19 @@ export const CHALLENGES: readonly ChallengeEntry[] = [
     javaReference: javaReference('merge-intervals'),
   },
   { source: lruCache, reference: lruCacheRef, javaReference: javaReference('lru-cache') },
+  {
+    source: applyEditCommands,
+    reference: applyEditCommandsRef,
+    javaReference: javaReference('apply-edit-commands'),
+  },
+  {
+    source: textCursorBuffer,
+    reference: textCursorBufferRef,
+    javaReference: javaReference('text-cursor-buffer'),
+  },
+  {
+    source: undoRedoHistory,
+    reference: undoRedoHistoryRef,
+    javaReference: javaReference('undo-redo-history'),
+  },
 ];

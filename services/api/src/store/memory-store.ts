@@ -8,6 +8,8 @@ import type {
   RecordAnswerOutcome,
   SubmissionRecord,
 } from './progress-store';
+import type { AccountStore } from './account-store';
+import { type AccountData, emptyAccountData, InMemoryAccountStore } from './memory-account';
 
 /** Serializable snapshot of all store data. */
 export interface StoreData {
@@ -18,6 +20,8 @@ export interface StoreData {
   xp: Record<string, number>;
   submissions: Record<string, SubmissionRecord>;
   challengeProgress: Record<string, ChallengeProgressRecord>;
+  /** Added after version 1 files existed; filled with empty data when missing. */
+  account: AccountData;
 }
 
 export const emptyStoreData = (): StoreData => ({
@@ -28,6 +32,7 @@ export const emptyStoreData = (): StoreData => ({
   xp: {},
   submissions: {},
   challengeProgress: {},
+  account: emptyAccountData(),
 });
 
 const masteryKey = (userId: string, skillId: string): string => `${userId}#${skillId}`;
@@ -37,7 +42,19 @@ const masteryKey = (userId: string, skillId: string): string => `${userId}#${ski
  * so `recordAnswer`'s checks and writes are atomic.
  */
 export class InMemoryProgressStore implements ProgressStore {
-  constructor(protected data: StoreData = emptyStoreData()) {}
+  /** Profiles, plans, company preparation, interview sessions and drafts. */
+  readonly accounts: AccountStore;
+
+  constructor(protected data: StoreData = emptyStoreData()) {
+    this.accounts = new InMemoryAccountStore(
+      () => this.data.account,
+      () => this.persist(),
+      (userId) =>
+        (this.data.xp[userId] ?? 0) > 0 ||
+        Object.values(this.data.mastery).some((m) => m.userId === userId) ||
+        Object.values(this.data.submissions).some((x) => x.userId === userId),
+    );
+  }
 
   /** Called after every write. The file store overrides this to save to disk. */
   protected persist(): Promise<void> {

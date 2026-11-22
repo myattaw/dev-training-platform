@@ -21,6 +21,8 @@ import { ChildProcessSqlEngine, type SqlEngine } from '@pracstack/sql-engine';
 import { checkSqlQuestions } from './checks/sql-questions';
 import { checkTypeScriptSnippets } from './checks/typescript-snippets';
 import { TRACKS } from './skill-mastery';
+import { buildCompanies } from './companies/build-companies';
+import { PLANNED_CHALLENGES } from './companies/planned';
 
 /** Relative path → JSON-serialisable value. */
 export type FileSet = ReadonlyMap<string, unknown>;
@@ -55,7 +57,7 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
   } finally {
     if (!options.sqlEngine) await engine.close();
   }
-  const issues = [
+  const issues: ValidationIssue[] = [
     ...validateChallenges(sources),
     ...validateTracks(tracks),
     ...checkReferenceSolutions(challenges),
@@ -74,6 +76,11 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     privateFiles.set(`challenges/${challenge.id}@${challenge.version}.grading.json`, grading);
   }
 
+  // Company Interview Prep: private, served by the API to signed-in users only.
+  const companies = buildCompanies({ challenges: summaries, tracks, planned: PLANNED_CHALLENGES });
+  issues.push(...companies.issues);
+  for (const [path, value] of companies.files) privateFiles.set(path, value);
+
   const technologies: (Technology & { skillCount: number })[] = [];
   for (const track of tracks) {
     const { catalog, questionsBySkill } = splitTrack(track);
@@ -90,6 +97,7 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     contentVersion,
     challenges: summaries,
     technologies,
+    plannedChallenges: PLANNED_CHALLENGES,
   } satisfies PublicManifest);
   privateFiles.set(MANIFEST_FILE, { schemaVersion: SCHEMA_VERSION, contentVersion });
 

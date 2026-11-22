@@ -58,10 +58,12 @@ function event(
 
 function setup() {
   const seen: ApiRequest[] = [];
+  const store = new InMemoryProgressStore();
   const api = createApi({
     auth: new VerifiedJwtAuthenticator({ issuer: ISSUER, audience: CLIENT }, () => NOW),
     content: fixtureContent(),
-    store: new InMemoryProgressStore(),
+    store,
+    accounts: store.accounts,
     rateLimiter: new SlidingWindowRateLimiter(1000, 60_000),
     now: () => NOW,
     random: () => 0,

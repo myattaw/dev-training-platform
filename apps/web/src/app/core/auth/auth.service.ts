@@ -85,8 +85,12 @@ export class AuthService {
   /** True when API calls are possible (local mode, or signed in). */
   readonly canUseApi = computed(() => this.status() !== 'signed-out');
 
-  /** Starts sign-in; the browser leaves the app and returns to the callback. */
-  async signIn(returnPath = currentPath()): Promise<void> {
+  /**
+   * Starts sign-in; the browser leaves the app and returns to the callback.
+   * `signUp` opens the account-creation page of the same managed login
+   * (email verification and password reset are handled there).
+   */
+  async signIn(returnPath = currentPath(), options: { signUp?: boolean } = {}): Promise<void> {
     const auth = this.cognito();
     const pending: PendingSignIn = {
       state: randomString(),
@@ -94,7 +98,7 @@ export class AuthService {
       returnPath: safeReturnPath(returnPath),
     };
     session.write(PENDING_KEY, pending);
-    const url = new URL('/oauth2/authorize', auth.domain);
+    const url = new URL(options.signUp ? '/signup' : '/oauth2/authorize', auth.domain);
     url.search = new URLSearchParams({
       response_type: 'code',
       client_id: auth.clientId,

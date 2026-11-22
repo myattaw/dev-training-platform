@@ -1,0 +1,193 @@
+<app-page-header
+  heading="Company Interview Prep"
+  description="Find a company to see coding questions a third-party dataset associates with it, then practise related skills with PracStack's own challenges."
+/>
+
+@if (auth.status() === 'signed-out') {
+  <app-panel heading="Sign in to prepare for a company">
+    <div class="signed-out">
+      <p>
+        Company Interview Prep is free with an account. Sign in to search companies, see their
+        reported questions and save your preparation progress.
+      </p>
+      <button type="button" class="btn btn--primary" (click)="signIn()">Sign in</button>
+    </div>
+  </app-panel>
+} @else {
+  @let savedState = saved.state();
+  @if (savedState.status === 'ready' && savedState.value && savedState.value.companies.length > 0) {
+    <app-panel
+      heading="Your companies"
+      headingId="saved-heading"
+      [counter]="savedState.value.companies.length"
+      [flush]="true"
+    >
+      <div class="table-scroll">
+        <table class="table" aria-labelledby="saved-heading">
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Status</th>
+              <th scope="col">Questions marked</th>
+              <th scope="col">Practice solved</th>
+              <th scope="col">Timed sessions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of savedState.value.companies; track c.slug) {
+              <tr>
+                <td class="name">
+                  <a [routerLink]="[c.slug]">{{ c.displayName }}</a>
+                </td>
+                <td><app-prep-status [status]="c.progress.status" /></td>
+                <td>
+                  {{ c.progress.questionsReviewed + c.progress.questionsSolvedExternally }} of
+                  {{ c.progress.questionsTotal }}
+                </td>
+                <td>{{ c.progress.practiceSolved }} of {{ c.progress.practiceTotal }}</td>
+                <td>{{ c.progress.timedSessionsCompleted }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-panel>
+  }
+
+  <app-panel heading="Companies" headingId="companies-heading" [flush]="true">
+    <div class="filters" role="search" aria-label="Find a company">
+      <label class="search">
+        <span class="sr-only">Search companies</span>
+        <app-icon name="search" class="search-icon" />
+        <input
+          class="input"
+          type="search"
+          placeholder="Search by company name"
+          autocomplete="off"
+          maxlength="100"
+          [value]="query()"
+          (input)="onSearch($event)"
+          (keydown.enter)="searchNow($event)"
+        />
+      </label>
+      @if (query() !== '' || letterFilter()) {
+        <button type="button" class="btn btn--link" (click)="clearFilters()">Clear filters</button>
+      }
+      @let s = results.state();
+      <p class="match-count text-secondary" aria-live="polite">
+        @if (s.status === 'ready' && s.value) {
+          {{ s.value.total }} {{ s.value.total === 1 ? 'company' : 'companies' }}
+        }
+      </p>
+    </div>
+
+    @let ready = s.status === 'ready' ? s.value : undefined;
+    <nav class="letters" aria-label="Browse alphabetically">
+      @for (l of letters; track l) {
+        @let available = !ready || ready.letters.includes(l);
+        <button
+          type="button"
+          class="letter"
+          [class.selected]="letterFilter() === l"
+          [attr.aria-pressed]="letterFilter() === l"
+          [disabled]="!available"
+          [attr.aria-label]="
+            l === '#' ? 'Names starting with a digit or symbol' : 'Names starting with ' + l
+          "
+          (click)="setLetter(l)"
+        >
+          {{ l }}
+        </button>
+      }
+    </nav>
+
+    @if (s.status === 'loading') {
+      <app-loading-state label="Loading companies…" />
+    } @else if (s.status === 'error') {
+      <div class="state">
+        <app-alert type="error" heading="Companies could not be loaded">
+          {{ s.error }}
+          <button alertAction type="button" class="btn btn--sm" (click)="results.reload()">
+            Try again
+          </button>
+        </app-alert>
+      </div>
+    } @else if (ready && ready.companies.length > 0) {
+      <div class="table-scroll">
+        <table class="table" aria-labelledby="companies-heading">
+          <thead>
+            <tr>
+              <th scope="col">Company</th>
+              <th scope="col">Reported questions</th>
+              <th scope="col"><span class="sr-only">Saved</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of ready.companies; track c.slug) {
+              <tr>
+                <td class="name">
+                  <a [routerLink]="[c.slug]">{{ c.displayName }}</a>
+                  @if (c.aliases.length > 0) {
+                    <span class="summary text-secondary">Also: {{ c.aliases.join(', ') }}</span>
+                  }
+                </td>
+                <td>
+                  {{ c.questionCount }}
+                  @if (c.sourceQuestionCount) {
+                    <span class="text-secondary"> (sample of {{ c.sourceQuestionCount }})</span>
+                  }
+                </td>
+                <td class="save-cell">
+                  <button
+                    type="button"
+                    class="btn btn--icon"
+                    [attr.aria-pressed]="c.saved"
+                    [attr.aria-label]="(c.saved ? 'Remove ' : 'Save ') + c.displayName"
+                    [title]="c.saved ? 'Saved: click to remove' : 'Save to your companies'"
+                    (click)="toggleSaved(c.slug, c.saved)"
+                  >
+                    <app-icon [name]="c.saved ? 'bookmark-filled' : 'bookmark'" />
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (pageCount() > 1) {
+        <nav class="pager" aria-label="Pages">
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="pageNumber() <= 1"
+            (click)="goToPage(pageNumber() - 1)"
+          >
+            Previous
+          </button>
+          <span class="text-secondary">Page {{ pageNumber() }} of {{ pageCount() }}</span>
+          <button
+            type="button"
+            class="btn btn--sm"
+            [disabled]="pageNumber() >= pageCount()"
+            (click)="goToPage(pageNumber() + 1)"
+          >
+            Next
+          </button>
+        </nav>
+      }
+    } @else if (ready) {
+      <app-empty-state
+        heading="No companies found"
+        [message]="
+          query() !== ''
+            ? 'No company matches “' + query() + '”. Check the spelling or try a shorter name.'
+            : 'No companies start with this letter.'
+        "
+      >
+        <button type="button" class="btn" (click)="clearFilters()">Clear filters</button>
+      </app-empty-state>
+    }
+  </app-panel>
+}
+
+<app-not-affiliated />

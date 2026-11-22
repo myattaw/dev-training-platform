@@ -22,6 +22,21 @@ export const routes: Routes = [
       import('./features/challenges/challenges.routes').then((m) => m.CHALLENGE_ROUTES),
   },
   {
+    path: 'companies',
+    loadChildren: () =>
+      import('./features/companies/companies.routes').then((m) => m.COMPANY_ROUTES),
+  },
+  {
+    path: 'account',
+    loadChildren: () => import('./features/account/account.routes').then((m) => m.ACCOUNT_ROUTES),
+  },
+  {
+    path: 'progress',
+    title: 'My Progress',
+    loadComponent: () =>
+      import('./features/account/pages/progress-page').then((m) => m.ProgressPage),
+  },
+  {
     path: 'auth/callback',
     title: 'Signing in',
     loadComponent: () => import('./core/auth/auth-callback').then((m) => m.AuthCallback),

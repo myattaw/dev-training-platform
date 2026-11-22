@@ -16,13 +16,14 @@
       <div class="where">
         <app-breadcrumbs [items]="breadcrumbs()" />
         <app-difficulty-badge [difficulty]="ch.difficulty" />
+        <ng-content select="[workspaceStatus]" />
       </div>
       <div class="actions">
         <label class="language">
           <span class="sr-only">Language</span>
           <select
             class="select select--sm"
-            [disabled]="running() || submitting() || languages().length < 2"
+            [disabled]="running() || submitting() || languages().length < 2 || !!interview()"
             (change)="selectLanguage($event)"
           >
             @for (lang of languages(); track lang) {
@@ -35,7 +36,7 @@
         <button
           type="button"
           class="btn btn--sm"
-          [disabled]="running()"
+          [disabled]="running() || locked()"
           (click)="requestReset(resetDialog)"
         >
           <app-icon name="reset" />Reset
@@ -43,7 +44,7 @@
         <button
           type="button"
           class="btn btn--sm"
-          [disabled]="running() || submitting()"
+          [disabled]="running() || submitting() || locked()"
           (click)="runTests()"
         >
           <app-icon name="play" [size]="14" />{{ running() ? 'Running…' : 'Run tests' }}
@@ -51,7 +52,7 @@
         <button
           type="button"
           class="btn btn--sm btn--primary"
-          [disabled]="running() || submitting()"
+          [disabled]="running() || submitting() || locked()"
           (click)="submit()"
         >
           {{
@@ -213,8 +214,9 @@
     <app-code-editor
       class="editor"
       [language]="language() === 'java' ? 'java' : 'typescript'"
-      [fileName]="ch.id + '-' + language()"
+      [fileName]="ch.id + '-' + language() + (interview() ? '-timed' : '')"
       [code]="code()"
+      [readOnly]="locked()"
       (codeChange)="updateCode($event)"
       (runRequested)="runTests()"
     />

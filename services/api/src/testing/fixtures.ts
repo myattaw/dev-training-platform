@@ -152,6 +152,13 @@ export interface TestApi {
     body?: unknown,
     user?: 'alice' | 'bob',
   ) => Promise<ApiResponse>;
+  /** Like `call`, with explicit headers (for test authenticators that read them). */
+  readonly callWithHeaders: (
+    method: string,
+    path: string,
+    body: unknown,
+    headers: Record<string, string>,
+  ) => Promise<ApiResponse>;
   readonly store: InMemoryProgressStore;
   /** The content the API serves (to answer questions with their keys in tests). */
   readonly content: ContentSource;
@@ -169,6 +176,7 @@ export function testApi(overrides: Partial<ApiDeps> = {}): TestApi {
     auth: testAuth,
     content,
     store,
+    accounts: store.accounts,
     rateLimiter: new SlidingWindowRateLimiter(1000, 60_000),
     now: () => new Date(now),
     random: () => 0,
@@ -176,6 +184,17 @@ export function testApi(overrides: Partial<ApiDeps> = {}): TestApi {
     logError: (err) => errors.push(err),
     ...overrides,
   });
+  const send = (method: string, path: string, body: unknown, headers: Record<string, string>) => {
+    const [pathname, search = ''] = path.split('?');
+    const request: ApiRequest = {
+      method,
+      path: pathname ?? path,
+      query: Object.fromEntries(new URLSearchParams(search)),
+      headers,
+      body,
+    };
+    return api(request);
+  };
   return {
     store,
     content,
@@ -183,16 +202,7 @@ export function testApi(overrides: Partial<ApiDeps> = {}): TestApi {
     advance: (ms) => {
       now += ms;
     },
-    call: (method, path, body, user = 'alice') => {
-      const [pathname, search = ''] = path.split('?');
-      const request: ApiRequest = {
-        method,
-        path: pathname ?? path,
-        query: Object.fromEntries(new URLSearchParams(search)),
-        headers: { 'x-test-user': user },
-        body,
-      };
-      return api(request);
-    },
+    call: (method, path, body, user = 'alice') => send(method, path, body, { 'x-test-user': user }),
+    callWithHeaders: (method, path, body, headers) => send(method, path, body, headers),
   };
 }

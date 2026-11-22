@@ -46,6 +46,14 @@ describe('the real content', { timeout: 120_000 }, () => {
       'balanced-brackets',
       'merge-intervals',
       'lru-cache',
+      'apply-edit-commands',
+      'text-cursor-buffer',
+      'undo-redo-history',
+    ]);
+    // Announced challenges are listed separately and have no tests or code.
+    expect(manifest.plannedChallenges?.map((c) => [c.id, c.availability, c.access])).toEqual([
+      ['editor-with-selection', 'coming-soon', 'pro'],
+      ['piece-table-editor', 'coming-soon', 'pro'],
     ]);
     expect(manifest.technologies).toEqual([
       expect.objectContaining({ id: 'typescript', skillCount: 8 }),
@@ -54,6 +62,21 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
     ]);
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it('keeps company data private (served by the API to signed-in users)', () => {
+    const publicPaths = [...result.publicFiles.keys()];
+    expect(publicPaths.filter((p) => p.startsWith('companies/'))).toEqual([]);
+    expect(
+      [...result.privateFiles.keys()].filter((p) => p.startsWith('companies/')).sort(),
+    ).toEqual([
+      'companies/capital-one.json',
+      'companies/geico.json',
+      'companies/index.json',
+      'companies/intuit.json',
+      'companies/liberty-mutual.json',
+      'companies/paypal.json',
+    ]);
   });
 
   it('has no warnings for TypeScript or PostgreSQL: every reference query ran, and the hidden data differs', () => {

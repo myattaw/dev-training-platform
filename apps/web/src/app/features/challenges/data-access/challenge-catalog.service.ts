@@ -4,6 +4,7 @@ import {
   type Challenge,
   type ChallengeCategory,
   type ChallengeSummary,
+  type PlannedChallenge,
 } from '@pracstack/content-model';
 import { ContentRepository } from '../../../core/content/content-repository';
 import { type AsyncState, errorMessage } from '../../../shared/async/async-state';
@@ -19,6 +20,10 @@ export class ChallengeCatalogService {
   private readonly repository = inject(ContentRepository);
   private readonly pendingTasks = inject(PendingTasks);
   private readonly state = signal<AsyncState<readonly ChallengeSummary[]>>({ status: 'loading' });
+
+  private readonly plannedState = signal<readonly PlannedChallenge[]>([]);
+  /** Announced challenges (Coming soon): metadata only, nothing to open or run. */
+  readonly planned = this.plannedState.asReadonly();
 
   /** Catalog summaries, loaded when the service is first used. */
   readonly summaries = this.state.asReadonly();
@@ -43,7 +48,10 @@ export class ChallengeCatalogService {
     this.repository
       .manifest()
       .then(
-        (manifest) => this.state.set({ status: 'ready', value: manifest.challenges }),
+        (manifest) => {
+          this.plannedState.set(manifest.plannedChallenges ?? []);
+          this.state.set({ status: 'ready', value: manifest.challenges });
+        },
         (err: unknown) => this.state.set({ status: 'error', error: errorMessage(err) }),
       )
       .finally(done);
@@ -52,6 +60,11 @@ export class ChallengeCatalogService {
   async getSummary(id: string): Promise<ChallengeSummary | undefined> {
     const manifest = await this.repository.manifest();
     return manifest.challenges.find((c) => c.id === id);
+  }
+
+  async getPlanned(id: string): Promise<PlannedChallenge | undefined> {
+    const manifest = await this.repository.manifest();
+    return manifest.plannedChallenges?.find((c) => c.id === id);
   }
 
   /** Resolves to `undefined` when no challenge has this id. */

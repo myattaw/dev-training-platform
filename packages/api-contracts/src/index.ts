@@ -26,6 +26,10 @@ export type ApiErrorCode =
   | 'conflict'
   /** A dependency (e.g. the code runner) is not available right now. */
   | 'unavailable'
+  /** Signed in, but the plan does not include this. */
+  | 'forbidden'
+  /** A timed interview session's deadline has passed. */
+  | 'session-expired'
   | 'internal';
 
 export interface UserInfo {
@@ -297,3 +301,5 @@ export interface ChallengeProgressResponse {
 export const CODE_LIMITS = {
   maxCodeLength: 64 * 1024,
 } as const;
+
+export * from './prep';

@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { emptyAccountData } from './memory-account';
 import { emptyStoreData, InMemoryProgressStore, type StoreData } from './memory-store';
 
 /**
@@ -34,5 +35,9 @@ function load(file: string): StoreData {
       `${file} has an unsupported format. Delete it to start with empty local progress.`,
     );
   }
-  return { ...emptyStoreData(), ...data } as StoreData;
+  return {
+    ...emptyStoreData(),
+    ...data,
+    account: { ...emptyAccountData(), ...data.account },
+  } as StoreData;
 }

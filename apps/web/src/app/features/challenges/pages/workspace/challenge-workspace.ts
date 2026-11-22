@@ -21,7 +21,8 @@ import { type TabItem, Tabs } from '../../../../shared/ui/tabs/tabs';
 import { ChallengeCatalogService } from '../../data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../../data-access/challenge-progress.service';
 import { describeTest } from '@pracstack/challenge-runtime';
-import type { SubmissionResponse } from '@pracstack/api-contracts';
+import type { ChallengeCodeRequest, SubmissionResponse } from '@pracstack/api-contracts';
+import type { Breadcrumb } from '../../../../shared/ui/breadcrumbs/breadcrumbs';
 import {
   BROWSER_LANGUAGES,
   LANGUAGE_LABELS,
@@ -39,6 +40,21 @@ import { LocalRunnerService } from '../../runner/local-runner.service';
 import type { RunOutcome } from '../../runner/runner.models';
 import { DifficultyBadge } from '../../ui/difficulty-badge';
 import { TestResults } from './test-results/test-results';
+
+/**
+ * Timed interview mode: the same workspace, with submissions graded through
+ * the interview session (server deadline), a fixed language, its own drafts,
+ * and everything locked once the session has ended.
+ */
+export interface InterviewMode {
+  readonly breadcrumbs: readonly Breadcrumb[];
+  /** Keeps this session's drafts apart from normal practice drafts. */
+  readonly draftScope: string;
+  readonly language: LanguageId;
+  /** Time is up or the session was finished: no edits, runs or submissions. */
+  readonly locked: boolean;
+  readonly submit: (request: ChallengeCodeRequest) => Promise<SubmissionResponse>;
+}
 
 type ProblemTab = 'description' | 'tests';
 type ResultsTab = 'results' | 'console' | 'submissions';
@@ -69,6 +85,9 @@ type MobileTab = 'problem' | 'code' | 'results';
 export class ChallengeWorkspace {
   /** Route param, bound by `withComponentInputBinding()`. */
   readonly id = input.required<string>();
+  /** Set by the timed-practice page; absent for normal practice. */
+  readonly interview = input<InterviewMode>();
+  protected readonly locked = computed(() => this.interview()?.locked === true);
 
   private readonly catalog = inject(ChallengeCatalogService);
   private readonly progress = inject(ChallengeProgressService);
@@ -97,6 +116,8 @@ export class ChallengeWorkspace {
     const challenge = this.challenge();
     const offered = this.languages();
     if (!challenge) return undefined;
+    const fixed = this.interview()?.language;
+    if (fixed && offered.includes(fixed)) return fixed;
     const preferred = this.progress.preferredLanguage(challenge.id);
     return preferred && offered.includes(preferred) ? preferred : offered[0];
   });
@@ -114,7 +135,10 @@ export class ChallengeWorkspace {
     return lang ? this.challenge()?.languages[lang] : undefined;
   });
 
-  protected readonly breadcrumbs = computed(() => [
+  protected readonly breadcrumbs = computed(
+    () => this.interview()?.breadcrumbs ?? this.practiceBreadcrumbs(),
+  );
+  private readonly practiceBreadcrumbs = computed(() => [
     { label: 'Coding Challenges', link: '/challenges' },
     { label: this.challenge()?.title ?? '', link: ['/challenges', this.id()] },
     { label: 'Workspace' },
@@ -139,7 +163,9 @@ export class ChallengeWorkspace {
     const lang = this.language();
     const setup = this.setup();
     if (!challenge || !lang || !setup) return '';
-    return this.progress.loadDraft(challenge.id, lang) ?? setup.starterCode;
+    return (
+      this.progress.loadDraft(challenge.id, lang, this.interview()?.draftScope) ?? setup.starterCode
+    );
   });
 
   /**
@@ -215,7 +241,13 @@ export class ChallengeWorkspace {
     const lang = this.language();
     const setup = this.setup();
     if (challenge && lang && setup) {
-      this.progress.saveDraft(challenge.id, lang, code, setup.starterCode);
+      this.progress.saveDraft(
+        challenge.id,
+        lang,
+        code,
+        setup.starterCode,
+        this.interview()?.draftScope,
+      );
     }
   }
 
@@ -224,7 +256,7 @@ export class ChallengeWorkspace {
     const lang = this.language();
     const setup = this.setup();
     const editor = this.editor();
-    if (!challenge || !lang || !setup || !editor || this.running()) return;
+    if (!challenge || !lang || !setup || !editor || this.running() || this.locked()) return;
 
     this.running.set(true);
     this.resultsTab.set('results');
@@ -258,7 +290,10 @@ export class ChallengeWorkspace {
       // Ignore stale results if the learner navigated away mid-run.
       if (this.challenge() === challenge) {
         this.outcome.set(outcome);
-        this.progress.recordRun(challenge.id, lang, outcome, challenge.visibleTests.length);
+        // Timed attempts are tracked by their session, not as normal practice.
+        if (!this.interview()) {
+          this.progress.recordRun(challenge.id, lang, outcome, challenge.visibleTests.length);
+        }
       }
     } finally {
       this.running.set(false);
@@ -269,7 +304,7 @@ export class ChallengeWorkspace {
   protected async submit(): Promise<void> {
     const challenge = this.challenge();
     const lang = this.language();
-    if (!challenge || !lang || this.submitting() || this.running()) return;
+    if (!challenge || !lang || this.submitting() || this.running() || this.locked()) return;
     // Submissions are recorded per user. The draft is saved locally, so nothing is lost.
     if (!this.auth.ensureSignedIn()) return;
     this.submitting.set(true);
@@ -277,10 +312,11 @@ export class ChallengeWorkspace {
     this.resultsTab.set('submissions');
     if (this.isNarrow()) this.mobileTab.set('results');
     try {
-      const response = await this.submissions.submit(challenge.id, {
-        language: lang,
-        code: this.code(),
-      });
+      const request = { language: lang, code: this.code() };
+      const interview = this.interview();
+      const response = interview
+        ? await interview.submit(request)
+        : await this.submissions.submit(challenge.id, request);
       if (this.challenge() === challenge) this.lastSubmission.set(response);
     } catch (err) {
       if (this.challenge() === challenge) this.submitError.set(errorMessage(err));
