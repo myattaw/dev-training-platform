@@ -103,7 +103,7 @@ harness as the local Docker images (or the PGlite engine), and a small Node.js s
 | Layer | What it does |
 | --- | --- |
 | **Firecracker microVM** (Lambda) | Each execution environment is its own microVM; nothing is shared with other functions or accounts |
-| **No network** | The VPC has no internet gateway, NAT, endpoints or routes, and the security group allows no traffic; rejected attempts are logged (VPC flow logs) |
+| **No network** | The VPC has no internet gateway, NAT, endpoints or routes, and the security group allows no traffic; rejected attempts are logged (VPC flow logs). **DNS is disabled in the VPC** (`enableDnsSupport: false`): AWS's resolver otherwise answers even without routes, and lookups could carry data out; `verify-runners.ts` found this on the first deployment |
 | **No credentials** | `docker/entrypoint.sh` removes the role's keys from the environment *before* the Lambda runtime starts. Without it, learner code could read them from `/proc/<supervisor>/environ` (it runs as the same OS user); the tests reproduce that and prove the fix |
 | **Nothing to steal anyway** | The runner role can write its own logs and attach to the VPC; it can read no data |
 | **Per-run process** | Fresh working directory, minimal environment, `prlimit` (256 processes/threads, 256 open files, 16 MB files), time limit (10 s TypeScript, 15 s Java), memory limit on the whole process tree, 1 MB output limit |

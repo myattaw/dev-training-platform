@@ -57,7 +57,8 @@ export type RunnerName = 'typescript' | 'java' | 'sql';
 export const RUNNER_SIZES: Readonly<Record<RunnerName, { memoryMb: number; timeoutS: number }>> = {
   typescript: { memoryMb: 1024, timeoutS: 20 },
   java: { memoryMb: 1024, timeoutS: 25 },
-  sql: { memoryMb: 1536, timeoutS: 10 },
+  // 20 s: a cold start (container + PGlite) took ~10 s on AWS. Each query is still capped at 3 s.
+  sql: { memoryMb: 1536, timeoutS: 20 },
 };
 
 export interface PracStackProps extends StackProps {
@@ -288,6 +289,12 @@ export class PracStackStack extends Stack {
     // An isolated VPC: no internet gateway, no NAT, no endpoints, no routes out.
     const runnerVpc = new ec2.Vpc(this, 'RunnerVpc', {
       natGateways: 0,
+      // No DNS either. AWS's resolver answers inside a VPC even without routes, so
+      // learner code could leak data in lookups (e.g. <data>.attacker.example); seen by
+      // verify-runners.ts on the first deployment. Runners need no DNS: they reach the
+      // Lambda runtime API by IP address and nothing else.
+      enableDnsSupport: false,
+      enableDnsHostnames: false,
       maxAzs: 2,
       subnetConfiguration: [
         { name: 'runners', subnetType: ec2.SubnetType.PRIVATE_ISOLATED, cidrMask: 24 },

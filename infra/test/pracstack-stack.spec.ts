@@ -200,7 +200,7 @@ describe('cost safety', () => {
       expect.arrayContaining([
         [1024, 20],
         [1024, 25],
-        [1536, 10],
+        [1536, 20],
       ]),
     );
   });
@@ -370,6 +370,13 @@ describe('runners (learner code and SQL)', () => {
       'AWS::EC2::VPCPeeringConnection',
     ])
       expect(resourcesOf(type), type).toEqual([]);
+  });
+
+  it('gives the runner VPC no DNS (lookups could carry data out)', () => {
+    template.hasResourceProperties('AWS::EC2::VPC', {
+      EnableDnsSupport: false,
+      EnableDnsHostnames: false,
+    });
   });
 
   it('allows no traffic in or out of the runners', () => {

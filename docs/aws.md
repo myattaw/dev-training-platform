@@ -43,7 +43,7 @@ credentials, cleaned between runs. Design, layers and limits:
 | --- | --- | --- | --- |
 | TypeScript | 1024 MB | 20 s | 10 s |
 | Java | 1024 MB | 25 s | 15 s |
-| SQL | 1536 MB | 10 s | 3 s per query |
+| SQL | 1536 MB | 20 s (a cold start took ~10 s) | 3 s per query |
 
 The API function's timeout is 29 s (API Gateway allows 30 s): enough for a Java run that starts
 a cold runner.
