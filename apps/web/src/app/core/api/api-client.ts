@@ -23,6 +23,9 @@ export class ApiClientError extends Error {
 export abstract class ApiClient {
   abstract get<T>(path: string, query?: Record<string, string>): Promise<T>;
   abstract post<T>(path: string, body: unknown): Promise<T>;
+  abstract put<T>(path: string, body: unknown): Promise<T>;
+  abstract patch<T>(path: string, body: unknown): Promise<T>;
+  abstract delete<T>(path: string): Promise<T>;
 }
 
 @Injectable()
@@ -36,6 +39,18 @@ export class FetchApiClient extends ApiClient {
 
   override post<T>(path: string, body: unknown): Promise<T> {
     return this.request<T>('POST', path, body);
+  }
+
+  override put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>('PUT', path, body);
+  }
+
+  override patch<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>('PATCH', path, body);
+  }
+
+  override delete<T>(path: string): Promise<T> {
+    return this.request<T>('DELETE', path);
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {

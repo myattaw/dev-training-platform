@@ -1,0 +1,132 @@
+@let state = loaded.state();
+@if (state.status === 'loading' && !session()) {
+  <app-loading-state label="Loading your session…" />
+} @else if (state.status === 'error' && !session()) {
+  <div class="state">
+    <app-alert type="error" heading="This session could not be loaded">
+      {{ state.error }}
+      <button alertAction type="button" class="btn btn--sm" (click)="loaded.reload()">
+        Try again
+      </button>
+    </app-alert>
+  </div>
+} @else if (session(); as s) {
+  @if (s.status === 'active') {
+    <app-challenge-workspace class="workspace" [id]="s.challengeId" [interview]="mode()">
+      <div workspaceStatus class="session-status">
+        <span class="timed-label">Timed</span>
+        <app-countdown
+          [deadline]="s.deadline"
+          [clockOffsetMs]="clockOffset()"
+          (expired)="timeUp.set(true)"
+        />
+        <button
+          type="button"
+          class="btn btn--sm"
+          [disabled]="finishing() || timeUp()"
+          (click)="finishDialog.open()"
+        >
+          Finish
+        </button>
+        <button
+          type="button"
+          class="btn btn--sm btn--link"
+          [disabled]="finishing()"
+          (click)="exitDialog.open()"
+        >
+          Exit
+        </button>
+      </div>
+    </app-challenge-workspace>
+    @if (timeUp()) {
+      <div class="time-up" role="alert">
+        Time is up. Your code is read-only now; the session summary appears in a moment.
+      </div>
+    }
+    @if (error(); as err) {
+      <div class="time-up" role="alert">{{ err }}</div>
+    }
+  } @else {
+    <div class="summary">
+      <app-page-header
+        heading="Session summary"
+        [breadcrumbs]="breadcrumbs()"
+        [description]="s.challengeTitle + ' · ' + s.companyName"
+      />
+      <app-panel [heading]="statusLabels[s.status]">
+        <dl class="results">
+          <div>
+            <dt>Started</dt>
+            <dd>{{ formatDate(s.startedAt) }}, {{ s.startedAt.slice(11, 16) }} UTC</dd>
+          </div>
+          <div>
+            <dt>Time used</dt>
+            <dd>
+              {{ s.timeUsedSeconds !== undefined ? formatMinutes(s.timeUsedSeconds) : '—' }} of
+              {{ s.durationMinutes }} min
+            </dd>
+          </div>
+          <div>
+            <dt>Language</dt>
+            <dd>{{ languageLabels[s.language] }}</dd>
+          </div>
+          <div>
+            <dt>Submissions</dt>
+            <dd>{{ s.submissions }}</dd>
+          </div>
+          <div>
+            <dt>Tests passed (best submission)</dt>
+            <dd>
+              @if (s.best; as b) {
+                {{ b.visiblePassed + b.hiddenPassed }} of {{ b.visibleTotal + b.hiddenTotal }}
+                <span class="text-secondary">
+                  ({{ b.visibleTotal + b.hiddenTotal - b.visiblePassed - b.hiddenPassed }} failed)
+                </span>
+              } @else {
+                <span class="text-secondary">No graded submission</span>
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Result</dt>
+            <dd>{{ s.best?.status === 'accepted' ? 'Accepted' : 'Not accepted' }}</dd>
+          </div>
+        </dl>
+        <p class="text-secondary note">
+          Times come from PracStack's server. Results are from PracStack's own tests for practice;
+          no company graded this session.
+        </p>
+        <div class="buttons">
+          <a class="btn btn--primary" [routerLink]="['/companies', s.companySlug, 'practice']">
+            Start another session
+          </a>
+          <a class="btn" [routerLink]="['/challenges', s.challengeId, 'workspace']">
+            Keep practising this challenge
+          </a>
+          <a class="btn btn--link" [routerLink]="['/companies', s.companySlug]">
+            Back to {{ s.companyName }}
+          </a>
+        </div>
+      </app-panel>
+    </div>
+  }
+
+  <app-confirm-dialog
+    #finishDialog
+    heading="Finish this session?"
+    confirmLabel="Finish session"
+    (confirmed)="finish('completed')"
+  >
+    The clock stops and your best graded submission is kept. You cannot submit again in this
+    session.
+  </app-confirm-dialog>
+  <app-confirm-dialog
+    #exitDialog
+    heading="Exit and end this session?"
+    confirmLabel="Exit session"
+    (confirmed)="finish('abandoned')"
+  >
+    The session ends now and is recorded as exited early. To come back later instead, just leave the
+    page: the clock keeps running and you can resume before time runs out.
+  </app-confirm-dialog>
+}

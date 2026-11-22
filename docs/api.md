@@ -27,9 +27,34 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 | GET    | `/api/challenges/:id/submissions`            |                            | last 20 submissions    |
 | GET    | `/api/challenges/progress`                   |                            | solved status per challenge |
 | GET    | `/api/skill-mastery/skills/:skillId/history` |                            | last 50 attempts       |
+| PATCH  | `/api/me`                                    | `{ displayName }`          | updated user           |
+| GET    | `/api/me/entitlements`                       |                            | plan, features, `billing.available: false` |
+| GET    | `/api/me/progress`                           |                            | overview across the app |
+| POST   | `/api/me/progress/import`                    | `{ importId, drafts, overwrite? }` | imported / unchanged / conflicts (idempotent) |
+| GET    | `/api/me/drafts/:challengeId/:language`      |                            | an account draft       |
+| GET    | `/api/me/identities`                         |                            | linked sign-in methods |
+| POST   | `/api/me/identities/link-intents`            |                            | single-use link token (10 min) |
+| POST   | `/api/me/identities/link`                    | `{ token }`                | links the calling identity |
+| GET    | `/api/me/companies`                          |                            | saved companies with progress |
+| POST / DELETE | `/api/me/companies/:slug/save`        |                            | save / unsave          |
+| PUT    | `/api/me/companies/:slug/questions/:questionId` | `{ status }`            | the learner's own mark |
+| GET    | `/api/companies`                             | `?q=&letter=&page=`        | one page of companies (25) |
+| GET    | `/api/companies/:slug`                       |                            | reported questions, progress, paths |
+| GET    | `/api/companies/:slug/questions`             |                            | reported questions only |
+| GET    | `/api/companies/:slug/recommendations`       |                            | practice, with Pro items locked by plan |
+| POST   | `/api/interview-sessions`                    | `{ companySlug, challengeId, durationMinutes, language, clientRequestId }` | session with server deadline |
+| GET    | `/api/interview-sessions`                    | `?companySlug=`            | last 20 sessions       |
+| GET    | `/api/interview-sessions/:id`                |                            | session + server time  |
+| POST   | `/api/interview-sessions/:id/submit`         | `{ language, code }`       | graded submission (before the deadline only) |
+| POST   | `/api/interview-sessions/:id/finish`         | `{ outcome }`              | finished session (idempotent) |
+
+Company Interview Prep, timed sessions, accounts and plans are described in
+[company-interview-prep.md](company-interview-prep.md), [accounts-and-auth.md](accounts-and-auth.md)
+and [monetization.md](monetization.md). Account data is stored by `AccountStore`
+(`src/store/account-store.ts`; DynamoDB layout at the top of `src/store/dynamo-account.ts`).
 
 Errors use `{ "error": { "code", "message" } }`. Codes: `bad-request` 400, `unauthorized`
-401, `not-found` 404, `conflict` 409, `token-expired` 410, `rate-limited` 429 (with
+401, `forbidden` 403 (plan does not include the feature), `session-expired` 409 (timed session deadline passed), `not-found` 404, `conflict` 409, `token-expired` 410, `rate-limited` 429 (with
 `Retry-After`), `internal` 500, `unavailable` 503 (e.g. the code runner is down). Messages are safe to show; internal errors are logged, never
 returned.
 

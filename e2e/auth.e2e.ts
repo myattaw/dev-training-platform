@@ -108,7 +108,7 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
 
     // Back from the (fake) Cognito login, on the page that was asked for.
     await expect(page).toHaveURL(/\/skills\/typescript\/ts-primitive-types\/practice$/);
-    await expect(page.getByText(/Level \d of 5/)).toBeVisible();
+    await expect(page.getByText(/tier \d of 5/)).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
 
     expect(fake.tokenRequests).toHaveLength(1);

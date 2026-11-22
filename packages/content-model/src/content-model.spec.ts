@@ -62,10 +62,11 @@ const track = (questions: QuestionSource[]): TrackSource => ({
   ],
 });
 
+/** Three distinct questions (identical copies would be rejected as duplicates). */
 const three = (q: QuestionSource): QuestionSource[] => [
   q,
-  { ...q, id: `${q.id}-2` },
-  { ...q, id: `${q.id}-3` },
+  { ...q, id: `${q.id}-2`, prompt: [...q.prompt, { kind: 'paragraph', text: 'Variant 2.' }] },
+  { ...q, id: `${q.id}-3`, prompt: [...q.prompt, { kind: 'paragraph', text: 'Variant 3.' }] },
 ];
 
 const errors = (issues: { severity: string; message: string }[]) =>
@@ -153,6 +154,37 @@ describe('validateTracks', () => {
     expect(issues[0]?.message).toContain('no questions at difficulty 2, 3, 4, 5');
   });
 
+  it('rejects variants that are the same exercise under another id', () => {
+    const q = mcq();
+    expect(errors(validateTracks([track([...three(q), { ...q, id: 'copy' }])]))).toContain(
+      `same exercise as ${q.id} (prompt, code, data and answer are identical)`,
+    );
+  });
+
+  it('requires the variants of a family to share a format', () => {
+    const [a, b, c] = three(mcq());
+    const mixed = [
+      { ...a!, family: 'fam' },
+      { ...b!, family: 'fam' },
+      {
+        id: 'po',
+        version: 1,
+        family: 'fam',
+        difficulty: 1,
+        format: 'predict-output',
+        prompt: [{ kind: 'paragraph', text: 'p' }],
+        code: { language: 'typescript', source: 'x' },
+        answer: { output: '1' },
+        hints: [],
+        explanation: [],
+      } as QuestionSource,
+      c!,
+    ];
+    expect(errors(validateTracks([track(mixed)]))).toContain(
+      'family "fam" mixes multiple-choice and predict-output questions',
+    );
+  });
+
   it('requires a minimum number of questions per skill', () => {
     expect(errors(validateTracks([track([mcq()])]))).toContain('needs at least 3 questions');
   });
@@ -199,6 +231,36 @@ describe('validateTracks', () => {
         'answer for unknown blank "kind"',
       ]),
     );
+  });
+
+  it('accepts prerequisites on earlier skills, and rejects unknown, later or self references', () => {
+    const t = track(three(mcq()));
+    const withSkills = (prerequisites: string[]): TrackSource => ({
+      ...t,
+      topics: [
+        {
+          ...t.topics[0]!,
+          skills: [
+            t.topics[0]!.skills[0]!,
+            {
+              id: 'narrowing',
+              name: 'Narrowing',
+              description: 'Narrowing.',
+              prerequisites,
+              questions: three(mcq({ id: 'q-two', prompt: [{ kind: 'paragraph', text: 'Two.' }] })),
+            },
+          ],
+        },
+      ],
+    });
+    expect(errors(validateTracks([withSkills(['unions'])]))).toEqual([]);
+    for (const bad of ['missing', 'narrowing'])
+      expect(errors(validateTracks([withSkills([bad])]))).toEqual([
+        `prerequisite "${bad}" must be a skill earlier in the same track`,
+      ]);
+    const { catalog } = splitTrack(withSkills(['unions']));
+    expect(catalog.skills[1]).toMatchObject({ id: 'narrowing', prerequisites: ['unions'] });
+    expect(catalog.skills[0]).not.toHaveProperty('prerequisites');
   });
 
   it('rejects question ids reused across skills', () => {

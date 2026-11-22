@@ -1,4 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
+
+/** Rows of the main challenges table (not the Coming soon table). */
+const challengeRows = (page: Page) =>
+  page.locator('table[aria-labelledby="challenges-heading"] tbody tr');
 
 test.describe('navigation and catalog', () => {
   test('dashboard links to the challenge catalog', async ({ page }) => {
@@ -12,24 +16,24 @@ test.describe('navigation and catalog', () => {
       .click();
     await expect(page).toHaveURL('/challenges');
     await expect(page.getByRole('heading', { level: 1, name: 'Coding Challenges' })).toBeVisible();
-    await expect(page.locator('tbody tr')).toHaveCount(5);
+    await expect(challengeRows(page)).toHaveCount(8);
   });
 
   test('catalog filters are reflected in, and restored from, the URL', async ({ page }) => {
     await page.goto('/challenges');
     await page.getByRole('combobox', { name: 'Difficulty' }).selectOption('medium');
     await expect(page).toHaveURL(/difficulty=medium/);
-    await expect(page.locator('tbody tr')).toHaveCount(3);
+    await expect(challengeRows(page)).toHaveCount(5);
 
     await page.getByRole('searchbox', { name: 'Search challenges' }).fill('interval');
-    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await expect(challengeRows(page)).toHaveCount(1);
 
     await page.reload();
-    await expect(page.locator('tbody tr')).toHaveCount(1);
+    await expect(challengeRows(page)).toHaveCount(1);
     await expect(page.getByRole('link', { name: 'Merge Intervals' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Clear filters' }).first().click();
-    await expect(page.locator('tbody tr')).toHaveCount(5);
+    await expect(challengeRows(page)).toHaveCount(8);
   });
 
   test('challenge detail shows the problem and opens the workspace', async ({ page }) => {
@@ -71,7 +75,7 @@ test.describe('navigation and catalog', () => {
 
     fail = false;
     await page.getByRole('button', { name: 'Try again' }).click();
-    await expect(page.locator('tbody tr')).toHaveCount(5);
+    await expect(challengeRows(page)).toHaveCount(8);
   });
 
   test('skip link moves focus to the main content', async ({ page }) => {
@@ -95,5 +99,19 @@ test.describe('navigation and catalog', () => {
     await expect(nav).toBeHidden();
     await page.getByRole('button', { name: 'Open navigation' }).click();
     await expect(nav).toBeVisible();
+  });
+
+  test('the sidebar is wide enough for its labels, and groups practice areas', async ({ page }) => {
+    await page.goto('/');
+    const nav = page.getByRole('navigation', { name: 'Primary' });
+    const box = await page.locator('app-side-nav').boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(250);
+    expect(box?.width).toBeLessThanOrEqual(260);
+    await expect(nav.getByRole('heading', { name: 'Practice' })).toBeVisible();
+    await expect(nav.getByRole('list', { name: 'Practice' })).toContainText('Coding Challenges');
+    // No label is cut off.
+    for (const label of await nav.locator('.label').all()) {
+      expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+    }
   });
 });

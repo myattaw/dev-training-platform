@@ -1,74 +1,162 @@
-<details class="schema" open>
-  <summary>Database</summary>
-  <div class="schema-body">
-    <pre class="code"><code>{{ question().schema }}</code></pre>
-    <p class="field-label">Sample data</p>
-    <div class="samples">
-      @for (sample of sampleTables(); track sample.name) {
-        <div class="sample">
-          <p class="table-name">
-            <code>{{ sample.name }}</code>
-          </p>
-          <app-sql-result-table
-            [table]="sample.table"
-            [caption]="'Sample rows of ' + sample.name"
-          />
-        </div>
+<!--
+  IDE-style SQL workspace. Wide screens: question and database explorer on the
+  left; the editor on the right, above a Results / Feedback panel. Narrow
+  screens: one tab per area.
+-->
+<ng-template #questionArea>
+  <div class="question-area">
+    <ng-content select="[prompt]" />
+  </div>
+</ng-template>
+
+<ng-template #explorerArea>
+  <app-database-explorer
+    class="explorer"
+    [schema]="question().schema"
+    [sampleTables]="question().sampleTables"
+  />
+</ng-template>
+
+<ng-template #editorArea>
+  <div class="editor-area">
+    <div class="editor-bar">
+      <span class="field-label"
+        >Your query <span class="dialect text-secondary">{{ dialectLabel() }}</span></span
+      >
+      @if (!revealed()) {
+        <button
+          type="button"
+          class="btn btn--sm"
+          [disabled]="query().trim() === '' || runState().status === 'running'"
+          (click)="runQuery()"
+        >
+          <app-icon name="play" [size]="12" />
+          {{ runState().status === 'running' ? 'Running…' : 'Run query' }}
+        </button>
+        <span class="text-secondary run-note"
+          >Runs on the sample data, not graded · <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> in
+          the editor</span
+        >
       }
     </div>
-    <p class="note text-secondary">
-      Your query is also checked against other data with the same tables, so do not rely on specific
-      values from the sample.
-    </p>
+    <app-code-editor
+      class="editor"
+      language="sql"
+      [fileName]="'skill-' + question().id"
+      [code]="query()"
+      (codeChange)="onQueryChange($event)"
+      (runRequested)="runQuery()"
+    />
+    <div class="actions-area"><ng-content select="[actions]" /></div>
   </div>
-</details>
+</ng-template>
 
-<div class="editor-bar">
-  <span class="field-label"
-    >Your query <span class="dialect text-secondary">{{ dialectLabel() }}</span></span
-  >
-  <span class="text-secondary hint"
-    ><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> in the editor runs it</span
-  >
-</div>
-<app-code-editor
-  class="editor"
-  language="sql"
-  [fileName]="'skill-' + question().id"
-  [code]="query()"
-  (codeChange)="onQueryChange($event)"
-  (runRequested)="runQuery()"
-/>
-@if (!revealed()) {
-  <div class="run-bar">
-    <button
-      type="button"
-      class="btn btn--sm"
-      [disabled]="query().trim() === '' || runState().status === 'running'"
-      (click)="runQuery()"
+<ng-template #outputArea>
+  <div class="output-area">
+    <app-tabs
+      label="Output"
+      idPrefix="sql-out"
+      [tabs]="outputTabs()"
+      [selected]="outputTab()"
+      (selectedChange)="selectOutput($event)"
+    />
+    <div
+      class="output-body"
+      role="tabpanel"
+      tabindex="0"
+      [id]="'sql-out-panel-' + outputTab()"
+      [attr.aria-labelledby]="'sql-out-tab-' + outputTab()"
     >
-      <app-icon name="play" [size]="12" />
-      {{ runState().status === 'running' ? 'Running…' : 'Run query' }}
-    </button>
-    <span class="text-secondary run-note">Runs on the sample data. Not graded.</span>
+      <div class="result" aria-live="polite" [hidden]="outputTab() !== 'results'">
+        @let state = runState();
+        @if (state.status === 'done') {
+          @if (state.response.kind === 'rows') {
+            <p class="field-label">
+              Result
+              <span class="text-secondary"
+                >({{ state.response.table.rows.length }} rows,
+                {{ state.response.durationMs }} ms)</span
+              >
+            </p>
+            <app-sql-result-table [table]="state.response.table" [showTypes]="true" />
+          } @else {
+            <app-alert type="error" heading="Query failed">{{ state.response.message }}</app-alert>
+          }
+        } @else if (state.status === 'running') {
+          <p class="text-secondary">Running…</p>
+        } @else {
+          <p class="text-secondary">Run your query to see its result on the sample data here.</p>
+        }
+      </div>
+      <div class="feedback-area" [hidden]="outputTab() !== 'feedback'">
+        <ng-content select="[feedback]" />
+        @if (reference(); as ref) {
+          <p class="field-label reference-label">A correct query</p>
+          <pre class="code reference"><code>{{ ref }}</code></pre>
+        }
+      </div>
+    </div>
   </div>
-}
+</ng-template>
 
-@let state = runState();
-@if (state.status === 'done') {
-  <div class="result" aria-live="polite">
-    @if (state.response.kind === 'rows') {
-      <p class="field-label">
-        Result <span class="text-secondary">({{ state.response.durationMs }} ms)</span>
-      </p>
-      <app-sql-result-table [table]="state.response.table" [showTypes]="true" />
-    } @else {
-      <app-alert type="error" heading="Query failed">{{ state.response.message }}</app-alert>
-    }
+@if (isNarrow()) {
+  <app-tabs
+    class="mobile-tabs"
+    label="Workspace"
+    idPrefix="sql-mobile"
+    [tabs]="mobileTabs"
+    [selected]="mobileTab()"
+    (selectedChange)="selectMobile($event)"
+  />
+  <div class="mobile-pane" [hidden]="mobileTab() !== 'question'">
+    <ng-container *ngTemplateOutlet="questionArea" />
   </div>
-}
-
-@if (reference(); as ref) {
-  <p class="field-label reference-label">A correct query</p>
-  <pre class="code reference"><code>{{ ref }}</code></pre>
+  <div class="mobile-pane" [hidden]="mobileTab() !== 'database'">
+    <ng-container *ngTemplateOutlet="explorerArea" />
+  </div>
+  <div class="mobile-pane mobile-editor" [hidden]="mobileTab() !== 'editor'">
+    <ng-container *ngTemplateOutlet="editorArea" />
+  </div>
+  <div class="mobile-pane" [hidden]="mobileTab() !== 'output'">
+    <ng-container *ngTemplateOutlet="outputArea" />
+  </div>
+} @else {
+  <app-split-pane
+    class="workspace"
+    orientation="horizontal"
+    [initialSize]="36"
+    [min]="22"
+    [max]="60"
+    label="Resize question and editor"
+    storageKey="layout:sql-practice"
+  >
+    <div paneStart class="column">
+      <app-split-pane
+        orientation="vertical"
+        [initialSize]="45"
+        [min]="15"
+        [max]="85"
+        label="Resize question and database"
+        storageKey="layout:sql-practice-left"
+      >
+        <div paneStart class="column scroll">
+          <ng-container *ngTemplateOutlet="questionArea" />
+        </div>
+        <div paneEnd class="column"><ng-container *ngTemplateOutlet="explorerArea" /></div>
+      </app-split-pane>
+    </div>
+    <div paneEnd class="column">
+      <app-split-pane
+        orientation="vertical"
+        [initialSize]="60"
+        [min]="25"
+        [max]="85"
+        label="Resize editor and output"
+        storageKey="layout:sql-practice-right"
+      >
+        <div paneStart class="column"><ng-container *ngTemplateOutlet="editorArea" /></div>
+        <div paneEnd class="column"><ng-container *ngTemplateOutlet="outputArea" /></div>
+      </app-split-pane>
+    </div>
+  </app-split-pane>
 }

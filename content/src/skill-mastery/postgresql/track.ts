@@ -1,5 +1,13 @@
 import type { TrackSource } from '@pracstack/content-model';
 import {
+  functionFamilies,
+  groupByFamilies,
+  joinFamilies,
+  orderLimitFamilies,
+  selectWhereFamilies,
+  subqueryFamilies,
+} from './families';
+import {
   groupByQuestions,
   joinQuestions,
   orderLimitQuestions,
@@ -9,7 +17,8 @@ import {
 export const postgresqlTrack: TrackSource = {
   id: 'postgresql',
   name: 'PostgreSQL',
-  description: 'Query relational data with SQL: filtering, sorting, aggregation and joins.',
+  description:
+    'Query relational data with SQL: filtering, sorting, expressions, aggregation, joins and subqueries.',
   topics: [
     {
       id: 'pg-basic-queries',
@@ -20,13 +29,29 @@ export const postgresqlTrack: TrackSource = {
           id: 'pg-select-where',
           name: 'SELECT and WHERE',
           description: 'Choose columns and filter rows, including NULL handling.',
-          questions: selectWhereQuestions,
+          questions: [...selectWhereQuestions, ...selectWhereFamilies],
         },
         {
           id: 'pg-order-limit',
+          prerequisites: ['pg-select-where'],
           name: 'ORDER BY and LIMIT',
-          description: 'Sort results and take the first rows.',
-          questions: orderLimitQuestions,
+          description: 'Sort results, take the first rows, and page through them.',
+          questions: [...orderLimitQuestions, ...orderLimitFamilies],
+        },
+      ],
+    },
+    {
+      id: 'pg-expressions',
+      name: 'Expressions',
+      description: 'Compute new values from columns.',
+      skills: [
+        {
+          id: 'pg-functions-case',
+          prerequisites: ['pg-select-where'],
+          name: 'Functions, CASE and COALESCE',
+          description:
+            'Text, number and date functions; conditional values with CASE; NULL fallbacks with COALESCE.',
+          questions: functionFamilies,
         },
       ],
     },
@@ -37,9 +62,10 @@ export const postgresqlTrack: TrackSource = {
       skills: [
         {
           id: 'pg-group-by',
+          prerequisites: ['pg-select-where'],
           name: 'GROUP BY and HAVING',
           description: 'Count, sum and average per group, and filter groups.',
-          questions: groupByQuestions,
+          questions: [...groupByQuestions, ...groupByFamilies],
         },
       ],
     },
@@ -50,9 +76,26 @@ export const postgresqlTrack: TrackSource = {
       skills: [
         {
           id: 'pg-joins-basics',
-          name: 'Inner and left joins',
-          description: 'Match rows across tables, and keep rows without a match.',
-          questions: joinQuestions,
+          prerequisites: ['pg-select-where'],
+          name: 'Inner, left and self joins',
+          description:
+            'Match rows across tables, keep rows without a match, and find missing partners.',
+          questions: [...joinQuestions, ...joinFamilies],
+        },
+      ],
+    },
+    {
+      id: 'pg-subqueries',
+      name: 'Subqueries',
+      description: 'Use the result of one query inside another.',
+      skills: [
+        {
+          id: 'pg-subqueries-basics',
+          prerequisites: ['pg-group-by', 'pg-joins-basics'],
+          name: 'Scalar, IN and EXISTS subqueries',
+          description:
+            'Compare with a computed value, test membership, and check for related rows, including the NOT IN trap.',
+          questions: subqueryFamilies,
         },
       ],
     },

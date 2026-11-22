@@ -1,5 +1,12 @@
 import type { TrackSource } from '@pracstack/content-model';
 import {
+  conditionalFamilies,
+  dateFamilies,
+  hierarchyFamilies,
+  nullFamilies,
+  rowLimitingFamilies,
+} from './families';
+import {
   conditionalQuestions,
   dateQuestions,
   hierarchyQuestions,
@@ -22,13 +29,13 @@ export const oracleTrack: TrackSource = {
           id: 'ora-row-limiting',
           name: 'DUAL, ROWNUM and FETCH FIRST',
           description: 'Select expressions from DUAL, and take the first rows correctly.',
-          questions: rowLimitingQuestions,
+          questions: [...rowLimitingQuestions, ...rowLimitingFamilies],
         },
         {
           id: 'ora-nulls',
           name: 'NULLs, NVL and COALESCE',
           description: "Handle missing values, and Oracle's empty-string rule.",
-          questions: nullQuestions,
+          questions: [...nullQuestions, ...nullFamilies],
         },
       ],
     },
@@ -41,13 +48,14 @@ export const oracleTrack: TrackSource = {
           id: 'ora-dates',
           name: 'Dates',
           description: 'Format, extract and calculate with DATE values.',
-          questions: dateQuestions,
+          questions: [...dateQuestions, ...dateFamilies],
         },
         {
           id: 'ora-decode-case',
+          prerequisites: ['ora-nulls'],
           name: 'DECODE and CASE',
           description: 'Choose values by condition, and know where DECODE differs from CASE.',
-          questions: conditionalQuestions,
+          questions: [...conditionalQuestions, ...conditionalFamilies],
         },
       ],
     },
@@ -58,9 +66,10 @@ export const oracleTrack: TrackSource = {
       skills: [
         {
           id: 'ora-connect-by',
+          prerequisites: ['ora-row-limiting'],
           name: 'CONNECT BY',
           description: 'Use START WITH, CONNECT BY PRIOR, LEVEL and SYS_CONNECT_BY_PATH.',
-          questions: hierarchyQuestions,
+          questions: [...hierarchyQuestions, ...hierarchyFamilies],
         },
       ],
     },

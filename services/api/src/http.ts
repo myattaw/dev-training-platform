@@ -36,7 +36,10 @@ export const MAX_REQUEST_BODY_BYTES = 400 * 1024;
 const STATUS: Readonly<Record<ApiErrorCode, number>> = {
   'bad-request': 400,
   unauthorized: 401,
+  forbidden: 403,
   'not-found': 404,
+  // 409: the request conflicts with the session's state (its deadline passed).
+  'session-expired': 409,
   conflict: 409,
   'token-expired': 410,
   'rate-limited': 429,

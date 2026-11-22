@@ -1,11 +1,21 @@
-import { QUESTION_FORMATS } from '@pracstack/content-model';
+import {
+  COMPETENCIES,
+  OBSERVATION_WINDOW_LABELS,
+  QUESTION_FORMATS,
+} from '@pracstack/content-model';
 import type { FileSet } from './build';
 
 /**
  * Schema vocabulary that appears in private files but is not content (the
  * browser legitimately knows these names from the API contract).
  */
-const SCHEMA_VOCABULARY: ReadonlySet<string> = new Set<string>(QUESTION_FORMATS);
+export const SCHEMA_VOCABULARY: ReadonlySet<string> = new Set<string>([
+  ...QUESTION_FORMATS,
+  // Company Interview Prep: competency tags, time windows and path step kinds.
+  ...Object.keys(COMPETENCIES),
+  ...Object.keys(OBSERVATION_WINDOW_LABELS),
+  'timed-session',
+]);
 
 /**
  * Finds private content inside a browser bundle.

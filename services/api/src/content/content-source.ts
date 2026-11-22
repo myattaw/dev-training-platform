@@ -1,9 +1,14 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   type Challenge,
   challengeFile,
   type ChallengeGrading,
+  COMPANY_INDEX_FILE,
+  type CompanyContent,
+  companyFile,
+  type CompanyIndexFile,
+  type PlannedChallenge,
   MANIFEST_FILE,
   type PublicManifest,
   type Skill,
@@ -24,7 +29,19 @@ export interface ContentSource {
   findQuestion(questionId: string): SplitQuestion | undefined;
   /** A coding challenge with its private grading data (hidden tests). */
   findChallenge(challengeId: string): ChallengeWithGrading | undefined;
+  /** Company search index and data sources. Private: served to signed-in users. */
+  companyIndex(): CompanyIndexFile;
+  findCompany(companyId: string): CompanyContent | undefined;
+  /** Announced challenges (Coming soon); metadata only. */
+  findPlannedChallenge(id: string): PlannedChallenge | undefined;
 }
+
+export interface CompanyData {
+  readonly index: CompanyIndexFile;
+  readonly companies: readonly CompanyContent[];
+}
+
+const NO_COMPANIES: CompanyData = { index: { sources: [], companies: [] }, companies: [] };
 
 export interface ChallengeWithGrading {
   readonly challenge: Challenge;
@@ -36,7 +53,11 @@ export function createContentSource(
   catalogs: readonly TrackCatalog[],
   questionsBySkill: Readonly<Record<string, readonly SplitQuestion[]>>,
   challenges: readonly ChallengeWithGrading[] = [],
+  companies: CompanyData = NO_COMPANIES,
+  planned: readonly PlannedChallenge[] = [],
 ): ContentSource {
+  const companyMap = new Map(companies.companies.map((c) => [c.company.id, c]));
+  const plannedMap = new Map(planned.map((p) => [p.id, p]));
   const challengeMap = new Map(challenges.map((c) => [c.challenge.id, c]));
   const skills = new Map<string, { technologyId: string; skill: Skill }>();
   for (const catalog of catalogs) {
@@ -57,6 +78,9 @@ export function createContentSource(
     questions: (skillId) => questionsBySkill[skillId] ?? [],
     findQuestion: (id) => questions.get(id),
     findChallenge: (id) => challengeMap.get(id),
+    companyIndex: () => companies.index,
+    findCompany: (id) => companyMap.get(id),
+    findPlannedChallenge: (id) => plannedMap.get(id),
   };
 }
 
@@ -93,5 +117,20 @@ export function loadContentSource(contentDist: string): ContentSource {
       `${summary.id}@${summary.version}.grading.json`,
     ),
   }));
-  return createContentSource(manifest.contentVersion, catalogs, questionsBySkill, challenges);
+  let companies = NO_COMPANIES;
+  if (existsSync(join(contentDist, 'private', COMPANY_INDEX_FILE))) {
+    const index = read<CompanyIndexFile>('private', COMPANY_INDEX_FILE);
+    companies = {
+      index,
+      companies: index.companies.map((c) => read<CompanyContent>('private', companyFile(c.id))),
+    };
+  }
+  return createContentSource(
+    manifest.contentVersion,
+    catalogs,
+    questionsBySkill,
+    challenges,
+    companies,
+    manifest.plannedChallenges ?? [],
+  );
 }

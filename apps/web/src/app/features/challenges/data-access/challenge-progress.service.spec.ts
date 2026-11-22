@@ -30,6 +30,26 @@ describe('ChallengeProgressService', () => {
     });
   });
 
+  it('lists every practice draft for import, including legacy ones, but not timed-session drafts', () => {
+    service.saveDraft('pangram', 'typescript', 'ts code', 'starter');
+    service.saveDraft('lru-cache', 'java', 'java code', 'starter');
+    service.saveDraft('pangram', 'typescript', 'timed code', 'starter', 'session-1');
+    localStorage.setItem('typexercise:solution:reverse-string', 'old code');
+    expect(service.listDrafts().map((d) => [d.challengeId, d.language, d.code])).toEqual([
+      ['lru-cache', 'java', 'java code'],
+      ['pangram', 'typescript', 'ts code'],
+      ['reverse-string', 'typescript', 'old code'],
+    ]);
+  });
+
+  it('keeps timed-session drafts apart from practice drafts', () => {
+    service.saveDraft('pangram', 'typescript', 'practice', 'starter');
+    service.saveDraft('pangram', 'typescript', 'timed', 'starter', 'session-1');
+    expect(service.loadDraft('pangram', 'typescript')).toBe('practice');
+    expect(service.loadDraft('pangram', 'typescript', 'session-1')).toBe('timed');
+    expect(service.loadDraft('pangram', 'typescript', 'session-2')).toBeNull();
+  });
+
   it('saves and loads drafts, and marks the challenge in progress', () => {
     service.saveDraft('pangram', 'typescript', 'my code', 'starter');
     expect(service.loadDraft('pangram', 'typescript')).toBe('my code');

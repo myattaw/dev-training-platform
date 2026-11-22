@@ -25,10 +25,10 @@ AWS Budgets ──email──▶ you
 | --- | --- | --- |
 | **CloudFront** | Serves the web app and proxies `/api/*`; same origin, so no CORS | Price class 100; HTTP/2+3; security headers from `@pracstack/web-security` (strict CSP, HSTS, frame-deny); SPA routes rewritten by a CloudFront Function |
 | **S3** | Web build output | Private, encrypted, TLS-only; hashed files cached 1 year, pages/content revalidated |
-| **Cognito** | Accounts and sign-in | Lite plan (free); email sign-in; 12+ character passwords; optional authenticator-app MFA; public client (no secret), authorization code + PKCE; 1 h ID tokens |
+| **Cognito** | Accounts and sign-in | Lite plan (free); email sign-in; 12+ character passwords; optional authenticator-app MFA; public client (no secret), authorization code + PKCE; 1 h ID tokens; `admins` group (ADMIN plan, free) |
 | **API Gateway** | HTTP API in front of the function | Every route requires a valid Cognito ID token (signature, expiry, issuer, audience checked by API Gateway); overall throttle 10 req/s (burst 20); JSON access logs without query strings or bodies |
 | **Lambda** | The API (`services/api`, bundled to one file) | 512 MB, 10 s timeout; its own role can only use its table and its log group; re-checks token claims (fails closed) |
-| **DynamoDB** | Progress, tokens, submissions, rate-limit counters | One table, on-demand, TTL, point-in-time recovery; layout in `services/api/src/store/dynamo-store.ts` |
+| **DynamoDB** | Progress, tokens, submissions, rate-limit counters, and account data (profiles, plans, identities, saved companies, timed sessions, drafts) | One table, on-demand, TTL, point-in-time recovery; layout in `services/api/src/store/dynamo-store.ts` |
 | **AWS Budgets** | Cost alerts | Monthly budget (default $10) with emails at 50 %, 100 % actual and 100 % forecast |
 | **CloudWatch Logs** | Function and API access logs | 14-day retention |
 

@@ -1,95 +1,124 @@
 # Skill Mastery scoring
 
-PracStack's own algorithm (not IXL's), implemented in `packages/scoring`. It is pure and
-deterministic: `applyAttempt(state, attempt, config)` always gives the same result, so every
-score can be recomputed and explained. **Scores are only ever computed on the server**; the
-browser displays them.
+PracStack's own algorithm, implemented in `packages/scoring`. It is pure and deterministic:
+`applyAttempt(state, attempt, config)` always gives the same result, so every score can be
+recomputed and explained. **Scores are only ever computed on the server**; the browser displays
+them. This is version 2 of the rules (`DEFAULT_SCORING_CONFIG.version`); see
+[the audit](skill-mastery-audit.md) for why version 1 was replaced.
 
 ## Goals
 
-1. A score from 0 to 100, where 100 means *demonstrated* mastery, not just many attempts.
-2. Questions get harder as the score rises.
-3. Mistakes cost something, but one slip never wipes out real progress.
-4. Hints help without being free.
-5. Everything tunable through one versioned config (`DEFAULT_SCORING_CONFIG`, version 1).
-6. XP rewards effort and is completely separate from mastery.
+1. Three separate numbers, never mixed up:
+   - **Difficulty tier**: how hard the next questions are (1 Beginner, 2 Elementary,
+     3 Intermediate, 4 Advanced, 5 Expert);
+   - **Mastery**: 0–100, how much the learner has *demonstrated*;
+   - **Session progress**: answered, correct, streak and XP in the current sitting (browser only).
+2. Difficulty changes gradually and predictably: one tier at a time, for a visible reason.
+3. Mastery can't be farmed: easy questions only take you so far, and repeats earn little.
+4. Mistakes cost something, but one slip never wipes out real progress.
+5. Hints help without being free.
+6. Everything tunable through one versioned config; XP is completely separate from mastery.
 
-## Bands
+## Difficulty tiers
 
-The current score selects a band. The band sets which question difficulty is offered and the
-base points for answers at that difficulty.
+Every learner starts a skill at tier 1. The tier only moves after a run of answers:
 
-| Score  | Offered difficulty | Gain (correct) | Loss (incorrect) |
-| ------ | ------------------ | -------------- | ---------------- |
-| 0–24   | 1                  | 9              | 1                |
-| 25–49  | 2                  | 8              | 2                |
-| 50–69  | 3                  | 7              | 3                |
-| 70–89  | 4                  | 5              | 4                |
-| 90–99  | 5 (mastery zone)   | 3              | 5                |
+| Event | Effect |
+| --- | --- |
+| 2 correct answers in a row, first time seen, no hints, at or above the current tier | up one tier |
+| 2 incorrect answers in a row at or below the current tier | down one tier |
 
-Losses grow as the score rises: early on, mistakes are part of learning; near mastery,
-consistency is what is being measured.
+Both counters reset whenever the tier moves, so changes are never more than one tier at a time
+and never happen on a single answer. Partial answers, hinted answers and repeats don't count
+toward promotion; a miss on a question *above* the tier doesn't count toward demotion. The answer
+response reports `tierBefore` and `tierAfter`, and the practice page says "Up to Intermediate".
 
-## Correct answers
+## Mastery gains and caps
 
-`gain = round(base × difficulty × hints) + streak bonus`, between 1 and 15.
+A correct, hint-free answer earns the gain of the **question's** difficulty, but can't take the
+score past that difficulty's cap:
 
-- **Difficulty:** ×(1 + 0.25) per level *above* the band's target, ×(1 − 0.35) per level
-  *below* (minimum ×0.25). Harder questions are worth more; easy ones still count a little.
-- **Hints:** ×1 with no hints, ×0.6 with one, ×0.3 with two or more.
-- **Streak bonus:** +1 on the 3rd correct answer in a row, +2 on the 4th, +3 from the 5th on
-  (hint-free answers only).
-- A correct answer always gains at least 1 point.
+| Difficulty | Gain | Score cap |
+| --- | --- | --- |
+| 1 Beginner | 6 | 30 |
+| 2 Elementary | 7 | 50 |
+| 3 Intermediate | 8 | 70 |
+| 4 Advanced | 9 | 90 |
+| 5 Expert | 10 | 99 |
+
+Above a cap, that difficulty earns nothing more (`cappedByTier` in the response; the page says
+"Beginner questions can't raise your mastery further"). Gains are then adjusted:
+
+- **Hints**: × 1 with none, × 0.6 with one, × 0.3 with two or more.
+- **Repeats** (a question this learner has already answered correctly): × 0.5, and repeats never
+  count toward promotion or mastery.
+- **Partial** answers: × 0.5. They never lose points.
+- **Streak bonus**: +1 per correct answer in a row from the 3rd, at most +3.
+- Never more than 15 per answer.
 
 ## Incorrect answers
 
-`loss = round(base × difficulty × slip)`, at most 8.
+The loss grows with the score: 2 below 50, 3 from 50, 4 from 80; halved for a miss on a question
+above the learner's tier, and halved again for the first miss after a streak of 3 or more (a
+slip). Never more than 6 per answer.
 
-- **Harder questions cost less:** ×(1 − 0.25) per level above the target (minimum ×0.25).
-- **Slip forgiveness:** a miss right after 3+ correct in a row costs half.
-- **Checkpoints:** once the score reaches **50** or **80**, it never falls below that again.
-- The score never goes below 0.
-
-## Partial credit
-
-Graders can return `partial` (e.g. right rows in the wrong order when order didn't matter).
-It earns half the gain and **never loses points**; the correct streak is kept.
+**Checkpoints** at 50 and 80: once reached, the score never falls below them.
 
 ## Reaching 100
 
-In the mastery zone (90+), the score is capped at 99 until the learner answers **3 questions in
-a row correctly, without hints, at difficulty 4 or 5**. Answers that brought the score into the
-zone don't count; the streak must happen *in* the zone. Then the score becomes 100 and the
-skill is marked **mastered**.
-
-Mastery is permanent as an achievement. The score can still drop after mistakes, but never
-below 90, and the learner can return to 100 without repeating the streak.
+99 is the most the gains above can reach. 100 needs **3 correct answers in a row, first time
+seen, hint-free, at difficulty 4 or 5, while the score is 90 or more**. After that the skill is
+mastered for good: the score never drops below 90 and the skill stays "Mastered".
 
 ## What this looks like
 
-Simulated by always answering the offered difficulty, without hints (from
-`packages/scoring/src/engine.spec.ts`):
+A learner who answers every question correctly, first time, without hints, sees:
 
-| Learner                | Answers to 100 | Score after each answer |
-| ---------------------- | -------------- | ----------------------- |
-| Always right           | 13             | 9 18 28 38 49 60 70 78 86 94 99 99 100 |
-| Wrong every 5th answer | 18             | 9 18 28 38 37 45 53 61 70 68 75 80 86 93 90 93 96 100 |
-| Wrong every 3rd answer | never          | climbs into the 90s (94–99) and stays there |
+| Answer | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Question tier | 1 | 1 | 2 | 2 | 3 | 3 | 4 | 4 | 5 | 5 | 5 | 5 | 5 |
+| Mastery after | 6 | 12 | 20 | 29 | 40 | 51 | 63 | 75 | 88 | 99 | 99 | 99 | 100 |
 
-The last row is intentional: someone who misses a third of the questions is close to mastery,
-and the score says so, but they have not shown the consistency that 100 means.
+That is the minimum: 13 answers. Mistakes, hints and repeats make it longer, as they should. The
+test suite asserts this exact path.
+
+## Choosing the next question
+
+`services/api/src/practice/select-question.ts` picks from the skill's questions using the
+learner's whole answer history. It is deterministic: the seed is
+`learnerId|skillId|answers so far`, hashed (FNV-1a), and only breaks ties.
+
+1. Prefer questions at the learner's tier; if none qualify, the nearest tier (easier first), with
+   a note saying so.
+2. Within that, prefer in order:
+   1. a question from a **family** not seen yet (families group variants of one exercise);
+   2. an unseen variant of a family not seen in the last few answers;
+   3. a question answered **wrongly** at least 3 answers ago (**review**, labelled as such);
+   4. any other unseen question.
+3. Only when every question has been answered: **repeat** the least recently seen one, never one
+   of the last two while another exists, labelled "Repeat" with a note that it earns reduced
+   credit.
+
+Reloading the page returns the same unanswered question (no rerolls).
 
 ## XP
 
 XP never decreases and does not affect mastery. Per answer:
-`correct: 10 × difficulty`, `partial: 5 × difficulty` (both reduced by the hint multiplier),
-`incorrect: 1 × difficulty`, minimum 1. Mastered skills still earn XP for practice.
+`correct: 10 × difficulty`, `partial: 5 × difficulty` (both reduced by the hint and repeat
+multipliers), `incorrect: 1 × difficulty`, minimum 1. Mastered skills still earn XP for practice.
+
+## Existing learners
+
+Each learner's state records the `configVersion` that produced it. `migrateState` upgrades a
+version 1 state on read: the score, attempts, streaks, checkpoint and mastery are kept as they
+were; the tier is derived from the old score band (0–24 → 1, 25–49 → 2, 50–69 → 3, 70–89 → 4,
+90+ → 5). No progress is lost and nothing has to be rewritten in the store.
 
 ## Changing the numbers
 
 Edit or copy `DEFAULT_SCORING_CONFIG`, bump `version`, and run `npm test`. The test suite checks
-the config is valid (`validateScoringConfig`) and replays 2,000 random 60-answer sessions,
-asserting the invariants: scores stay in 0–100, are integers, never drop below a checkpoint,
-reach 100 only through mastery, correct and partial answers never lower the score, incorrect
-answers never raise it, mastery is never lost, and results are deterministic. Each learner's
-state records the `configVersion` that produced it.
+the config is valid (`validateScoringConfig`, which also checks that 100 is reachable) and replays
+2,000 random sessions, asserting the invariants: scores stay in 0–100, are integers, never drop
+below a checkpoint, reach 100 only through mastery, correct and partial answers never lower the
+score, incorrect answers never raise it, the tier moves at most one step per answer, mastery is
+never lost, and results are deterministic.

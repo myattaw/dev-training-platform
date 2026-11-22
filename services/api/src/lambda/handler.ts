@@ -12,6 +12,7 @@ import { createApi } from '../app';
 import { VerifiedJwtAuthenticator } from '../auth';
 import { loadContentSource } from '../content/content-source';
 import { DynamoRateLimiter } from '../store/dynamo-rate-limit';
+import { DynamoAccountStore } from '../store/dynamo-account';
 import { DynamoProgressStore } from '../store/dynamo-store';
 import { createLambdaHandler } from './adapter';
 import { GloballyLimitedCodeRunner, GloballyLimitedSqlEngine } from './global-limit';
@@ -64,6 +65,7 @@ const api = createApi({
   // Content (public and private) is bundled next to this file at build time.
   content: loadContentSource(fileURLToPath(new URL('./content', import.meta.url))),
   store: new DynamoProgressStore({ tableName }),
+  accounts: new DynamoAccountStore({ tableName }),
   rateLimiter: limiter('api', 120),
   sqlRateLimiter: limiter('sql', 30),
   codeRateLimiter: limiter('code', 10),

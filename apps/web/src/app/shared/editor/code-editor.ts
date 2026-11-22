@@ -84,6 +84,8 @@ export class CodeEditor {
   readonly code = model.required<string>();
   /** Emitted on Ctrl/Cmd + Enter. */
   readonly runRequested = output<void>();
+  /** Read-only, e.g. when a timed session has ended. */
+  readonly readOnly = input(false);
 
   protected readonly ready = signal(false);
   protected readonly failed = signal(false);
@@ -101,6 +103,11 @@ export class CodeEditor {
     effect(() => {
       const fileName = this.fileName();
       if (this.ready()) untracked(() => this.useModel(fileName));
+    });
+
+    effect(() => {
+      const readOnly = this.readOnly();
+      if (this.ready()) this.editor?.updateOptions({ readOnly });
     });
 
     // Push external code changes (e.g. "Reset") into the editor.

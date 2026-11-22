@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { NotFound } from '../../../../core/not-found/not-found';
+import { ComingSoonChallenge } from '../../ui/coming-soon-challenge';
 import { InstructionBlocks } from '../../../../shared/content/instruction-blocks/instruction-blocks';
 import { formatRelativeTime } from '../../../../shared/format/relative-time';
 import { Badge } from '../../../../shared/ui/badge/badge';
@@ -21,6 +22,7 @@ import { DifficultyBadge } from '../../ui/difficulty-badge';
   imports: [
     RouterLink,
     NotFound,
+    ComingSoonChallenge,
     Alert,
     LoadingState,
     InstructionBlocks,
@@ -46,6 +48,16 @@ export class ChallengeDetail {
     () => this.id(),
     (id) => this.catalog.getChallenge(id),
   );
+  /** An announced challenge with this id, shown as Coming soon instead of "not found". */
+  protected readonly planned = asyncResource(
+    () => this.id(),
+    (id) => this.catalog.getPlanned(id),
+  );
+
+  protected readonly plannedChallenge = computed(() => {
+    const s = this.planned.state();
+    return s.status === 'ready' ? s.value : undefined;
+  });
 
   /** `null` while loading or on error; `undefined` when the challenge does not exist. */
   protected readonly view = computed(() => {

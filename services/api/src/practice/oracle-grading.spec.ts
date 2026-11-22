@@ -106,9 +106,9 @@ describe('Oracle track without an Oracle engine (e.g. on AWS)', () => {
       seen.add(served.question.id);
       await api.store.deleteToken(served.token);
     }
-    // Three of the skill's six questions need no database.
+    // Seven of the skill's twenty questions need no database (concept and predict-output).
     const offline = questionsBySkill['ora-nulls']?.filter((q) => q.question.format !== 'sql-query');
-    expect(offline).toHaveLength(3);
+    expect(offline).toHaveLength(7);
     expect(seen.size).toBeGreaterThanOrEqual(1);
   });
 });

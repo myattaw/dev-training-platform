@@ -1,6 +1,11 @@
 import { Injectable, signal } from '@angular/core';
 import type { LanguageId } from '@pracstack/content-model';
-import { readJson, removeKey, writeJson } from '../../../core/browser/browser-storage';
+import {
+  readJson,
+  removeKey,
+  STORAGE_PREFIX,
+  writeJson,
+} from '../../../core/browser/browser-storage';
 import type { RunOutcome } from '../runner/runner.models';
 
 /** Where a learner stands on a challenge, as known to *this browser*. */
@@ -45,7 +50,9 @@ const isLastRun = (v: unknown): v is LastRun =>
 
 const isLanguage = (v: unknown): v is LanguageId => v === 'typescript' || v === 'java';
 
-const draftKey = (id: string, lang: LanguageId): string => `challenge:${id}:${lang}:draft`;
+/** `scope` keeps drafts apart, e.g. per timed interview session. */
+const draftKey = (id: string, lang: LanguageId, scope?: string): string =>
+  scope ? `interview:${scope}:${id}:${lang}:draft` : `challenge:${id}:${lang}:draft`;
 const lastRunKey = (id: string, lang: LanguageId): string => `challenge:${id}:${lang}:last-run`;
 /** Drafts saved before the PracStack rename (TypeScript only, raw string). */
 const legacyDraftKey = (id: string): string => `typexercise:solution:${id}`;
@@ -90,26 +97,69 @@ export class ChallengeProgressService {
     return { challengeId, status, hasDraft, lastRun, lastActivityAt };
   }
 
-  loadDraft(challengeId: string, lang: LanguageId): string | null {
-    const draft = readJson(draftKey(challengeId, lang), isStoredDraft);
+  loadDraft(challengeId: string, lang: LanguageId, scope?: string): string | null {
+    const draft = readJson(draftKey(challengeId, lang, scope), isStoredDraft);
     if (draft) return draft.code;
+    if (scope) return null;
     return lang === 'typescript' ? this.migrateLegacyDraft(challengeId) : null;
   }
 
   /** Saves a draft. Unmodified starter code is not stored, so starter updates still reach learners. */
-  saveDraft(challengeId: string, lang: LanguageId, code: string, starterCode: string): void {
-    const exists = readJson(draftKey(challengeId, lang), isStoredDraft) !== undefined;
+  saveDraft(
+    challengeId: string,
+    lang: LanguageId,
+    code: string,
+    starterCode: string,
+    scope?: string,
+  ): void {
+    const key = draftKey(challengeId, lang, scope);
+    const exists = readJson(key, isStoredDraft) !== undefined;
     if (code === starterCode) {
       if (!exists) return;
-      removeKey(draftKey(challengeId, lang));
+      removeKey(key);
     } else {
-      writeJson(draftKey(challengeId, lang), {
+      writeJson(key, {
         code,
         updatedAt: new Date().toISOString(),
       } satisfies StoredDraft);
     }
     // Only notify on add/remove; status does not change while typing in an existing draft.
     if (exists !== (code !== starterCode)) this.revision.update((n) => n + 1);
+  }
+
+  /**
+   * Every challenge draft saved in this browser (not timed-session drafts),
+   * for importing into an account. Includes drafts from before the rename.
+   */
+  listDrafts(): { challengeId: string; language: LanguageId; code: string; updatedAt: string }[] {
+    const drafts: { challengeId: string; language: LanguageId; code: string; updatedAt: string }[] =
+      [];
+    let keys: string[];
+    try {
+      keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i) ?? '');
+    } catch {
+      return [];
+    }
+    for (const key of keys) {
+      const current = /^pracstack:challenge:([a-z0-9-]{1,100}):(typescript|java):draft$/.exec(key);
+      if (current) {
+        const draft = readJson(key.slice(STORAGE_PREFIX.length), isStoredDraft);
+        const [, challengeId = '', language] = current;
+        if (draft) drafts.push({ challengeId, language: language as LanguageId, ...draft });
+        continue;
+      }
+      const legacy = /^typexercise:solution:([a-z0-9-]{1,100})$/.exec(key);
+      const code = legacy ? localStorage.getItem(key) : null;
+      if (legacy?.[1] && code !== null) {
+        drafts.push({
+          challengeId: legacy[1],
+          language: 'typescript',
+          code,
+          updatedAt: new Date(0).toISOString(),
+        });
+      }
+    }
+    return drafts.sort((a, b) => a.challengeId.localeCompare(b.challengeId));
   }
 
   /** The language last used for a challenge in this browser. */

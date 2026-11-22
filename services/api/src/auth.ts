@@ -1,11 +1,25 @@
 import type { UserInfo } from '@pracstack/api-contracts';
 import { ApiError, type ApiRequest } from './http';
 
+/**
+ * The authenticated caller. Beyond the public {@link UserInfo}, it carries
+ * facts only the server may see: where the identity comes from and its
+ * verified groups. Never built from client input.
+ */
+export interface Caller extends UserInfo {
+  /** Identity provider (the token issuer), for mapping to the internal user id. */
+  readonly provider?: string;
+  /** The provider's subject (user id). */
+  readonly subject?: string;
+  /** Verified groups, e.g. Cognito groups (`admins`). */
+  readonly groups?: readonly string[];
+}
+
 /** Resolves the caller. */
 export interface Authenticator {
   readonly kind: 'local-dev' | 'jwt';
   /** Throws `ApiError('unauthorized')` when the request is not authenticated. */
-  authenticate(request: ApiRequest): Promise<UserInfo>;
+  authenticate(request: ApiRequest): Promise<Caller>;
 }
 
 export const LOCAL_DEV_USER: UserInfo = {
@@ -22,7 +36,7 @@ export const LOCAL_DEV_USER: UserInfo = {
 export class LocalDevAuthenticator implements Authenticator {
   readonly kind = 'local-dev';
 
-  authenticate(): Promise<UserInfo> {
+  authenticate(): Promise<Caller> {
     return Promise.resolve(LOCAL_DEV_USER);
   }
 }
@@ -51,7 +65,7 @@ export class VerifiedJwtAuthenticator implements Authenticator {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  authenticate(request: ApiRequest): Promise<UserInfo> {
+  authenticate(request: ApiRequest): Promise<Caller> {
     const claims = request.verifiedClaims;
     const unauthorized = () => new ApiError('unauthorized', 'Sign in to continue.');
     if (!claims) return Promise.reject(unauthorized());
@@ -76,6 +90,23 @@ export class VerifiedJwtAuthenticator implements Authenticator {
       id: sub,
       displayName: str('name') ?? email ?? 'Signed-in user',
       mode: 'authenticated',
+      provider: this.options.issuer,
+      subject: sub,
+      groups: parseGroups(claims['cognito:groups']),
     });
   }
+}
+
+/**
+ * Cognito puts groups in `cognito:groups`. API Gateway's JWT authorizer passes
+ * array claims as a string like `[admins editors]`; tests and other adapters
+ * may pass a real array. Anything else means no groups.
+ */
+export function parseGroups(value: unknown): readonly string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
+  if (typeof value !== 'string') return [];
+  return value
+    .replace(/^\[|\]$/g, '')
+    .split(/[\s,]+/)
+    .filter((g) => /^[\w.-]+$/.test(g));
 }

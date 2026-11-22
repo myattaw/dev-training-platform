@@ -40,6 +40,16 @@ const ICONS = {
   external: { paths: ['M9.5 2.5h4v4', 'M13.5 2.5L8 8', 'M12 9.5v4H2.5V4h4'] },
   target: { paths: [CIRCLE, 'M11.5 8a3.5 3.5 0 1 1-7 0a3.5 3.5 0 1 1 7 0', 'M8 7.4v1.2'] },
   'panel-left': { paths: ['M2 2.5h12v11H2z', 'M6 2.5v11'] },
+  lock: { paths: ['M4 7.5h8v6H4z', 'M5.5 7.5V5.5a2.5 2.5 0 0 1 5 0v2'] },
+  bookmark: { paths: ['M4 2.5h8v11l-4-3-4 3z'] },
+  'bookmark-filled': { paths: ['M4 2.5h8v11l-4-3-4 3z'], filled: true },
+  clock: { paths: [CIRCLE, 'M8 4.5V8h3'] },
+  building: {
+    paths: ['M3 13.5V3h6v10.5', 'M9 6.5h4v7', 'M2 13.5h12', 'M5 5.5h2M5 8h2M5 10.5h2'],
+  },
+  user: {
+    paths: ['M10.5 5a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0', 'M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4'],
+  },
 } as const satisfies Record<string, IconDef>;
 
 export type IconName = keyof typeof ICONS;

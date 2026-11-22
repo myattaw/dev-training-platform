@@ -89,6 +89,7 @@ describe('cost safety', () => {
       'AWS::Cognito::UserPool',
       'AWS::Cognito::UserPoolDomain',
       'AWS::Cognito::UserPoolClient',
+      'AWS::Cognito::UserPoolGroup',
       'AWS::ApiGatewayV2::Api',
       'AWS::ApiGatewayV2::Stage',
       'AWS::ApiGatewayV2::Route',
@@ -132,6 +133,11 @@ describe('cost safety', () => {
     });
     for (const group of resourcesOf('AWS::Logs::LogGroup'))
       expect(group.Properties.RetentionInDays).toBe(14);
+  });
+
+  it('defines the admins group that grants the ADMIN plan', () => {
+    template.resourceCountIs('AWS::Cognito::UserPoolGroup', 1);
+    template.hasResourceProperties('AWS::Cognito::UserPoolGroup', { GroupName: 'admins' });
   });
 
   it('throttles the API overall and alerts on the monthly budget', () => {

@@ -38,3 +38,48 @@
   text-align: right;
   white-space: nowrap;
 }
+
+.recommendations {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.recommendation {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.rec-label {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rec-skill,
+.rec-reason {
+  margin: 0;
+}
+
+.rec-skill a {
+  font-weight: var(--font-weight-bold);
+}
+
+.rec-reason {
+  font-size: var(--font-size-sm);
+}
+
+.skill-meta,
+.tier-name {
+  display: block;
+  font-size: var(--font-size-xs);
+}

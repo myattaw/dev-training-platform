@@ -34,7 +34,7 @@ export class PracticeApi {
   history(skillId: string): Promise<HistoryResponse> {
     if (!this.auth.canUseApi())
       return Promise.resolve({
-        skill: { skillId, score: 0, mastered: false, attempts: 0 },
+        skill: { skillId, score: 0, tier: 1, mastered: false, attempts: 0 },
         attempts: [],
       });
     return this.api.get(`/skill-mastery/skills/${encodeURIComponent(skillId)}/history`);

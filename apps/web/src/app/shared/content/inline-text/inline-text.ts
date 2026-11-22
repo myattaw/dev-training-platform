@@ -9,7 +9,7 @@ import { toSegments } from '../instruction-blocks/instruction-blocks';
     @if (segment.code) {
       <code>{{ segment.text }}</code>
     } @else {
-      {{ segment.text }}
+      <ng-container>{{ segment.text }}</ng-container>
     }
   }`,
 })

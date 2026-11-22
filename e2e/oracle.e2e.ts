@@ -19,14 +19,23 @@ test.describe('Oracle SQL track', () => {
 
   test('practise: DUAL, then write a row-limiting query and run it on Oracle', async ({ page }) => {
     await page.goto('/skills/oracle-sql/ora-row-limiting/practice');
-    // Level 1: a question that needs no database.
+    // Beginner: two questions that need no database (selection is deterministic).
+    await page
+      .getByRole('radio', {
+        name: 'Oracle requires a FROM clause, and DUAL is a one-row table for exactly this',
+      })
+      .check();
+    await page.getByRole('button', { name: 'Submit answer' }).click();
+    await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
+    await page.getByRole('button', { name: 'Next question' }).click();
     await page.getByLabel('Output').fill('1');
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();
 
-    // Level 2: write SQL, run it on the sample data, then submit.
+    // Two first-time correct answers: up to Elementary, where SQL is written, run and submitted.
+    await expect(page.locator('.score-change')).toContainText('Up to Elementary');
     await page.getByRole('button', { name: 'Next question' }).click();
-    await expect(page.getByText('three highest-paid employees')).toBeVisible();
+    await expect(page.getByText('first four employee')).toBeVisible();
     await expect(page.locator('.dialect')).toHaveText('Oracle');
     await waitForEditor(page);
 
@@ -35,13 +44,10 @@ test.describe('Oracle SQL track', () => {
     await page.getByRole('button', { name: 'Run query' }).click();
     await expect(page.locator('.result')).toContainText('ORA-00904');
 
-    await replaceCode(
-      page,
-      'SELECT name, salary FROM employees ORDER BY salary DESC FETCH FIRST 3 ROWS ONLY',
-    );
+    await replaceCode(page, 'SELECT name FROM employees ORDER BY name FETCH FIRST 4 ROWS ONLY');
     await page.getByRole('button', { name: 'Run query' }).click();
-    await expect(page.locator('.result')).toContainText('3 rows');
-    await expect(page.locator('.result')).toContainText('Rosalind Franklin');
+    await expect(page.locator('.result')).toContainText('4 rows');
+    await expect(page.locator('.result')).toContainText('Ada Lovelace');
 
     await page.getByRole('button', { name: 'Submit answer' }).click();
     await expect(page.getByRole('heading', { name: 'Correct' })).toBeVisible();

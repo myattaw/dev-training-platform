@@ -17,32 +17,122 @@
     >
   </app-page-header>
 
-  <div class="layout">
-    <section class="main" aria-label="Question">
-      @switch (phase().kind) {
-        @case ('loading') {
-          <app-panel><app-loading-state label="Loading a question…" /></app-panel>
-        }
-        @case ('error') {
-          @let error = phase();
-          <app-alert type="error" heading="Practice could not continue">
-            {{ error.kind === 'error' ? error.message : '' }}
-            <button alertAction type="button" class="btn btn--sm" (click)="loadNext()">
-              Try again
-            </button>
-          </app-alert>
-        }
-        @default {
-          @if (served(); as s) {
+  <!-- Mastery, difficulty and this session, at a glance. -->
+  <section class="progress-bar" aria-label="Progress">
+    <div class="stat mastery">
+      <span class="stat-label">Mastery</span>
+      <app-mastery-meter class="meter" [score]="score()" [compact]="true" />
+    </div>
+    <div class="stat">
+      <span class="stat-label" id="difficulty-label">Difficulty</span>
+      <span class="tier" aria-labelledby="difficulty-label">
+        <span class="tier-steps" aria-hidden="true">
+          @for (t of tierSteps; track t) {
+            <span class="tier-step" [class.on]="t <= tier()"></span>
+          }
+        </span>
+        <strong>{{ tierName() }}</strong>
+        <span class="text-secondary">(tier {{ tier() }} of 5)</span>
+      </span>
+      <button
+        type="button"
+        class="btn btn--icon btn--sm explain"
+        [attr.aria-expanded]="explainOpen()"
+        aria-controls="difficulty-explainer"
+        aria-label="How difficulty works"
+        (click)="explainOpen.set(!explainOpen())"
+      >
+        <app-icon name="info" [size]="14" />
+      </button>
+    </div>
+    <dl class="session" aria-label="This session">
+      <div>
+        <dt>Answered</dt>
+        <dd>{{ session().answered }}</dd>
+      </div>
+      <div>
+        <dt>Correct</dt>
+        <dd>{{ session().correct }}</dd>
+      </div>
+      <div>
+        <dt>Streak</dt>
+        <dd>{{ session().streak }}</dd>
+      </div>
+      <div>
+        <dt>XP</dt>
+        <dd>+{{ session().xp }}</dd>
+      </div>
+      <div>
+        <dt>Mastery</dt>
+        <dd>{{ scoreChange() >= 0 ? '+' : '' }}{{ scoreChange() }}</dd>
+      </div>
+    </dl>
+  </section>
+  @if (explainOpen()) {
+    <div id="difficulty-explainer" class="explainer">
+      <p>
+        <strong>Difficulty</strong> is the tier of the questions you get: Beginner, Elementary,
+        Intermediate, Advanced, Expert. Two first-time correct answers in a row without hints move
+        you up a tier; two misses in a row move you down. It changes one tier at a time.
+      </p>
+      <p>
+        <strong>Mastery</strong> (0–100) is how much you have shown you know. Each tier can only
+        take your mastery so far (Beginner up to 30, Elementary 50, Intermediate 70, Advanced 90),
+        and 100 needs three first-time correct answers in a row at Advanced or Expert. Hints and
+        repeated questions earn less.
+      </p>
+    </div>
+  }
+
+  @switch (phase().kind) {
+    @case ('loading') {
+      <app-panel><app-loading-state label="Loading a question…" /></app-panel>
+    }
+    @case ('error') {
+      @let error = phase();
+      <app-alert type="error" heading="Practice could not continue">
+        {{ error.kind === 'error' ? error.message : '' }}
+        <button alertAction type="button" class="btn btn--sm" (click)="loadNext()">
+          Try again
+        </button>
+      </app-alert>
+    }
+    @default {
+      @if (served(); as s) {
+        @if (s.question.format === 'sql-query') {
+          <!-- SQL: an IDE-style workspace; question, database, editor and results side by side. -->
+          <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
+          <div class="sql-host" (keydown)="onKeydown($event)">
+            <app-sql-query
+              [question]="s.question"
+              [(answer)]="draft"
+              [revealed]="revealed()"
+              [runState]="sqlRun()"
+              [hasFeedback]="!!feedback()"
+              (run)="runSql($event)"
+            >
+              <div prompt>
+                <ng-container *ngTemplateOutlet="promptTpl; context: { $implicit: s }" />
+                <ng-container *ngTemplateOutlet="hintsTpl" />
+              </div>
+              <div actions class="sql-actions">
+                <ng-container *ngTemplateOutlet="actionsTpl; context: { $implicit: s }" />
+              </div>
+              <div feedback>
+                @if (feedback(); as f) {
+                  <ng-container *ngTemplateOutlet="feedbackTpl; context: { $implicit: f }" />
+                } @else {
+                  <p class="text-secondary">Submit your answer to see whether it is correct.</p>
+                }
+              </div>
+            </app-sql-query>
+          </div>
+        } @else {
+          <div class="classic">
             <app-panel>
               <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
               <div class="question" (keydown)="onKeydown($event)">
-                <div class="question-meta">
-                  <app-badge color="blue">Level {{ s.question.difficulty }} of 5</app-badge>
-                </div>
-
-                <app-instruction-blocks class="prompt" [blocks]="s.question.prompt" />
-
+                <ng-container *ngTemplateOutlet="promptTpl; context: { $implicit: s }" />
                 @switch (s.question.format) {
                   @case ('multiple-choice') {
                     @if (s.question.format === 'multiple-choice') {
@@ -65,17 +155,6 @@
                       />
                     }
                   }
-                  @case ('sql-query') {
-                    @if (s.question.format === 'sql-query') {
-                      <app-sql-query
-                        [question]="s.question"
-                        [(answer)]="draft"
-                        [revealed]="revealed()"
-                        [runState]="sqlRun()"
-                        (run)="runSql($event)"
-                      />
-                    }
-                  }
                   @case ('fill-in-blank') {
                     @if (s.question.format === 'fill-in-blank') {
                       <app-fill-in-blank
@@ -86,162 +165,152 @@
                     }
                   }
                 }
-
-                @if (hints().length > 0) {
-                  <div class="hints" aria-live="polite">
-                    <h2 class="hints-title"><app-icon name="info" /> Hints</h2>
-                    <ol>
-                      @for (hint of hints(); track $index) {
-                        <li><app-inline-text [text]="hint" /></li>
-                      }
-                    </ol>
-                  </div>
-                }
-
-                @if (actionError(); as error) {
-                  <app-alert class="action-error" type="error">
-                    {{ error.message }}
-                    @if (error.stale) {
-                      <button alertAction type="button" class="btn btn--sm" (click)="loadNext()">
-                        Load a new question
-                      </button>
-                    }
-                  </app-alert>
-                }
-
-                @if (!feedback()) {
-                  <div class="actions">
-                    <button
-                      type="button"
-                      class="btn btn--primary"
-                      [disabled]="!draft() || busy() !== null"
-                      (click)="submit()"
-                    >
-                      {{ busy() === 'submit' ? 'Checking…' : 'Submit answer' }}
-                    </button>
-                    @if (s.question.hintCount > 0) {
-                      <button
-                        type="button"
-                        class="btn"
-                        [disabled]="hintsLeft() <= 0 || busy() !== null"
-                        (click)="requestHint()"
-                      >
-                        {{
-                          hintsLeft() > 0
-                            ? 'Get a hint (' + hintsLeft() + ' left)'
-                            : 'No more hints'
-                        }}
-                      </button>
-                    }
-                    <span class="shortcut text-secondary"
-                      ><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to submit</span
-                    >
-                  </div>
-                  @if (s.question.hintCount > 0) {
-                    <p class="hint-note text-secondary">
-                      Hints reduce the points you earn for this question.
-                    </p>
-                  }
-                }
+                <ng-container *ngTemplateOutlet="hintsTpl" />
+                <ng-container *ngTemplateOutlet="actionsTpl; context: { $implicit: s }" />
               </div>
             </app-panel>
-
             @if (feedback(); as f) {
               <app-panel class="feedback">
-                <div role="status">
-                  <h2
-                    #feedbackHeading
-                    tabindex="-1"
-                    class="feedback-title"
-                    [class]="'result-' + f.result"
-                  >
-                    <app-icon
-                      [name]="
-                        f.result === 'correct'
-                          ? 'check-circle'
-                          : f.result === 'partial'
-                            ? 'warning'
-                            : 'error-circle'
-                      "
-                      [size]="20"
-                    />
-                    {{ resultDisplay()?.heading }}
-                  </h2>
-                  @if (f.resultNote) {
-                    <p class="result-note">{{ f.resultNote }}</p>
-                  }
-                  <p class="score-change">
-                    Score {{ f.scoreBefore }} → <strong>{{ f.scoreAfter }}</strong>
-                    <span
-                      class="delta"
-                      [class.up]="f.scoreAfter > f.scoreBefore"
-                      [class.down]="f.scoreAfter < f.scoreBefore"
-                    >
-                      ({{ f.scoreAfter >= f.scoreBefore ? '+' : ''
-                      }}{{ f.scoreAfter - f.scoreBefore }})
-                    </span>
-                    · +{{ f.xpAwarded }} XP
-                  </p>
-                </div>
-
-                @if (f.masteredNow) {
-                  <app-alert type="success" heading="Skill mastered">
-                    You answered consistently at the highest level. This skill is now mastered.
-                  </app-alert>
-                } @else if (f.checkpointReached) {
-                  <app-alert type="info" heading="Checkpoint reached">
-                    Your score will not drop below {{ f.checkpointReached }} from now on.
-                  </app-alert>
-                }
-
-                <h3 class="explanation-title">Explanation</h3>
-                <app-instruction-blocks [blocks]="f.explanation" />
-
-                <div class="actions">
-                  <button type="button" class="btn btn--primary" (click)="loadNext()">
-                    Next question
-                  </button>
-                  <a class="btn" [routerLink]="['/skills', technologyId(), skillId()]"
-                    >End practice</a
-                  >
-                </div>
+                <ng-container *ngTemplateOutlet="feedbackTpl; context: { $implicit: f }" />
               </app-panel>
             }
-          }
+          </div>
         }
       }
-    </section>
-
-    <aside class="aside" aria-label="Progress">
-      <app-panel heading="Mastery">
-        <app-mastery-meter [score]="score()" />
-        <p class="meter-note text-secondary">
-          Reach 100 by answering the hardest questions correctly several times in a row.
-        </p>
-      </app-panel>
-      <app-panel heading="This session">
-        <dl class="kv-list session">
-          <div>
-            <dt>Answered</dt>
-            <dd>{{ session().answered }}</dd>
-          </div>
-          <div>
-            <dt>Correct</dt>
-            <dd>{{ session().correct }}</dd>
-          </div>
-          <div>
-            <dt>XP earned</dt>
-            <dd>{{ session().xp }}</dd>
-          </div>
-          <div>
-            <dt>Score change</dt>
-            <dd>
-              {{ score() - (session().startScore ?? score()) >= 0 ? '+' : ''
-              }}{{ score() - (session().startScore ?? score()) }}
-            </dd>
-          </div>
-        </dl>
-      </app-panel>
-    </aside>
-  </div>
+    }
+  }
 }
+
+<!-- ---------------------------------------------------------------- shared pieces -->
+
+<ng-template #promptTpl let-s>
+  <div class="question-meta">
+    <app-badge color="blue">{{ difficultyName(s.question.difficulty) }}</app-badge>
+    @if (s.selection.reason !== 'new') {
+      <app-badge [color]="s.selection.reason === 'review' ? 'grey' : 'red'">{{
+        s.selection.reason === 'review' ? 'Review' : 'Repeat'
+      }}</app-badge>
+    }
+  </div>
+  @if (s.selection.note; as note) {
+    <p class="selection-note" role="note"><app-icon name="info" [size]="14" /> {{ note }}</p>
+  }
+  <app-instruction-blocks class="prompt" [blocks]="s.question.prompt" />
+</ng-template>
+
+<ng-template #hintsTpl>
+  @if (hints().length > 0) {
+    <div class="hints" aria-live="polite">
+      <h2 class="hints-title"><app-icon name="info" /> Hints</h2>
+      <ol>
+        @for (hint of hints(); track $index) {
+          <li><app-inline-text [text]="hint" /></li>
+        }
+      </ol>
+    </div>
+  }
+</ng-template>
+
+<ng-template #actionsTpl let-s>
+  @if (actionError(); as error) {
+    <app-alert class="action-error" type="error">
+      {{ error.message }}
+      @if (error.stale) {
+        <button alertAction type="button" class="btn btn--sm" (click)="loadNext()">
+          Load a new question
+        </button>
+      }
+    </app-alert>
+  }
+  @if (!feedback()) {
+    <div class="actions">
+      <button
+        type="button"
+        class="btn btn--primary"
+        [disabled]="!draft() || busy() !== null"
+        (click)="submit()"
+      >
+        {{ busy() === 'submit' ? 'Checking…' : 'Submit answer' }}
+      </button>
+      @if (s.question.hintCount > 0) {
+        <button
+          type="button"
+          class="btn"
+          [disabled]="hintsLeft() <= 0 || busy() !== null"
+          (click)="requestHint()"
+          [title]="'Hints reduce the points you earn for this question.'"
+        >
+          {{ hintsLeft() > 0 ? 'Hint (' + hintsLeft() + ' left)' : 'No more hints' }}
+        </button>
+      }
+      <span class="shortcut text-secondary"
+        ><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to submit</span
+      >
+    </div>
+  }
+</ng-template>
+
+<ng-template #feedbackTpl let-f>
+  <div role="status">
+    <h2 #feedbackHeading tabindex="-1" class="feedback-title" [class]="'result-' + f.result">
+      <app-icon
+        [name]="
+          f.result === 'correct'
+            ? 'check-circle'
+            : f.result === 'partial'
+              ? 'warning'
+              : 'error-circle'
+        "
+        [size]="20"
+      />
+      {{ resultHeading(f) }}
+    </h2>
+    @if (f.resultNote) {
+      <p class="result-note">{{ f.resultNote }}</p>
+    }
+    <p class="score-change">
+      Mastery {{ f.scoreBefore }} → <strong>{{ f.scoreAfter }}</strong>
+      <span
+        class="delta"
+        [class.up]="f.scoreAfter > f.scoreBefore"
+        [class.down]="f.scoreAfter < f.scoreBefore"
+      >
+        ({{ f.scoreAfter >= f.scoreBefore ? '+' : '' }}{{ f.scoreAfter - f.scoreBefore }})
+      </span>
+      · +{{ f.xpAwarded }} XP
+      @if (f.tierAfter !== f.tierBefore) {
+        ·
+        <strong
+          >{{ f.tierAfter > f.tierBefore ? 'Up' : 'Down' }} to
+          {{ difficultyName(f.tierAfter) }}</strong
+        >
+      }
+    </p>
+    @if (f.repeat) {
+      <p class="text-secondary small">You had answered this question before: reduced credit.</p>
+    } @else if (f.cappedByTier && f.result === 'correct') {
+      <p class="text-secondary small">
+        {{ difficultyName(served()?.question?.difficulty ?? 1) }} questions can't raise your mastery
+        further. Harder questions will.
+      </p>
+    }
+  </div>
+
+  @if (f.masteredNow) {
+    <app-alert type="success" heading="Skill mastered">
+      You answered consistently at the highest level. This skill is now mastered.
+    </app-alert>
+  } @else if (f.checkpointReached) {
+    <app-alert type="info" heading="Checkpoint reached">
+      Your mastery will not drop below {{ f.checkpointReached }} from now on.
+    </app-alert>
+  }
+
+  <h3 class="explanation-title">Explanation</h3>
+  <app-instruction-blocks [blocks]="f.explanation" />
+
+  <div class="actions">
+    <button type="button" class="btn btn--primary" (click)="loadNext()">Next question</button>
+    <a class="btn" [routerLink]="['/skills', technologyId(), skillId()]">End practice</a>
+  </div>
+</ng-template>

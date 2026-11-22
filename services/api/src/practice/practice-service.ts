@@ -18,6 +18,7 @@ import {
   DEFAULT_SCORING_CONFIG,
   initialState,
   type MasteryState,
+  migrateState,
   type ScoringConfig,
   targetDifficulty,
 } from '@pracstack/scoring';
@@ -30,11 +31,12 @@ import type {
   QuestionToken,
 } from '../store/progress-store';
 import { gradeAnswer } from './grading';
-import { selectQuestion } from './select-question';
+import { type HistoryEntry, REVIEW_AFTER, selectQuestion } from './select-question';
 import { SqlGrader } from './sql-grading';
 
 export const TOKEN_TTL_MS = 30 * 60 * 1000;
-const RECENT_ATTEMPTS = 6;
+/** Attempts considered when choosing questions (the whole history of most learners). */
+const SELECTION_HISTORY_LIMIT = 1000;
 const HISTORY_LIMIT = 50;
 const MAX_CONFLICT_RETRIES = 3;
 
@@ -91,6 +93,8 @@ export class PracticeService {
       mastery ?? this.emptyRecord(user.id, skillId, found.technologyId),
     );
 
+    const history = await this.deps.store.listAttempts(user.id, skillId, SELECTION_HISTORY_LIMIT);
+
     // Resume an unanswered question instead of serving a new one.
     const open = await this.deps.store.findOpenToken(user.id, skillId);
     if (open) {
@@ -102,6 +106,7 @@ export class PracticeService {
           skill,
           hintsRevealed: served.grading.hints.slice(0, open.hintsRevealed),
           expiresAt: open.expiresAt,
+          selection: resumedSelection(open.questionId, history),
         };
       }
       // Expired, or the question changed: discard it.
@@ -109,18 +114,18 @@ export class PracticeService {
     }
 
     const state = mastery?.state ?? initialState(this.scoring);
-    const recent = await this.deps.store.listAttempts(user.id, skillId, RECENT_ATTEMPTS);
     // Without a SQL engine (e.g. a deployment without the SQL runner), SQL questions can't be graded.
     const available = this.deps.content
       .questions(skillId)
       .filter((q) => q.question.format !== 'sql-query' || this.sql[q.question.dialect]);
     if (available.length === 0)
       throw new ApiError('unavailable', 'SQL practice is not available here yet.');
+    // Deterministic: the same learner, skill and number of answers gives the same choice.
     const chosen = selectQuestion(
       available,
-      targetDifficulty(state, this.scoring),
-      recent.map((a) => a.questionId),
-      this.deps.random,
+      targetDifficulty(state),
+      history.map((a) => ({ questionId: a.questionId, result: a.result })),
+      `${user.id}|${skillId}|${history.length}`,
     );
 
     const now = this.deps.now();
@@ -128,8 +133,8 @@ export class PracticeService {
       id: this.deps.newId(),
       userId: user.id,
       skillId,
-      questionId: chosen.question.id,
-      questionVersion: chosen.question.version,
+      questionId: chosen.question.question.id,
+      questionVersion: chosen.question.question.version,
       issuedAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + TOKEN_TTL_MS).toISOString(),
       hintsRevealed: 0,
@@ -137,10 +142,11 @@ export class PracticeService {
     await this.deps.store.putToken(token);
     return {
       token: token.id,
-      question: chosen.question,
+      question: chosen.question.question,
       skill,
       hintsRevealed: [],
       expiresAt: token.expiresAt,
+      selection: { reason: chosen.reason, ...(chosen.note ? { note: chosen.note } : {}) },
     };
   }
 
@@ -170,6 +176,14 @@ export class PracticeService {
     const found = this.deps.content.findSkill(token.skillId);
     if (!found) throw notFound('Unknown skill.');
 
+    // A question answered correctly before is a repeat: reduced credit, no mastery progress.
+    const history = await this.deps.store.listAttempts(
+      user.id,
+      token.skillId,
+      SELECTION_HISTORY_LIMIT,
+    );
+    const repeat = history.some((a) => a.questionId === token.questionId && a.result === 'correct');
+
     for (let tries = 0; tries < MAX_CONFLICT_RETRIES; tries++) {
       const current = await this.deps.store.getMastery(user.id, token.skillId);
       const before = current ?? this.emptyRecord(user.id, token.skillId, found.technologyId);
@@ -179,6 +193,7 @@ export class PracticeService {
           result: grade.result,
           difficulty: served.question.difficulty,
           hintsUsed: token.hintsRevealed,
+          repeat,
         },
         this.scoring,
       );
@@ -202,6 +217,10 @@ export class PracticeService {
           ? { checkpointReached: outcome.checkpointReached }
           : {}),
         skill: toSkillProgress(mastery),
+        tierBefore: migrateState(before.state).tier,
+        tierAfter: outcome.state.tier,
+        repeat,
+        cappedByTier: outcome.cappedByTier,
       };
       const attempt: AttemptRecord = {
         attemptId: this.deps.newId(),
@@ -317,6 +336,7 @@ function toSkillProgress(record: MasteryRecord): SkillProgress {
   return {
     skillId: record.skillId,
     score: state.score,
+    tier: migrateState(state).tier,
     mastered: state.mastered,
     attempts: state.attempts,
     ...(record.lastPracticedAt ? { lastPracticedAt: record.lastPracticedAt } : {}),
@@ -334,5 +354,20 @@ function toAttemptSummary(a: AttemptRecord): AttemptSummary {
     scoreAfter: a.scoreAfter,
     xpAwarded: a.xpAwarded,
     answeredAt: a.answeredAt,
+  };
+}
+
+/** Why a resumed (still unanswered) question was served, from the history. */
+function resumedSelection(
+  questionId: string,
+  history: readonly HistoryEntry[],
+): NextQuestionResponse['selection'] {
+  const index = history.findIndex((a) => a.questionId === questionId);
+  if (index === -1) return { reason: 'new' };
+  if (history[index]?.result !== 'correct' && index >= REVIEW_AFTER - 1)
+    return { reason: 'review', note: 'Review: you missed this question earlier.' };
+  return {
+    reason: 'repeat',
+    note: "You have answered this question before. Repeats earn reduced credit and don't count toward mastery.",
   };
 }

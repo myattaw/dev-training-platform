@@ -70,6 +70,18 @@ void codeRunner.check().then((status) => {
   }
 });
 
+const store = new FileProgressStore(resolve(args.data));
+/** Try Pro features locally: PRACSTACK_LOCAL_PLAN=pro (or admin). Never used on AWS. */
+const localPlan = process.env['PRACSTACK_LOCAL_PLAN'];
+if (
+  localPlan !== undefined &&
+  localPlan !== 'pro' &&
+  localPlan !== 'admin' &&
+  localPlan !== 'free'
+) {
+  throw new Error('PRACSTACK_LOCAL_PLAN must be free, pro or admin.');
+}
+
 const api = createApi({
   sqlEngine,
   ...(oracleEngine ? { sqlEngines: { oracle: oracleEngine } } : {}),
@@ -77,7 +89,9 @@ const api = createApi({
   auth: new LocalDevAuthenticator(),
   allowLocalDevUser: true,
   content: loadContentSource(resolve(args.content)),
-  store: new FileProgressStore(resolve(args.data)),
+  store,
+  accounts: store.accounts,
+  ...(localPlan && localPlan !== 'free' ? { localPlanOverride: localPlan } : {}),
   rateLimiter: new SlidingWindowRateLimiter(Number(args['requests-per-minute']), 60_000),
   sqlRateLimiter: new SlidingWindowRateLimiter(Number(args['sql-per-minute']), 60_000),
   codeRateLimiter: new SlidingWindowRateLimiter(Number(args['code-per-minute']), 60_000),

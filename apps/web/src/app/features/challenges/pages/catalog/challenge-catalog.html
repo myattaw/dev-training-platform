@@ -96,3 +96,43 @@
     </app-empty-state>
   }
 </app-panel>
+
+@if (catalog.planned().length > 0) {
+  <app-panel
+    heading="Coming soon"
+    headingId="planned-heading"
+    [counter]="catalog.planned().length"
+    [flush]="true"
+  >
+    <div class="table-scroll">
+      <table class="table" aria-labelledby="planned-heading">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Category</th>
+            <th scope="col">Difficulty</th>
+            <th scope="col">Availability</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of catalog.planned(); track p.id) {
+            <tr class="planned">
+              <td class="name">
+                <a [routerLink]="[p.id]">{{ p.title }}</a>
+                <span class="summary text-secondary">{{ p.summary }}</span>
+              </td>
+              <td>{{ categoryLabels[p.category] }}</td>
+              <td><app-difficulty-badge [difficulty]="p.difficulty" /></td>
+              <td class="availability">
+                <app-badge color="grey">Coming soon</app-badge>
+                @if (p.access === 'pro') {
+                  <app-badge color="blue">Pro</app-badge>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-panel>
+}

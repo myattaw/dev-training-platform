@@ -26,9 +26,18 @@ export interface Skill {
   readonly topicId: string;
   readonly name: string;
   readonly description: string;
+  /**
+   * Skills (earlier in the same track) worth practising first. Advisory: the
+   * catalog recommends skills whose prerequisites are under way, but nothing is
+   * locked.
+   */
+  readonly prerequisites?: readonly string[];
 }
 
-/** 1 (introductory) to 5 (expert). Drives question selection by mastery band. */
+/**
+ * 1 (Beginner) to 5 (Expert); the tier names are in @pracstack/scoring
+ * (DIFFICULTY_TIERS). A learner's current tier decides which difficulty is served.
+ */
 export type QuestionDifficulty = 1 | 2 | 3 | 4 | 5;
 
 export const QUESTION_DIFFICULTIES: readonly QuestionDifficulty[] = [1, 2, 3, 4, 5];
@@ -46,6 +55,12 @@ interface QuestionBase {
   readonly id: string;
   readonly version: number;
   readonly skillId: string;
+  /**
+   * The question family: one concept, possibly with several variants (different
+   * datasets, values or edge cases). Selection prefers unseen families. Questions
+   * written on their own form a family of one, with their own id.
+   */
+  readonly familyId: string;
   readonly difficulty: QuestionDifficulty;
   readonly prompt: readonly InstructionBlock[];
 }
@@ -142,22 +157,48 @@ export interface QuestionGrading {
 
 /* ---------- Authoring shapes (what a content author writes) ---------- */
 
-type Authored<Q extends Question, A extends QuestionAnswer> = Omit<Q, 'skillId'> & {
-  readonly answer: Omit<A, 'format'>;
-  readonly hints: readonly string[];
-  readonly explanation: readonly InstructionBlock[];
-};
+/** Set by family helpers; questions written on their own are a family of one. */
+interface FamilyMember {
+  readonly family?: string;
+}
+
+type Authored<Q extends Question, A extends QuestionAnswer> = Omit<Q, 'skillId' | 'familyId'> &
+  FamilyMember & {
+    readonly answer: Omit<A, 'format'>;
+    readonly hints: readonly string[];
+    readonly explanation: readonly InstructionBlock[];
+  };
+
+/**
+ * Build-time validation of a multiple-choice answer key with the TypeScript
+ * compiler (strict). Never published.
+ * - `compiles`: options are `yes` / `no`; the key must match whether `code` compiles.
+ * - `options-compile`: every option is a declaration; the correct options must be
+ *   exactly those that compile (after `prelude`).
+ * - `type-equals`: every option is a type; the correct options must be exactly
+ *   those identical to the type of `expression` (after `prelude`).
+ */
+export type TypeScriptKeyCheck =
+  | { readonly kind: 'compiles' }
+  | { readonly kind: 'options-compile'; readonly prelude?: string }
+  | { readonly kind: 'type-equals'; readonly prelude: string; readonly expression: string };
 
 /** SQL questions reference a shared practice database instead of repeating it. */
-export type SqlQuestionSource = Omit<SqlQueryQuestion, 'skillId' | 'schema' | 'sampleTables'> & {
-  readonly database: SqlDatabase;
-  readonly answer: { readonly referenceQuery: string; readonly checkColumnNames?: boolean };
-  readonly hints: readonly string[];
-  readonly explanation: readonly InstructionBlock[];
-};
+export type SqlQuestionSource = Omit<
+  SqlQueryQuestion,
+  'skillId' | 'familyId' | 'schema' | 'sampleTables'
+> &
+  FamilyMember & {
+    readonly database: SqlDatabase;
+    readonly answer: { readonly referenceQuery: string; readonly checkColumnNames?: boolean };
+    readonly hints: readonly string[];
+    readonly explanation: readonly InstructionBlock[];
+  };
 
 export type QuestionSource =
-  | Authored<MultipleChoiceQuestion, Extract<QuestionAnswer, { format: 'multiple-choice' }>>
+  | (Authored<MultipleChoiceQuestion, Extract<QuestionAnswer, { format: 'multiple-choice' }>> & {
+      readonly typeCheck?: TypeScriptKeyCheck;
+    })
   | Authored<PredictOutputQuestion, Extract<QuestionAnswer, { format: 'predict-output' }>>
   | Authored<FillInBlankQuestion, Extract<QuestionAnswer, { format: 'fill-in-blank' }>>
   | SqlQuestionSource;

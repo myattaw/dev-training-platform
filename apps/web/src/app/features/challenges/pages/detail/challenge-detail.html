@@ -86,6 +86,8 @@
       </app-panel>
     </div>
   </div>
+} @else if (planned.state().status === 'ready' && plannedChallenge(); as p) {
+  <app-coming-soon-challenge [challenge]="p" />
 } @else {
   <app-not-found
     heading="Challenge not found"

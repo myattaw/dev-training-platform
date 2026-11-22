@@ -1,0 +1,116 @@
+@let state = data.state();
+<app-page-header
+  heading="Timed practice"
+  [breadcrumbs]="breadcrumbs()"
+  description="Solve a recommended PracStack challenge against the clock, as in a coding interview."
+/>
+
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading practice options…" />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="Timed practice could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="data.reload()">Try again</button>
+  </app-alert>
+} @else {
+  @if (state.value.active.length > 0) {
+    <app-panel heading="In progress">
+      <ul class="active">
+        @for (s of state.value.active; track s.id) {
+          <li>
+            <span
+              ><strong>{{ s.challengeTitle }}</strong> · {{ s.durationMinutes }} minutes ·
+              {{ languageLabels[s.language] }}</span
+            >
+            <a class="btn btn--sm btn--primary" [routerLink]="[s.id]">Resume</a>
+          </li>
+        }
+      </ul>
+    </app-panel>
+  }
+
+  @if (state.value.options.length === 0) {
+    <app-empty-state
+      heading="Nothing to practise yet"
+      message="PracStack has no available challenge recommended for this company yet."
+    >
+      <a class="btn" [routerLink]="['/companies', slug()]">Back to the company</a>
+    </app-empty-state>
+  } @else {
+    <app-panel heading="New session">
+      <form class="setup" (submit)="$event.preventDefault(); start()">
+        <fieldset>
+          <legend>Challenge</legend>
+          @for (o of state.value.options; track o.rec.challengeId) {
+            <label class="choice" [class.selected]="challengeId() === o.rec.challengeId">
+              <input
+                type="radio"
+                name="challenge"
+                [value]="o.rec.challengeId"
+                [checked]="challengeId() === o.rec.challengeId"
+                (change)="selectChallenge(o.rec.challengeId)"
+              />
+              <span class="choice-body">
+                <span class="choice-title">
+                  {{ o.rec.title }} <app-difficulty-badge [difficulty]="o.rec.difficulty" />
+                </span>
+                <span class="text-secondary">{{ o.rec.summary }}</span>
+              </span>
+            </label>
+          }
+        </fieldset>
+
+        <fieldset>
+          <legend>Duration</legend>
+          <div class="durations">
+            @for (d of durations; track d) {
+              <label class="pill" [class.selected]="duration() === d">
+                <input
+                  type="radio"
+                  name="duration"
+                  [value]="d"
+                  [checked]="duration() === d"
+                  (change)="selectDuration(d)"
+                />
+                {{ d }} minutes
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <label class="language">
+          <span class="field-label">Language</span>
+          <select class="select" (change)="selectLanguage($event)">
+            @for (l of selectedOption()?.languages ?? []; track l) {
+              <option [value]="l" [selected]="language() === l">{{ languageLabels[l] }}</option>
+            }
+          </select>
+        </label>
+
+        <div class="notes text-secondary">
+          <p>
+            The PracStack server sets the deadline when you start. Leaving or reloading the page
+            does not pause the clock, and you can resume until time runs out.
+          </p>
+          <p>
+            Run the visible tests as often as you like. Submissions are graded on PracStack's server
+            against hidden tests too. This is practice: it is not an official assessment by any
+            company.
+          </p>
+        </div>
+
+        @if (error(); as err) {
+          <app-alert type="error">{{ err }}</app-alert>
+        }
+
+        <div class="buttons">
+          <button type="submit" class="btn btn--primary" [disabled]="starting() || !language()">
+            {{ starting() ? 'Starting…' : 'Start ' + duration() + '-minute session' }}
+          </button>
+          <a class="btn" [routerLink]="['/companies', slug()]">Cancel</a>
+        </div>
+      </form>
+    </app-panel>
+  }
+  <app-not-affiliated />
+}

@@ -1,0 +1,201 @@
+<app-page-header heading="Account" description="Your profile, plan and saved progress." />
+
+@if (auth.status() === 'local') {
+  <app-alert type="info" heading="Local mode">
+    You are using the local development API: everyone is the same "Local developer" user and there
+    is no sign-in. Progress is stored in <code>.local/progress.json</code> on this computer.
+  </app-alert>
+}
+
+<app-panel heading="Profile">
+  @let me = session.me();
+  @if (!me) {
+    <app-loading-state label="Loading your profile…" />
+  } @else {
+    <form class="profile" (submit)="$event.preventDefault(); saveName()">
+      <label class="field">
+        <span class="field-label">Display name</span>
+        <input
+          class="input"
+          type="text"
+          autocomplete="nickname"
+          required
+          [maxLength]="maxName"
+          [value]="name()"
+          (input)="name.set($any($event.target).value)"
+        />
+      </label>
+      <button type="submit" class="btn" [disabled]="savingName() || name().trim() === ''">
+        {{ savingName() ? 'Saving…' : 'Save' }}
+      </button>
+      @if (nameMessage(); as m) {
+        <span [class]="m.ok ? 'ok' : 'error'" role="status">{{ m.text }}</span>
+      }
+    </form>
+    <dl class="kv-list">
+      <dt>Total XP</dt>
+      <dd>{{ me.xp }}</dd>
+      <dt>Signed in</dt>
+      <dd>{{ auth.status() === 'local' ? 'Local developer (no sign-in)' : 'Yes' }}</dd>
+    </dl>
+    @if (auth.status() === 'signed-in') {
+      <button type="button" class="btn" (click)="signOut()">Sign out</button>
+    }
+  }
+</app-panel>
+
+<app-panel heading="Plan">
+  @let ent = entitlements.state();
+  @if (ent.status === 'loading') {
+    <app-loading-state label="Loading your plan…" />
+  } @else if (ent.status === 'error') {
+    <app-alert type="error">{{ ent.error }}</app-alert>
+  } @else {
+    <p class="plan">
+      <strong>{{
+        ent.value.plan === 'free' ? 'Free' : ent.value.plan === 'pro' ? 'Pro' : 'Admin'
+      }}</strong>
+      @if (ent.value.source === 'local-override') {
+        <app-badge color="amber">Local override</app-badge>
+      }
+    </p>
+    @if (ent.value.plan === 'free') {
+      <p>
+        Free includes Skill Mastery, Coding Challenges, company search, reported questions,
+        recommended practice and timed sessions.
+      </p>
+      <div class="pro">
+        <p class="pro-heading">
+          <app-icon name="lock" /> PracStack Pro <app-badge color="grey">Coming soon</app-badge>
+        </p>
+        <ul>
+          @for (
+            f of [
+              'premium-recommendations',
+              'advanced-preparation-plans',
+              'advanced-mock-interviews',
+              'progress-analytics',
+            ];
+            track f
+          ) {
+            <li>{{ featureLabels[f] }}</li>
+          }
+        </ul>
+        <p class="text-secondary small">
+          Paid plans are not available yet. There is nothing to buy, and PracStack does not ask for
+          payment details.
+        </p>
+      </div>
+    } @else {
+      <ul>
+        @for (f of ent.value.features; track f) {
+          <li>{{ featureLabels[f] ?? f }}</li>
+        }
+      </ul>
+    }
+  }
+</app-panel>
+
+<app-panel heading="Sign-in methods">
+  @let ids = identities.state();
+  @if (ids.status === 'ready') {
+    <ul class="identities">
+      @for (i of ids.value.identities; track i.provider) {
+        <li>{{ i.provider }}</li>
+      } @empty {
+        <li class="text-secondary">
+          {{
+            auth.status() === 'local' ? 'None: local mode has no sign-in.' : 'None recorded yet.'
+          }}
+        </li>
+      }
+    </ul>
+  }
+  <p class="text-secondary small">
+    Continue with GitHub is not available yet. When it is, you will be able to add it here and keep
+    one account, with the same progress, whichever way you sign in. Accounts are never merged just
+    because they share an email address.
+  </p>
+</app-panel>
+
+<app-panel heading="Progress in this browser">
+  <p>
+    Before accounts, challenge drafts were saved only in this browser. Copy them into your account
+    to keep them across devices. They also stay in this browser.
+  </p>
+  <p class="text-secondary small">
+    Visible-test results from this browser are not imported: only submissions graded by PracStack's
+    server count as solved.
+  </p>
+  @if (localDrafts().length === 0) {
+    <p class="text-secondary">No drafts in this browser.</p>
+  } @else {
+    <p>
+      {{ localDrafts().length }} {{ localDrafts().length === 1 ? 'draft' : 'drafts' }} in this
+      browser:
+      @for (d of localDrafts(); track d.challengeId + d.language; let last = $last) {
+        {{ d.challengeId }} ({{ languageLabels[d.language] }}){{ last ? '' : ',' }}
+      }
+    </p>
+    <button type="button" class="btn btn--primary" [disabled]="importing()" (click)="importLocal()">
+      {{ importing() ? 'Importing…' : 'Import into my account' }}
+    </button>
+  }
+  @if (importError(); as err) {
+    <app-alert type="error">{{ err }}</app-alert>
+  }
+  @if (importResult(); as r) {
+    <div class="import-result" role="status">
+      <p>
+        Imported {{ r.imported }}, already in your account {{ r.unchanged }}, not imported
+        {{ r.conflicts.length }}.
+      </p>
+      @if (r.conflicts.length > 0) {
+        <ul class="conflicts">
+          @for (c of r.conflicts; track c.challengeId + c.language) {
+            <li>
+              <strong>{{ c.challengeId }}</strong> ({{ languageLabels[c.language] }}):
+              {{ c.reason }}
+              @if (c.reason.includes('draft')) {
+                <button
+                  type="button"
+                  class="btn btn--sm"
+                  [disabled]="importing()"
+                  (click)="replaceAccountDraft(c)"
+                >
+                  Replace the account draft with this browser's
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  }
+</app-panel>
+
+<app-panel heading="Drafts in your account">
+  @let p = progress.state();
+  @if (p.status === 'loading') {
+    <app-loading-state label="Loading…" />
+  } @else if (p.status === 'error') {
+    <app-alert type="error">{{ p.error }}</app-alert>
+  } @else if (p.value.drafts.length === 0) {
+    <p class="text-secondary">No drafts saved to your account.</p>
+  } @else {
+    <ul class="drafts">
+      @for (d of p.value.drafts; track d.challengeId + d.language) {
+        <li>
+          <a [routerLink]="['/challenges', d.challengeId]">{{ d.challengeId }}</a>
+          ({{ languageLabels[d.language] }}, {{ d.length }} characters)
+          <button type="button" class="btn btn--sm" (click)="restore(d.challengeId, d.language)">
+            Restore to this browser
+          </button>
+        </li>
+      }
+    </ul>
+    @if (restoreMessage(); as m) {
+      <p role="status">{{ m }}</p>
+    }
+  }
+</app-panel>
