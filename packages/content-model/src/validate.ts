@@ -185,6 +185,8 @@ export function validateTracks(tracks: readonly TrackSource[]): ValidationIssue[
     const trackPath = `track:${track.id}`;
     checkId(issues, trackPath, track.id);
     if (track.topics.length === 0) issues.error(trackPath, 'a track needs at least one topic');
+    // Prerequisites must come earlier in the same track, which also rules out cycles.
+    const earlierSkills = new Set<string>();
     for (const topic of track.topics) {
       const topicPath = `${trackPath}/${topic.id}`;
       checkId(issues, topicPath, topic.id);
@@ -205,6 +207,14 @@ export function validateTracks(tracks: readonly TrackSource[]): ValidationIssue[
         }
         for (const q of skill.questions) validateQuestion(issues, `${skillPath}/${q.id}`, q);
         validateFamilies(issues, skillPath, skill.questions);
+        for (const prerequisite of skill.prerequisites ?? []) {
+          if (!earlierSkills.has(prerequisite))
+            issues.error(
+              skillPath,
+              `prerequisite "${prerequisite}" must be a skill earlier in the same track`,
+            );
+        }
+        earlierSkills.add(skill.id);
       }
     }
   }

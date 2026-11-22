@@ -44,6 +44,45 @@ describe('TechnologyOverview', () => {
     expect(el.textContent).toContain('1 of 3 skills mastered');
   });
 
+  it('recommends where to continue and what to start next, with prerequisites and tiers', async () => {
+    const el = await setup(new FakeApiClient().on('GET /skill-mastery/progress', () => progress));
+    const squash = (node: Element | null | undefined) =>
+      node?.textContent?.replace(/\s+/g, ' ').trim();
+    const cards = [...el.querySelectorAll('.recommendation')].map((card) => ({
+      label: squash(card.querySelector('.rec-label')),
+      skill: squash(card.querySelector('.rec-skill')),
+      reason: squash(card.querySelector('.rec-reason')),
+      action: squash(card.querySelector('a.btn')),
+    }));
+    expect(cards).toEqual([
+      {
+        label: 'Continue where you left off',
+        skill: 'Union types · mastery 42 · Intermediate',
+        reason: undefined,
+        action: 'Continue Union types',
+      },
+      {
+        label: 'Recommended next',
+        skill: 'typeof narrowing',
+        reason: 'It builds on Union types; practising that first will help.',
+        action: 'Start typeof narrowing',
+      },
+    ]);
+    const rows = el.querySelectorAll('tbody tr');
+    expect(squash(rows[2]?.querySelector('.skill-meta'))).toBe(
+      '5 questions · Builds on Union types',
+    );
+    // The tier is shown for skills in progress, not for mastered or new ones.
+    expect(rows[1]?.querySelector('.tier-name')?.textContent?.trim()).toBe('Intermediate');
+    expect(rows[0]?.querySelector('.tier-name')).toBeNull();
+    expect(rows[2]?.querySelector('.tier-name')).toBeNull();
+  });
+
+  it('shows no recommendations when progress cannot be loaded', async () => {
+    const el = await setup(new FakeApiClient());
+    expect(el.querySelector('.recommendations')).toBeNull();
+  });
+
   it('still lists skills when progress cannot be loaded, with a warning', async () => {
     const el = await setup(new FakeApiClient());
     expect(el.querySelectorAll('tbody tr')).toHaveLength(3);

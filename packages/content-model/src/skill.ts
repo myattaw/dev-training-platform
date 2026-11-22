@@ -26,6 +26,12 @@ export interface Skill {
   readonly topicId: string;
   readonly name: string;
   readonly description: string;
+  /**
+   * Skills (earlier in the same track) worth practising first. Advisory: the
+   * catalog recommends skills whose prerequisites are under way, but nothing is
+   * locked.
+   */
+  readonly prerequisites?: readonly string[];
 }
 
 /**

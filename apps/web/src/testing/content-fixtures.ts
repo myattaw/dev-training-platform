@@ -66,6 +66,7 @@ export const FIXTURE_TRACK: TrackCatalog = {
       topicId: 'basics',
       name: 'Union types',
       description: 'Unions.',
+      prerequisites: ['primitives'],
       questionCount: 5,
     },
     {
@@ -73,6 +74,7 @@ export const FIXTURE_TRACK: TrackCatalog = {
       topicId: 'narrowing',
       name: 'typeof narrowing',
       description: 'typeof.',
+      prerequisites: ['unions'],
       questionCount: 5,
     },
   ],

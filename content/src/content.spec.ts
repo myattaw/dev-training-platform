@@ -49,6 +49,7 @@ describe('the real content', { timeout: 120_000 }, () => {
     ]);
     expect(manifest.technologies).toEqual([
       expect.objectContaining({ id: 'typescript', skillCount: 8 }),
+      expect.objectContaining({ id: 'angular', skillCount: 2 }),
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
     ]);
@@ -62,8 +63,8 @@ describe('the real content', { timeout: 120_000 }, () => {
     expect(warnings).toEqual([]);
   });
 
-  it('gives every TypeScript and PostgreSQL skill enough new questions to reach mastery without repeats', () => {
-    for (const track of TRACKS.filter((t) => t.id !== 'oracle-sql')) {
+  it('gives every skill enough new questions to reach mastery without repeats', () => {
+    for (const track of TRACKS) {
       for (const skill of track.topics.flatMap((t) => t.skills)) {
         const at = (d: number) => skill.questions.filter((q) => q.difficulty === d).length;
         // Two first-time correct answers promote, so every tier needs at least two questions;
@@ -190,5 +191,18 @@ describe('content checks catch broken content', { timeout: 120_000 }, () => {
     expect(errors.join('\n')).toContain(
       '`boolean`): answer key says this does not compile, but it does',
     );
+  });
+
+  it('checks Angular code against the real Angular types', async () => {
+    // Claim that setting a computed signal compiles: the Angular types say it does not.
+    const tracks = withQuestion('ng-signal-writes-checked-set-computed', (q) =>
+      q.format === 'multiple-choice' ? { ...q, answer: { correct: ['a'] } } : q,
+    );
+    const errors = errorsOf(await build({ tracks }));
+    expect(errors).toEqual([
+      expect.stringMatching(
+        /answer key says this compiles, but it does not: .*'set' does not exist/,
+      ),
+    ]);
   });
 });

@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { format } from 'node:util';
 import { runInNewContext } from 'node:vm';
 import {
@@ -40,6 +42,26 @@ const GLOBALS = `declare const console: {
   log(...data: unknown[]): void;
   error(...data: unknown[]): void;
 };`;
+
+/**
+ * Snippets that import Angular (`from '@angular/…'`) are compiled in a second
+ * program against the real Angular type definitions from node_modules, with
+ * the DOM library, as in an Angular app. They are type-checked only.
+ */
+const ANGULAR_IMPORT = /from\s+['"]@angular\//;
+const ANGULAR_OPTIONS: ts.CompilerOptions = {
+  ...COMPILER_OPTIONS,
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
+};
+/** A (virtual) folder inside the content package, so module resolution finds node_modules. */
+const ANGULAR_SNIPPET_DIR = join(
+  fileURLToPath(new URL('.', import.meta.url)),
+  '..',
+  '..',
+  '.snippets',
+);
 
 const RUN_TIMEOUT_MS = 1000;
 
@@ -86,6 +108,15 @@ export function checkTypeScriptSnippets(tracks: readonly TrackSource[]): Validat
         path: snippet.path,
         message: `does not compile: ${message}`,
       });
+    }
+    if (snippet.expectedOutput !== undefined && ANGULAR_IMPORT.test(snippet.source)) {
+      issues.push({
+        severity: 'error',
+        path: snippet.path,
+        message:
+          'predict-output code cannot import Angular: Angular snippets are type-checked only',
+      });
+      continue;
     }
     if (snippet.expectedOutput !== undefined && errors.length === 0) {
       const result = run(snippet.source);
@@ -191,10 +222,39 @@ export function sameType(): Equals<typeof ${expression}, Expected> {
 }
 
 function typeCheck(snippets: readonly Snippet[]): Map<string, string[]> {
-  const files = new Map<string, string>(snippets.map((s) => [s.fileName, s.source]));
-  files.set('/snippets/globals.d.ts', GLOBALS);
+  const angular = snippets.filter((s) => ANGULAR_IMPORT.test(s.source));
+  const plain = snippets.filter((s) => !ANGULAR_IMPORT.test(s.source));
+  const result = compile(
+    new Map(plain.map((s) => [s.fileName, s.source])).set('/snippets/globals.d.ts', GLOBALS),
+    COMPILER_OPTIONS,
+  );
+  if (angular.length > 0) {
+    // Real paths for resolution; diagnostics are reported under the snippet's own name.
+    // Forward slashes: the compiler asks the host for normalised paths, also on Windows.
+    const realName = (s: Snippet) =>
+      join(ANGULAR_SNIPPET_DIR, s.fileName.replace(/^\/snippets\//, '')).replace(/\\/g, '/');
+    const angularResult = compile(
+      new Map(angular.map((s) => [realName(s), s.source])),
+      ANGULAR_OPTIONS,
+    );
+    for (const s of angular) {
+      const errors = angularResult.get(realName(s));
+      if (errors) result.set(s.fileName, errors);
+    }
+    const global = angularResult.get('(global)');
+    if (global) throw new Error(`Angular snippet compiler setup is broken: ${global.join('; ')}`);
+  }
+  // Problems in the shared setup would affect every snippet; surface them loudly.
+  const global = [
+    ...(result.get('(global)') ?? []),
+    ...(result.get('/snippets/globals.d.ts') ?? []),
+  ];
+  if (global.length > 0) throw new Error(`Snippet compiler setup is broken: ${global.join('; ')}`);
+  return result;
+}
 
-  const host = ts.createCompilerHost(COMPILER_OPTIONS);
+function compile(files: Map<string, string>, options: ts.CompilerOptions): Map<string, string[]> {
+  const host = ts.createCompilerHost(options);
   const base = {
     getSourceFile: host.getSourceFile,
     fileExists: host.fileExists,
@@ -209,7 +269,7 @@ function typeCheck(snippets: readonly Snippet[]): Map<string, string[]> {
   host.fileExists = (fileName) => files.has(fileName) || base.fileExists(fileName);
   host.readFile = (fileName) => files.get(fileName) ?? base.readFile(fileName);
 
-  const program = ts.createProgram([...files.keys()], COMPILER_OPTIONS, host);
+  const program = ts.createProgram([...files.keys()], options, host);
   const result = new Map<string, string[]>();
   for (const diagnostic of ts.getPreEmitDiagnostics(program)) {
     const fileName = diagnostic.file?.fileName ?? '(global)';
@@ -222,12 +282,6 @@ function typeCheck(snippets: readonly Snippet[]): Map<string, string[]> {
     list.push(where ? `line ${where.line + 1}: ${message}` : message);
     result.set(fileName, list);
   }
-  // Problems in the shared setup would affect every snippet; surface them loudly.
-  const global = [
-    ...(result.get('(global)') ?? []),
-    ...(result.get('/snippets/globals.d.ts') ?? []),
-  ];
-  if (global.length > 0) throw new Error(`Snippet compiler setup is broken: ${global.join('; ')}`);
   return result;
 }
 

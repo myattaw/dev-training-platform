@@ -1,7 +1,13 @@
 import type { TrackSource } from '@pracstack/content-model';
+import { angularTrack } from './angular/track';
 import { oracleTrack } from './oracle/track';
 import { postgresqlTrack } from './postgresql/track';
 import { typescriptTrack } from './typescript/track';
 
-/** All Skill Mastery tracks. Angular is added in a later phase. */
-export const TRACKS: readonly TrackSource[] = [typescriptTrack, postgresqlTrack, oracleTrack];
+/** All Skill Mastery tracks, in catalog order. */
+export const TRACKS: readonly TrackSource[] = [
+  typescriptTrack,
+  angularTrack,
+  postgresqlTrack,
+  oracleTrack,
+];

@@ -233,6 +233,36 @@ describe('validateTracks', () => {
     );
   });
 
+  it('accepts prerequisites on earlier skills, and rejects unknown, later or self references', () => {
+    const t = track(three(mcq()));
+    const withSkills = (prerequisites: string[]): TrackSource => ({
+      ...t,
+      topics: [
+        {
+          ...t.topics[0]!,
+          skills: [
+            t.topics[0]!.skills[0]!,
+            {
+              id: 'narrowing',
+              name: 'Narrowing',
+              description: 'Narrowing.',
+              prerequisites,
+              questions: three(mcq({ id: 'q-two', prompt: [{ kind: 'paragraph', text: 'Two.' }] })),
+            },
+          ],
+        },
+      ],
+    });
+    expect(errors(validateTracks([withSkills(['unions'])]))).toEqual([]);
+    for (const bad of ['missing', 'narrowing'])
+      expect(errors(validateTracks([withSkills([bad])]))).toEqual([
+        `prerequisite "${bad}" must be a skill earlier in the same track`,
+      ]);
+    const { catalog } = splitTrack(withSkills(['unions']));
+    expect(catalog.skills[1]).toMatchObject({ id: 'narrowing', prerequisites: ['unions'] });
+    expect(catalog.skills[0]).not.toHaveProperty('prerequisites');
+  });
+
   it('rejects question ids reused across skills', () => {
     const t = track(three(mcq()));
     const twice: TrackSource = { ...t, topics: [...t.topics, { ...t.topics[0]!, id: 'other' }] };

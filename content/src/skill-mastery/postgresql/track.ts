@@ -33,6 +33,7 @@ export const postgresqlTrack: TrackSource = {
         },
         {
           id: 'pg-order-limit',
+          prerequisites: ['pg-select-where'],
           name: 'ORDER BY and LIMIT',
           description: 'Sort results, take the first rows, and page through them.',
           questions: [...orderLimitQuestions, ...orderLimitFamilies],
@@ -46,6 +47,7 @@ export const postgresqlTrack: TrackSource = {
       skills: [
         {
           id: 'pg-functions-case',
+          prerequisites: ['pg-select-where'],
           name: 'Functions, CASE and COALESCE',
           description:
             'Text, number and date functions; conditional values with CASE; NULL fallbacks with COALESCE.',
@@ -60,6 +62,7 @@ export const postgresqlTrack: TrackSource = {
       skills: [
         {
           id: 'pg-group-by',
+          prerequisites: ['pg-select-where'],
           name: 'GROUP BY and HAVING',
           description: 'Count, sum and average per group, and filter groups.',
           questions: [...groupByQuestions, ...groupByFamilies],
@@ -73,6 +76,7 @@ export const postgresqlTrack: TrackSource = {
       skills: [
         {
           id: 'pg-joins-basics',
+          prerequisites: ['pg-select-where'],
           name: 'Inner, left and self joins',
           description:
             'Match rows across tables, keep rows without a match, and find missing partners.',
@@ -87,6 +91,7 @@ export const postgresqlTrack: TrackSource = {
       skills: [
         {
           id: 'pg-subqueries-basics',
+          prerequisites: ['pg-group-by', 'pg-joins-basics'],
           name: 'Scalar, IN and EXISTS subqueries',
           description:
             'Compare with a computed value, test membership, and check for related rows, including the NOT IN trap.',

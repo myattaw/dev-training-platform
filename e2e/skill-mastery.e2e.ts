@@ -17,6 +17,9 @@ test.describe('Skill Mastery', () => {
     await expect(page).toHaveURL('/skills');
     await expect(page).toHaveTitle('Skill Mastery · PracStack');
 
+    // Every technology with working content is listed, including Angular.
+    for (const tech of ['TypeScript', 'Angular', 'PostgreSQL', 'Oracle SQL'])
+      await expect(page.getByRole('link', { name: `View ${tech} skills` })).toBeVisible();
     await page.getByRole('link', { name: 'View TypeScript skills' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'TypeScript' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Types and annotations' })).toBeVisible();
@@ -75,9 +78,11 @@ test.describe('Skill Mastery', () => {
 
     // The technology page and dashboard reflect the new score.
     await page.goto('/skills/typescript');
-    await expect(page.locator('tbody tr', { hasText: 'Primitive types' })).toContainText(
-      'In progress',
-    );
+    // The skill's own row (other rows link to it under "Builds on").
+    const primitivesRow = page
+      .locator('tbody tr')
+      .filter({ has: page.locator('td.name > a', { hasText: /^Primitive types$/ }) });
+    await expect(primitivesRow).toContainText('In progress');
     await page.goto('/');
     await expect(page.getByRole('list', { name: 'Skill Mastery' })).toContainText(
       'Primitive types',

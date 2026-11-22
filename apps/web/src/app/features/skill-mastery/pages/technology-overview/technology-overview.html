@@ -39,6 +39,42 @@
     </app-alert>
   }
 
+  @if (recommendations(); as rec) {
+    @if (rec.resume || rec.next) {
+      <section class="recommendations" aria-label="Where to go next">
+        @if (rec.resume; as skill) {
+          <div class="recommendation">
+            <p class="rec-label text-secondary">Continue where you left off</p>
+            <p class="rec-skill">
+              <a [routerLink]="[skill.id]">{{ skill.name }}</a>
+              <span class="text-secondary">
+                · mastery {{ scoreOf(skill.id) }} · {{ tierOf(skill.id) }}</span
+              >
+            </p>
+            <a class="btn btn--primary btn--sm" [routerLink]="[skill.id, 'practice']"
+              >Continue <span class="sr-only">{{ skill.name }}</span></a
+            >
+          </div>
+        }
+        @if (rec.next; as next) {
+          <div class="recommendation">
+            <p class="rec-label text-secondary">Recommended next</p>
+            <p class="rec-skill">
+              <a [routerLink]="[next.skill.id]">{{ next.skill.name }}</a>
+            </p>
+            <p class="rec-reason text-secondary">{{ next.reason }}</p>
+            <a
+              class="btn btn--sm"
+              [class.btn--primary]="!rec.resume"
+              [routerLink]="[next.skill.id, 'practice']"
+              >Start <span class="sr-only">{{ next.skill.name }}</span></a
+            >
+          </div>
+        }
+      </section>
+    }
+  }
+
   <div class="topics">
     @for (group of topics(); track group.topic.id) {
       <app-panel
@@ -65,6 +101,15 @@
                     <span class="skill-description text-secondary">
                       <app-inline-text [text]="row.skill.description" />
                     </span>
+                    <span class="skill-meta text-secondary">
+                      {{ row.skill.questionCount }} questions
+                      @if (row.buildsOn.length > 0) {
+                        · Builds on
+                        @for (pre of row.buildsOn; track pre.id; let last = $last) {
+                          <a [routerLink]="[pre.id]">{{ pre.name }}</a>{{ last ? '' : ', ' }}
+                        }
+                      }
+                    </span>
                   </td>
                   <td class="score-col">
                     <app-mastery-meter
@@ -72,7 +117,12 @@
                       [label]="row.skill.name + ' mastery'"
                     />
                   </td>
-                  <td><app-skill-status [progress]="row.progress" /></td>
+                  <td>
+                    <app-skill-status [progress]="row.progress" />
+                    @if (row.tierName && !row.progress?.mastered) {
+                      <span class="tier-name text-secondary">{{ row.tierName }}</span>
+                    }
+                  </td>
                   <td class="action">
                     <a class="btn btn--sm" [routerLink]="[row.skill.id, 'practice']">
                       {{ row.progress?.attempts ? 'Continue' : 'Practice' }}

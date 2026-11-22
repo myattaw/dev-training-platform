@@ -22,7 +22,7 @@ interface OutputVariant {
 }
 
 /** "What does this program print?" — compiled and executed at build time. */
-const outputFamily = (
+export const outputFamily = (
   id: string,
   difficulty: QuestionDifficulty,
   hints: readonly string[],
@@ -49,12 +49,17 @@ interface TypeVariant {
   readonly why: string;
 }
 
-/** "What type does TypeScript infer?" — the key is checked for exact type identity. */
-const typeFamily = (
+/**
+ * "What type does TypeScript infer?" — the key is checked for exact type identity.
+ * `checkImports` returns extra lines for the check only (never shown), e.g. type
+ * imports so the options' type names resolve.
+ */
+export const typeFamily = (
   id: string,
   difficulty: QuestionDifficulty,
   hint: string,
   variants: readonly TypeVariant[],
+  checkImports: (code: string) => string = () => '',
 ): QuestionSource[] =>
   family(id, variants, (v): FamilyQuestion => ({
     difficulty,
@@ -66,7 +71,11 @@ const typeFamily = (
       `\`${v.correct}\``,
       v.wrong.map((w) => `\`${w}\``),
     ),
-    typeCheck: { kind: 'type-equals', prelude: v.code, expression: v.expression },
+    typeCheck: {
+      kind: 'type-equals',
+      prelude: `${checkImports(v.code)}\n${v.code}`.trimStart(),
+      expression: v.expression,
+    },
     hints: [hint],
     explanation: text(v.why),
   }));
@@ -79,7 +88,7 @@ interface CompilesVariant {
 }
 
 /** "Does this compile with strict mode?" — the key is checked by compiling the code. */
-const compilesFamily = (
+export const compilesFamily = (
   id: string,
   difficulty: QuestionDifficulty,
   hint: string,
@@ -113,7 +122,7 @@ interface WhichCompileVariant {
 }
 
 /** "Which of these compile?" — the key is checked by compiling every option. */
-const whichCompileFamily = (
+export const whichCompileFamily = (
   id: string,
   difficulty: QuestionDifficulty,
   hint: string,
@@ -148,7 +157,7 @@ interface BlankVariant {
 }
 
 /** Fill in the blank — compiled with every accepted answer. */
-const blankFamily = (
+export const blankFamily = (
   id: string,
   difficulty: QuestionDifficulty,
   hint: string,
@@ -1411,7 +1420,7 @@ interface PlainChoice {
 }
 
 /** Concept questions (not code) with seeded option order. */
-function choiceFamilyFor(
+export function choiceFamilyFor(
   id: string,
   difficulty: QuestionDifficulty,
   hint: string,
