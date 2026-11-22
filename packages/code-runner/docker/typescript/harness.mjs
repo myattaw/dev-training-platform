@@ -12,6 +12,24 @@ const writeOut = process.stdout.write.bind(process.stdout);
 const exit = process.exit.bind(process);
 const stringify = JSON.stringify;
 
+// Learner code can write to stdout/stderr directly. Those writes are never
+// results (the result line goes through writeOut, saved above) and are capped
+// here, inside the sandbox. Node keeps writes the reader has not taken yet in
+// memory, so without this cap a flood read slowly by a busy host reached the
+// memory limit first and was reported as "too much memory". Must match
+// OUTPUT_LIMIT_EXIT_CODE in packages/code-runner/src/interpret.ts.
+const OUTPUT_LIMIT_EXIT_CODE = 3;
+const MAX_DIRECT_OUTPUT_BYTES = 256 * 1024;
+let directOutputBytes = 0;
+for (const stream of [process.stdout, process.stderr]) {
+  const write = stream.write.bind(stream);
+  stream.write = (chunk, ...rest) => {
+    directOutputBytes += typeof chunk === 'string' ? Buffer.byteLength(chunk) : (chunk?.length ?? 0);
+    if (directOutputBytes > MAX_DIRECT_OUTPUT_BYTES) exit(OUTPUT_LIMIT_EXIT_CODE);
+    return write(chunk, ...rest);
+  };
+}
+
 const input = JSON.parse(await readStdin());
 const nonce = input.nonce;
 const logs = [];

@@ -1,6 +1,6 @@
 import type { AnswerPayload } from '@pracstack/api-contracts';
-import { buildContent } from '@pracstack/content';
-import type { QuestionAnswer, SplitQuestion } from '@pracstack/content-model';
+import { buildContent, TRACKS } from '@pracstack/content';
+import { type QuestionAnswer, type SplitQuestion, splitTrack } from '@pracstack/content-model';
 import {
   ChildProcessSqlEngine,
   type OracleContainer,
@@ -34,7 +34,7 @@ const engine = new ChildProcessSqlEngine();
 const graders: Partial<Record<'postgresql' | 'oracle', SqlGrader>> = {
   postgresql: new SqlGrader(engine),
 };
-let questions: SplitQuestion[] = [];
+const questionsByFile = new Map<string, SplitQuestion[]>();
 let oracle: OracleContainer | undefined;
 const skipDocker = process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1';
 
@@ -50,17 +50,35 @@ beforeAll(async () => {
       ? { sqlEngines: { oracle: new OracleSqlEngine({ connection: oracle }) } }
       : {}),
   });
-  questions = [...build.privateFiles]
-    .filter(([path]) => path.endsWith('.questions.json'))
-    .flatMap(([, value]) => value as SplitQuestion[]);
+  for (const [path, value] of build.privateFiles)
+    if (path.endsWith('.questions.json')) questionsByFile.set(path, value as SplitQuestion[]);
 }, 400_000);
 afterAll(async () => {
   await engine.close();
 });
 
+/*
+ * One test per skill file rather than one for the whole bank: every Oracle
+ * query runs against a real Oracle, and grading everything inside a single
+ * 120 s test started timing out as the bank grew. Each file now has its own
+ * budget, and a failure names the skill.
+ */
+const SKILL_FILES = TRACKS.flatMap((track) =>
+  Object.keys(splitTrack(track).questionsBySkill).map(
+    (skillId) => `skill-mastery/${track.id}/${skillId}.questions.json`,
+  ),
+);
+
 describe('grading the real question bank', { timeout: 120_000 }, () => {
-  it('every question is graded correct when answered with its own key', async () => {
-    expect(questions.length).toBeGreaterThanOrEqual(70);
+  it('builds a question file for every skill, and nothing else', () => {
+    expect([...questionsByFile.keys()].sort()).toEqual([...SKILL_FILES].sort());
+    const total = [...questionsByFile.values()].reduce((n, qs) => n + qs.length, 0);
+    expect(total).toBeGreaterThanOrEqual(70);
+  });
+
+  it.each(SKILL_FILES)('%s: every question is graded correct with its own key', async (file) => {
+    const questions = questionsByFile.get(file) ?? [];
+    expect(questions.length).toBeGreaterThan(0);
     const failures: string[] = [];
     for (const q of questions) {
       if (q.question.format === 'sql-query' && !graders[q.question.dialect]) continue;

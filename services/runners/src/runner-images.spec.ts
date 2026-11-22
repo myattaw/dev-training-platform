@@ -261,9 +261,10 @@ describe.skipIf(skip)('TypeScript runner function', { timeout: 60_000 }, () => {
     );
     expect(res.body).toMatchObject({
       kind: 'resource-limit',
-      // A synchronous write loop buffers output in its own memory until it yields, so
-      // the memory cap can fire before 1 MB reaches the supervisor. Either stops it.
-      message: expect.stringMatching(/too much (output|memory)/),
+      // A write loop queues output in its own memory faster than the supervisor reads
+      // it; the harness caps direct writes inside the sandbox, so this is always
+      // reported as output, never as the memory limit it would otherwise reach first.
+      message: expect.stringContaining('too much output'),
     });
   });
 

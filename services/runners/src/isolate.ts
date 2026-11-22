@@ -68,6 +68,10 @@ function execute(run: IsolatedRun, dir: string): Promise<IsolatedResult> {
     `--nproc=${limits.maxProcesses}`,
     `--nofile=${limits.maxOpenFiles}`,
     `--fsize=${limits.maxFileBytes}`,
+    // No core dumps of learner programs (they hold code and hidden-test inputs).
+    // 1, not 0: Linux ignores 0 when core_pattern pipes to a collector, but skips
+    // piped dumps at exactly 1, and 1 byte is below the minimum for a core file.
+    '--core=1',
     '--',
     run.command,
     ...run.args.map((a) => a.replaceAll('{dir}', dir)),

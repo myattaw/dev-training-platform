@@ -138,8 +138,10 @@ describe.skipIf(skip)('TypeScript runner isolation', { timeout: 60_000 }, () => 
   });
 
   it('stops memory bombs', async () => {
+    // Real allocations: "x".repeat(n) is a shared rope in V8, so pushing those
+    // grew the heap by only bytes per iteration and hit the limit after seconds of GC.
     const result = await attempt(
-      'const a: string[] = []; while (true) a.push("x".repeat(1_000_000) + a.length);',
+      'const a: number[][] = []; while (true) a.push(new Array<number>(1_000_000).fill(a.length));',
     );
     expect(result).toMatchObject({
       kind: 'resource-limit',

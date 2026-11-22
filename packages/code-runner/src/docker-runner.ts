@@ -156,6 +156,13 @@ export class DockerCodeRunner implements CodeRunner {
       'nofile=256:256',
       '--ulimit',
       'fsize=16777216',
+      // No core dumps: a crashing program (e.g. at the heap limit) would otherwise
+      // hand its memory, including hidden-test inputs, to the host's crash
+      // collector (systemd-coredump, apport, WSL), and that took ~10 s per crash.
+      // 1, not 0: Linux ignores 0 when core_pattern is a pipe, but skips piped
+      // dumps at exactly 1, and 1 byte is below the minimum size of a core file.
+      '--ulimit',
+      'core=1:1',
       RUNNER_IMAGES[request.language],
     ];
 
