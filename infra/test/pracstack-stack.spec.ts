@@ -8,7 +8,10 @@ import { appContentSecurityPolicy, workerContentSecurityPolicy } from '@pracstac
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   API_THROTTLE,
+  normalizeAllowlist,
   PracStackStack,
+  type PracStackProps,
+  SIGN_UP_GATE_SOURCE,
   SPA_REWRITE_SOURCE,
   webConfig,
 } from '../lib/pracstack-stack';
@@ -36,7 +39,7 @@ function fakeAssets() {
   };
 }
 
-function synth(withNag = false) {
+function synth(withNag = false, extra: Partial<PracStackProps> = {}) {
   const app = new App();
   const stack = new PracStackStack(app, 'PracStack-test', {
     env: { account: ACCOUNT, region: REGION },
@@ -45,6 +48,7 @@ function synth(withNag = false) {
     monthlyBudgetUsd: 10,
     retainData: false,
     assets: fakeAssets(),
+    ...extra,
   });
   if (withNag) Validations.of(app).addPlugins(new AwsSolutionsChecks(app));
   return { app, template: Template.fromStack(stack) };
@@ -501,5 +505,98 @@ describe('web hosting', () => {
     expect(markers.match(/"Ref":"[^"]+"/g)).toEqual([
       expect.stringMatching(/^"Ref":"UserPoolWebClient/),
     ]);
+  });
+});
+
+describe('private staging options', () => {
+  /** Runs the inline pre-sign-up trigger the way Lambda would (CommonJS). */
+  const gate = (allowlist: string[]) => {
+    const module = { exports: {} as { handler?: (event: unknown) => Promise<unknown> } };
+    new Function('exports', 'process', SIGN_UP_GATE_SOURCE)(module.exports, {
+      env: { ALLOWLIST: JSON.stringify(normalizeAllowlist(allowlist)) },
+    });
+    const handler = module.exports.handler;
+    if (!handler) throw new Error('no handler');
+    return (email: string, triggerSource = 'PreSignUp_SignUp') =>
+      handler({ triggerSource, request: { userAttributes: { email } } });
+  };
+
+  it('leaves sign-up open and creates no trigger by default', () => {
+    expect(JSON.stringify(template.findResources('AWS::Cognito::UserPool'))).not.toContain(
+      'PreSignUp',
+    );
+    template.hasOutput('SignUp', { Value: 'open to anyone' });
+  });
+
+  it('gates self sign-up with an allowlist trigger that has no permissions beyond its logs', () => {
+    const { template: t } = synth(false, { signUpAllowlist: ['Ada@Example.com', '@team.dev'] });
+    t.hasResourceProperties('AWS::Cognito::UserPool', {
+      LambdaConfig: { PreSignUp: Match.anyValue() },
+    });
+    t.hasResourceProperties('AWS::Lambda::Function', {
+      Environment: { Variables: { ALLOWLIST: JSON.stringify(['@team.dev', 'ada@example.com']) } },
+    });
+    t.hasOutput('SignUp', { Value: 'allowlist (invite-only)' });
+    const gateRole = Object.entries(t.findResources('AWS::IAM::Policy')).filter(([id]) =>
+      id.startsWith('SignUpGateRole'),
+    );
+    const actions = JSON.stringify(gateRole.map(([, p]) => (p as Json).Properties.PolicyDocument));
+    expect(gateRole).toHaveLength(1);
+    expect(actions).toMatch(/logs:PutLogEvents/);
+    expect(actions).not.toMatch(/dynamodb|lambda:Invoke|cognito-idp|"\*"/);
+  });
+
+  it('passes the AWS Solutions checks with the allowlist enabled', () => {
+    const { app } = synth(true, { signUpAllowlist: ['@example.com'] });
+    expect(() => app.synth()).not.toThrow();
+  });
+
+  it('allows only allowlisted emails or domains, case-insensitively', async () => {
+    const check = gate(['ada@example.com', '@team.dev']);
+    await expect(check('ada@example.com')).resolves.toBeTruthy();
+    await expect(check('  ADA@Example.COM ')).resolves.toBeTruthy();
+    await expect(check('grace@team.dev')).resolves.toBeTruthy();
+    for (const email of [
+      'eve@example.com',
+      'eve@evilteam.dev',
+      'eve@team.dev.evil.com',
+      '',
+      '@team.dev',
+    ])
+      await expect(check(email), email).rejects.toThrow(/invite-only/);
+    // Accounts an administrator creates are always allowed.
+    await expect(check('anyone@else.org', 'PreSignUp_AdminCreateUser')).resolves.toBeTruthy();
+  });
+
+  it('rejects malformed allowlist entries instead of silently ignoring them', () => {
+    expect(normalizeAllowlist([' Ada@Example.com ', '', '@team.dev', '@team.dev'])).toEqual([
+      '@team.dev',
+      'ada@example.com',
+    ]);
+    for (const bad of ['example.com', 'ada@', '@', 'a b@example.com', 'x@localhost'])
+      expect(() => normalizeAllowlist([bad]), bad).toThrow(/Invalid sign-up allowlist entry/);
+  });
+
+  it('reserves runner concurrency only when asked (the default fits a new account)', () => {
+    for (const f of resourcesOf('AWS::Lambda::Function'))
+      expect(f.Properties.ReservedConcurrentExecutions).toBeUndefined();
+    const { template: t } = synth(false, { runnerConcurrency: 3 });
+    const fns = Object.values(t.findResources('AWS::Lambda::Function')) as Resource[];
+    const reserved = fns.filter((f) => f.Properties.ReservedConcurrentExecutions === 3);
+    expect(reserved).toHaveLength(3);
+    expect(reserved.every((f) => f.Properties.PackageType === 'Image')).toBe(true);
+  });
+
+  it('outputs what the manual kill switch and smoke tests need', () => {
+    for (const name of [
+      'SiteUrl',
+      'SignInDomain',
+      'UserPoolId',
+      'UserPoolClientId',
+      'DistributionId',
+      'ApiFunctionRoleName',
+      'StopRunnersPolicyArn',
+    ])
+      template.hasOutput(name, {});
   });
 });

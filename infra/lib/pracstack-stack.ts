@@ -73,6 +73,20 @@ export interface PracStackProps extends StackProps {
    * When false (default for dev), `cdk destroy` removes everything, including data.
    */
   readonly retainData: boolean;
+  /**
+   * Private beta: only these may create an account. Entries are full email
+   * addresses (`ada@example.com`) or whole domains (`@example.com`). Empty or
+   * absent: anyone can sign up. Enforced by a Cognito pre-sign-up trigger;
+   * accounts created by an administrator (`admin-create-user`) are always allowed.
+   */
+  readonly signUpAllowlist?: readonly string[];
+  /**
+   * Reserved concurrency for EACH runner function: at most this many runs of
+   * that language at once, and never more than this taken from the API's share.
+   * Absent: no reservation (required while the account's Lambda concurrency
+   * quota is the new-account 10, because AWS keeps 10 unreserved at all times).
+   */
+  readonly runnerConcurrency?: number;
 }
 
 /** Overall request rate for the API (all users together). A cost ceiling, not a per-user limit. */
@@ -145,6 +159,7 @@ export class PracStackStack extends Stack {
       groupName: 'admins',
       description: 'PracStack administrators (ADMIN plan).',
     });
+    const signUpGate = this.signUpAllowlistTrigger(userPool, props.signUpAllowlist ?? []);
     const domainPrefix = `pracstack-${props.stage}-${stableSuffix(this.account, this.region)}`;
     const domain = userPool.addDomain('Domain', {
       cognitoDomain: { domainPrefix },
@@ -320,6 +335,9 @@ export class PracStackStack extends Stack {
         architecture: lambda.Architecture.X86_64,
         memorySize: RUNNER_SIZES[name].memoryMb,
         timeout: Duration.seconds(RUNNER_SIZES[name].timeoutS),
+        ...(props.runnerConcurrency !== undefined
+          ? { reservedConcurrentExecutions: props.runnerConcurrency }
+          : {}),
         role,
         logGroup: runnerLogs,
         vpc: runnerVpc,
@@ -547,6 +565,14 @@ export class PracStackStack extends Stack {
     new CfnOutput(this, 'SignInDomain', { value: cognitoOrigin });
     new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new CfnOutput(this, 'TableName', { value: table.tableName });
+    new CfnOutput(this, 'UserPoolClientId', { value: client.userPoolClientId });
+    new CfnOutput(this, 'DistributionId', { value: distribution.distributionId });
+    // The manual kill switch: attach this policy to this role to stop all runners at once.
+    new CfnOutput(this, 'ApiFunctionRoleName', { value: functionRole.roleName });
+    new CfnOutput(this, 'StopRunnersPolicyArn', { value: stopRunners.managedPolicyArn });
+    new CfnOutput(this, 'SignUp', {
+      value: signUpGate ? 'allowlist (invite-only)' : 'open to anyone',
+    });
     for (const [name, runner] of Object.entries(runners))
       new CfnOutput(this, `${name[0]?.toUpperCase()}${name.slice(1)}RunnerName`, {
         value: runner.functionName,
@@ -560,7 +586,44 @@ export class PracStackStack extends Stack {
       userPool,
       apiFunction,
       runners,
+      signUpGate,
     });
+  }
+
+  /**
+   * Private-beta sign-up gate: a Cognito pre-sign-up trigger that refuses
+   * self sign-up unless the email (or its domain) is on the allowlist.
+   * Returns undefined, and creates nothing, when the allowlist is empty.
+   */
+  private signUpAllowlistTrigger(
+    userPool: cognito.UserPool,
+    allowlist: readonly string[],
+  ): lambda.Function | undefined {
+    const entries = normalizeAllowlist(allowlist);
+    if (entries.length === 0) return undefined;
+    const logGroup = new logs.LogGroup(this, 'SignUpGateLogs', {
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const role = new iam.Role(this, 'SignUpGateRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      description: 'PracStack sign-up allowlist trigger: its own log group only.',
+    });
+    logGroup.grantWrite(role);
+    const fn = new lambda.Function(this, 'SignUpGate', {
+      description: 'PracStack: allows self sign-up only for allowlisted emails or domains.',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(SIGN_UP_GATE_SOURCE),
+      memorySize: 128,
+      timeout: Duration.seconds(5),
+      role,
+      logGroup,
+      environment: { ALLOWLIST: JSON.stringify(entries) },
+    });
+    userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, fn);
+    return fn;
   }
 
   private securityHeaders(id: string, csp: string): cloudfront.ResponseHeadersPolicy {
@@ -605,6 +668,7 @@ export class PracStackStack extends Stack {
     userPool: cognito.UserPool;
     apiFunction: lambda.Function;
     runners: Record<RunnerName, lambda.DockerImageFunction>;
+    signUpGate: lambda.Function | undefined;
   }): void {
     const ack = (scope: Construct, findings: Record<string, string>) => {
       for (const [id, reason] of Object.entries(findings))
@@ -631,6 +695,10 @@ export class PracStackStack extends Stack {
     ack(r.apiFunction, {
       L1: 'Node.js 22 (supported by Lambda until 2027) is the version the API bundle is built for and tested on.',
     });
+    if (r.signUpGate)
+      ack(r.signUpGate, {
+        L1: 'Node.js 22 (supported by Lambda until 2027), the same runtime as the API function.',
+      });
     for (const runner of Object.values(r.runners)) {
       if (!runner.role) continue;
       ack(runner.role, {
@@ -672,6 +740,39 @@ export class PracStackStack extends Stack {
 export function webConfig(cognitoOrigin: string, clientId: string) {
   return { auth: { mode: 'cognito', domain: cognitoOrigin, clientId } } as const;
 }
+
+/**
+ * Validates and normalizes sign-up allowlist entries: lower-case full emails
+ * (`ada@example.com`) or domains (`@example.com`). Throws on anything else, so
+ * a typo cannot silently open or close sign-up.
+ */
+export function normalizeAllowlist(entries: readonly string[]): string[] {
+  const out = new Set<string>();
+  for (const raw of entries) {
+    const entry = raw.trim().toLowerCase();
+    if (entry === '') continue;
+    if (!/^[^@\s,]*@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(entry))
+      throw new Error(
+        `Invalid sign-up allowlist entry "${raw}": use ada@example.com or @example.com.`,
+      );
+    out.add(entry);
+  }
+  return [...out].sort();
+}
+
+/**
+ * Cognito pre-sign-up trigger (Node.js, CommonJS inline). Administrator-created
+ * accounts pass; self sign-up passes only for an allowlisted email or domain.
+ * The error message is shown on the sign-up page.
+ */
+export const SIGN_UP_GATE_SOURCE = `const allow = new Set(JSON.parse(process.env.ALLOWLIST || '[]'));
+exports.handler = async (event) => {
+  if (event.triggerSource === 'PreSignUp_AdminCreateUser') return event;
+  const email = String((event.request && event.request.userAttributes && event.request.userAttributes.email) || '').trim().toLowerCase();
+  const at = email.lastIndexOf('@');
+  if (at > 0 && (allow.has(email) || allow.has(email.slice(at)))) return event;
+  throw new Error('PracStack is invite-only for now. Ask for an invitation.');
+};`;
 
 /** A short, stable, non-reversible suffix that makes the sign-in domain globally unique. */
 function stableSuffix(account: string, region: string): string {

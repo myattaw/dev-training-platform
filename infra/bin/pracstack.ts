@@ -4,10 +4,17 @@
  *   npm run deploy:prepare                                   # build and stage assets
  *   npx cdk synth  -c alertEmail=you@example.com             # (in infra/) templates only
  *   npx cdk deploy -c alertEmail=you@example.com             # creates resources (costs!)
- *   npx cdk destroy                                          # removes them
+ *   npx cdk destroy -c alertEmail=you@example.com            # removes them
  *
- * Context: stage (default "dev"), alertEmail (required), budgetUsd (default 10),
- * retainData (default false: destroy removes users and progress too).
+ * Context (-c key=value):
+ *   stage              resource-name part and stack name `PracStack-<stage>` (default "dev")
+ *   alertEmail         budget and alarm emails (required)
+ *   budgetUsd          monthly budget; the runner kill switch fires above it (default 10)
+ *   retainData         "true": keep users and progress on destroy (default false)
+ *   signUpAllowlist    comma-separated emails or @domains allowed to sign up (default: anyone)
+ *   runnerConcurrency  reserved concurrency per runner (default none; needs a raised quota)
+ *
+ * See docs/staging-launch.md.
  */
 import { join } from 'node:path';
 import { App, Tags, Validations } from 'aws-cdk-lib';
@@ -16,11 +23,30 @@ import { PracStackStack } from '../lib/pracstack-stack';
 import { BUILD_DIR } from '../scripts/prepare-assets';
 
 const app = new App();
-const stage = String(app.node.tryGetContext('stage') ?? 'dev');
-const alertEmail = app.node.tryGetContext('alertEmail') as string | undefined;
+const context = (key: string): string | undefined => {
+  const value: unknown = app.node.tryGetContext(key);
+  return value === undefined || value === null || value === '' ? undefined : String(value);
+};
+
+const stage = context('stage') ?? 'dev';
+if (!/^[a-z][a-z0-9-]{1,15}$/.test(stage))
+  throw new Error('stage must be 2–16 lower-case letters, digits or hyphens, e.g. "staging".');
+const alertEmail = context('alertEmail');
 if (!alertEmail || !/^[^@\s]+@[^@\s]+$/.test(alertEmail)) {
   throw new Error('Pass the budget-alert email: -c alertEmail=you@example.com');
 }
+const monthlyBudgetUsd = Number(context('budgetUsd') ?? 10);
+if (!Number.isFinite(monthlyBudgetUsd) || monthlyBudgetUsd <= 0)
+  throw new Error('budgetUsd must be a positive number of US dollars.');
+const runnerConcurrencyText = context('runnerConcurrency');
+const runnerConcurrency =
+  runnerConcurrencyText === undefined ? undefined : Number(runnerConcurrencyText);
+if (
+  runnerConcurrency !== undefined &&
+  (!Number.isInteger(runnerConcurrency) || runnerConcurrency < 1 || runnerConcurrency > 50)
+)
+  throw new Error('runnerConcurrency must be a whole number from 1 to 50.');
+
 const account = process.env['CDK_DEFAULT_ACCOUNT'];
 const region = process.env['CDK_DEFAULT_REGION'];
 if (!account || !region) throw new Error('No AWS account/region: configure the AWS CLI first.');
@@ -29,8 +55,10 @@ new PracStackStack(app, `PracStack-${stage}`, {
   env: { account, region },
   stage,
   alertEmail,
-  monthlyBudgetUsd: Number(app.node.tryGetContext('budgetUsd') ?? 10),
-  retainData: String(app.node.tryGetContext('retainData') ?? 'false') === 'true',
+  monthlyBudgetUsd,
+  retainData: context('retainData') === 'true',
+  signUpAllowlist: (context('signUpAllowlist') ?? '').split(','),
+  ...(runnerConcurrency !== undefined ? { runnerConcurrency } : {}),
   assets: {
     webImmutable: join(BUILD_DIR, 'web-immutable'),
     webRevalidate: join(BUILD_DIR, 'web-revalidate'),
