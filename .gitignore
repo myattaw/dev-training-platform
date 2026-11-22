@@ -63,3 +63,8 @@ services/api/dist/
 infra/cdk.out/
 infra/.build/
 services/runners/dist/
+
+# Deployment outputs (cdk deploy --outputs-file) and CI scratch files
+/cdk-outputs.json
+/cdk-diff.txt
+/cdk-context.args
