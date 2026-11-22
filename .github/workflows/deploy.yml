@@ -1,0 +1,169 @@
+# Deploys PracStack to AWS. MANUAL ONLY: never runs on push or pull request.
+#
+#   Actions → Deploy → Run workflow → choose the stage (staging or production)
+#
+# 1. verify  lint, typecheck, unit tests, build (Docker suites skipped, as in CI)
+# 2. plan    builds the deployment assets once and runs `cdk diff` with a
+#            read-only role (GitHub environment "<stage>-plan"); the diff is in
+#            the run summary and uploaded with the assets
+# 3. deploy  waits for a reviewer to approve the "<stage>" environment, then
+#            deploys exactly the assets that were diffed, checks the runners'
+#            isolation on AWS, and smoke-tests the site
+#
+# No AWS access keys: each job exchanges GitHub's OIDC token for a role that
+# only that repository and environment can assume (infra/lib/github-deploy-access-stack.ts).
+# One-time setup (AWS roles, GitHub environments, variables, secrets):
+# docs/staging-launch.md, "GitHub Actions".
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Stage to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+# One deployment per stage at a time; a second run waits instead of cancelling a deployment.
+concurrency:
+  group: deploy-${{ inputs.stage }}
+  cancel-in-progress: false
+
+env:
+  PRACSTACK_SKIP_DOCKER_TESTS: '1'
+  NG_CLI_ANALYTICS: 'false'
+  STAGE: ${{ inputs.stage }}
+
+jobs:
+  verify:
+    name: Verify (lint, typecheck, tests, build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  plan:
+    name: Plan (cdk diff, read-only)
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: ${{ inputs.stage }}-plan
+    permissions:
+      contents: read
+      id-token: write # OIDC token for AWS; nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build the deployment assets (web, API bundle, runner images' contexts)
+        run: npm run deploy:prepare # includes the private-content leak check
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: pracstack-plan-${{ github.run_id }}
+      - name: cdk diff
+        working-directory: infra
+        env:
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          SIGN_UP_ALLOWLIST: ${{ secrets.SIGN_UP_ALLOWLIST }}
+          BUDGET_USD: ${{ vars.BUDGET_USD }}
+          RUNNER_CONCURRENCY: ${{ vars.RUNNER_CONCURRENCY }}
+        run: |
+          ../.github/scripts/cdk-context.sh > ../cdk-context.args
+          # --no-change-set: a read-only diff (creating a change set needs the deploy role).
+          npx cdk diff "PracStack-$STAGE" --no-change-set $(cat ../cdk-context.args) > ../cdk-diff.txt 2>&1 || { cat ../cdk-diff.txt; exit 1; }
+          # Logs mask secrets, but the run summary and artifacts do not: redact them first.
+          node -e '
+            const fs = require("fs");
+            let text = fs.readFileSync("../cdk-diff.txt", "utf8");
+            const secrets = [process.env.ALERT_EMAIL, ...(process.env.SIGN_UP_ALLOWLIST || "").split(",")];
+            for (const s of secrets.map((v) => (v || "").trim()).filter((v) => v.length > 3))
+              text = text.split(s).join("***");
+            fs.writeFileSync("../cdk-diff.txt", text);'
+          cat ../cdk-diff.txt
+          {
+            echo "## cdk diff: PracStack-$STAGE"
+            echo '```'
+            sed -e 's/\x1b\[[0-9;]*m//g' ../cdk-diff.txt | head -c 60000
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: deployment-${{ inputs.stage }}
+          path: |
+            infra/.build/
+            cdk-diff.txt
+          retention-days: 7
+          include-hidden-files: true
+
+  deploy:
+    name: Deploy (requires approval)
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # Configure required reviewers on this environment in GitHub: that is the approval gate.
+    environment:
+      name: ${{ inputs.stage }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Use exactly the assets that were diffed
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: deployment-${{ inputs.stage }}
+          path: .
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: pracstack-deploy-${{ github.run_id }}
+      - name: cdk deploy
+        working-directory: infra
+        env:
+          ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+          SIGN_UP_ALLOWLIST: ${{ secrets.SIGN_UP_ALLOWLIST }}
+          BUDGET_USD: ${{ vars.BUDGET_USD }}
+          RUNNER_CONCURRENCY: ${{ vars.RUNNER_CONCURRENCY }}
+        # The reviewer approved the diff above (IAM changes included), so the CLI does not ask again.
+        run: |
+          ../.github/scripts/cdk-context.sh > ../cdk-context.args
+          npx cdk deploy "PracStack-$STAGE" $(cat ../cdk-context.args) \
+            --require-approval never --outputs-file ../cdk-outputs.json
+      - name: Runner isolation on AWS (must pass before learners use the site)
+        working-directory: infra
+        run: npx tsx scripts/verify-runners.ts "PracStack-$STAGE"
+      - name: Smoke test
+        working-directory: infra
+        run: npx tsx scripts/smoke-test.ts --stack "PracStack-$STAGE"
