@@ -5,7 +5,7 @@ import { cs, text } from '../helpers';
 /**
  * C# question family builders. Every snippet is compiled (and, where it is a
  * program, run) by the real C# runner: .NET 10, C# 14, nullable reference types
- * enabled, implicit usings (System, System.Collections.Generic, System.Linq,
+ * enabled, implicit usings (System, System.Collections.Generic, System.IO, System.Linq, System.Net.Http,
  * System.Text, System.Threading, System.Threading.Tasks). See
  * content/src/checks/csharp-snippets.ts and its spec.
  *

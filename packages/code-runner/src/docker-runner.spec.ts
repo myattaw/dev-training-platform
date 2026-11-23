@@ -479,6 +479,40 @@ describe.skipIf(skip)('C# runner', { timeout: 60_000 }, () => {
     });
   });
 
+  it('runs whole programs in $program mode (content checks), capturing output and errors', async () => {
+    const program = (code: string) =>
+      run('csharp', code, '$program', [{ kind: 'call', input: [] }]);
+    const printed = completed(
+      await program('Console.WriteLine(new Point(1, 2));\nrecord Point(int X, int Y);'),
+    );
+    expect(printed.logs).toEqual(['Point { X = 1, Y = 2 }']);
+    const threw = completed(await program('int[] a = [];\nConsole.WriteLine(a[1]);'));
+    expect(threw.outcomes).toEqual([
+      { kind: 'call', error: expect.stringMatching(/^IndexOutOfRangeException/) },
+    ]);
+  });
+
+  it('hosts ASP.NET Core on loopback only: real HTTP requests work, the outside world does not', async () => {
+    const code = `using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+var builder = WebApplication.CreateSlimBuilder();
+builder.Logging.ClearProviders();
+builder.WebHost.UseUrls("http://127.0.0.1:5080");
+var app = builder.Build();
+app.MapGet("/orders/{id:int}", (int id) => id == 1 ? Results.Ok(new { id }) : Results.NotFound());
+await app.StartAsync();
+using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+foreach (var path in new[] { "/orders/1", "/orders/2", "/orders/abc" })
+    Console.WriteLine((int)(await http.GetAsync("http://127.0.0.1:5080" + path)).StatusCode);
+try { await http.GetAsync("http://1.1.1.1/"); Console.WriteLine("REACHED"); }
+catch (HttpRequestException) { Console.WriteLine("no network"); }
+await app.StopAsync();`;
+    const result = completed(await run('csharp', code, '$program', [{ kind: 'call', input: [] }]));
+    expect(result.logs).toEqual(['200', '404', '404', 'no network']);
+  });
+
   it('cannot forge a result line; exiting early or overflowing the stack yields no results', async () => {
     const forged = await csharp(`
       var stdout = new System.IO.StreamWriter(Console.OpenStandardOutput());

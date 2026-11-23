@@ -22,8 +22,9 @@ public static class Harness
 {
     /// <summary>Usings every submission gets, as in a `dotnet new console` project.</summary>
     private const string GlobalUsings =
-        "global using System;\nglobal using System.Collections.Generic;\nglobal using System.Linq;\n" +
-        "global using System.Text;\nglobal using System.Threading;\nglobal using System.Threading.Tasks;\n";
+        "global using System;\nglobal using System.Collections.Generic;\nglobal using System.IO;\n" +
+        "global using System.Linq;\nglobal using System.Net.Http;\nglobal using System.Text;\n" +
+        "global using System.Threading;\nglobal using System.Threading.Tasks;\n";
 
     private const int MaxDiagnostics = 50;
 
@@ -161,7 +162,8 @@ public static class Harness
 
     /// <summary>
     /// The .NET and ASP.NET Core framework assemblies (and Microsoft.Extensions), minus the
-    /// compiler and this harness.
+    /// compiler and this harness. These are implementation assemblies, so the
+    /// System.Private.* ones are needed too: public types such as Uri live there.
     /// </summary>
     private static readonly Lazy<List<MetadataReference>> References = new(() =>
         ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
@@ -169,12 +171,10 @@ public static class Harness
             .Where(p =>
             {
                 var name = Path.GetFileName(p);
-                return (name.StartsWith("System.", StringComparison.Ordinal) ||
-                        name.StartsWith("Microsoft.AspNetCore.", StringComparison.Ordinal) ||
-                        name.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal) ||
-                        name is "netstandard.dll" or "mscorlib.dll" or "Microsoft.CSharp.dll")
-                    && !name.StartsWith("System.Private.", StringComparison.Ordinal)
-                    || name == "System.Private.CoreLib.dll";
+                return name.StartsWith("System.", StringComparison.Ordinal) ||
+                       name.StartsWith("Microsoft.AspNetCore.", StringComparison.Ordinal) ||
+                       name.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal) ||
+                       name is "netstandard.dll" or "mscorlib.dll" or "Microsoft.CSharp.dll";
             })
             .Select(p => (MetadataReference)MetadataReference.CreateFromFile(p))
             .ToList());
