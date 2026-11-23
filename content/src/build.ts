@@ -17,7 +17,8 @@ import {
 } from '@pracstack/content-model';
 import { CHALLENGES, type ChallengeEntry } from './challenges';
 import { checkReferenceSolutions } from './checks/reference-solutions';
-import { ChildProcessSqlEngine, type SqlEngine } from '@pracstack/sql-engine';
+import { type SqlEngine } from '@pracstack/sql-engine';
+import { SqlCheckPool } from './checks/sql-check-pool';
 import { checkSqlQuestions } from './checks/sql-questions';
 import { checkTypeScriptSnippets } from './checks/typescript-snippets';
 import { TRACKS } from './skill-mastery';
@@ -50,7 +51,7 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
   const challenges = options.challenges ?? CHALLENGES;
   const tracks = options.tracks ?? TRACKS;
   const sources = challenges.map((c) => c.source);
-  const engine = options.sqlEngine ?? new ChildProcessSqlEngine();
+  const engine = options.sqlEngine ?? new SqlCheckPool();
   let sqlIssues: ValidationIssue[];
   try {
     sqlIssues = await checkSqlQuestions(tracks, { ...options.sqlEngines, postgresql: engine });

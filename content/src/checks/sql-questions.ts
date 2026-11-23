@@ -24,24 +24,42 @@ export async function checkSqlQuestions(
   tracks: readonly TrackSource[],
   engines: Partial<Record<SqlDialect, SqlEngine>>,
 ): Promise<ValidationIssue[]> {
-  const issues: ValidationIssue[] = [];
   const unchecked = new Map<SqlDialect, number>();
+  const checks: { path: string; q: SqlQuestionSource; engine: SqlEngine }[] = [];
   for (const track of tracks) {
     for (const topic of track.topics) {
       for (const skill of topic.skills) {
         for (const q of skill.questions) {
           if (q.format !== 'sql-query') continue;
-          const path = `track:${track.id}/${topic.id}/${skill.id}/${q.id}`;
           const engine = engines[q.dialect];
           if (!engine) {
             unchecked.set(q.dialect, (unchecked.get(q.dialect) ?? 0) + 1);
             continue;
           }
-          issues.push(...(await checkQuestion(path, q, engine)));
+          checks.push({ path: `track:${track.id}/${topic.id}/${skill.id}/${q.id}`, q, engine });
         }
       }
     }
   }
+
+  // One engine at a time; within an engine, as many questions at once as it
+  // supports (`SqlCheckPool.concurrency`; other engines run one at a time).
+  // Results keep the content order, so the issue list is deterministic.
+  const results: ValidationIssue[][] = [];
+  for (const engine of new Set(checks.map((c) => c.engine))) {
+    const mine = checks.map((c, i) => ({ ...c, i })).filter((c) => c.engine === engine);
+    const width = (engine as { concurrency?: number }).concurrency ?? 1;
+    let next = 0;
+    await Promise.all(
+      Array.from({ length: Math.min(width, mine.length) }, async () => {
+        while (next < mine.length) {
+          const c = mine[next++]!;
+          results[c.i] = await checkQuestion(c.path, c.q, engine);
+        }
+      }),
+    );
+  }
+  const issues: ValidationIssue[] = results.flat();
   for (const [dialect, count] of unchecked) {
     const label = SQL_DIALECT_LABELS[dialect];
     issues.push({

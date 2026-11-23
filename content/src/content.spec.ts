@@ -1,12 +1,13 @@
 import type { PublicManifest, QuestionSource, TrackSource } from '@pracstack/content-model';
-import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildContent, type ContentBuild } from './build';
 import { CHALLENGES } from './challenges';
+import { SqlCheckPool } from './checks/sql-check-pool';
 import { TRACKS } from './skill-mastery';
 
-// One SQL engine for the whole file; building content runs every reference query.
-const sqlEngine = new ChildProcessSqlEngine();
+// One SQL engine pool for the whole file: building content runs every reference
+// query, and the pool runs each distinct query once, however often content is built.
+const sqlEngine = new SqlCheckPool();
 afterAll(() => sqlEngine.close());
 const build = (options: Parameters<typeof buildContent>[0] = {}) =>
   buildContent({ sqlEngine, ...options });
@@ -32,7 +33,7 @@ describe('the real content', { timeout: 120_000 }, () => {
   let result: ContentBuild;
   beforeAll(async () => {
     result = await build();
-  }, 120_000);
+  }, 300_000); // first build runs every SQL check; CI runners are small
 
   it('has no validation errors (including executed checks)', () => {
     expect(errorsOf(result)).toEqual([]);
