@@ -7,6 +7,7 @@ import {
   type HintRequest,
   type NextQuestionRequest,
   type RunSqlRequest,
+  type ScenarioAnswerRequest,
 } from '@pracstack/api-contracts';
 import { ID_PATTERN, LANGUAGE_LABELS, type LanguageId } from '@pracstack/content-model';
 import { badRequest } from './http';
@@ -125,4 +126,10 @@ function parseAnswer(value: unknown): AnswerPayload {
         '"answer.format" must be multiple-choice, predict-output, fill-in-blank or sql-query.',
       );
   }
+}
+
+/** POST /api/scenarios/:scenarioId/answer */
+export function parseScenarioAnswerRequest(body: unknown): ScenarioAnswerRequest {
+  const o = asObject(body, 'Request body');
+  return { taskId: parseId(o['taskId'], 'taskId'), answer: parseAnswer(o['answer']) };
 }

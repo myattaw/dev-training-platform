@@ -123,6 +123,7 @@ and linked on first use; the production builder does not load CSS imported from 
   private, and every check the content build enforces.
 - [docs/scoring.md](docs/scoring.md): the mastery algorithm, with simulated learner journeys.
 - [docs/company-interview-prep.md](docs/company-interview-prep.md): company search, reported questions vs recommended practice, the import pipeline, recommendations, timed sessions.
+- [docs/job-roles.md](docs/job-roles.md): Job Role Preparation (roles, progress calculation) and the in-browser job description analyzer (taxonomy, matching rules, privacy).
 - [docs/company-data-licensing.md](docs/company-data-licensing.md): why only a demo sample of the company dataset is imported.
 - [docs/accounts-and-auth.md](docs/accounts-and-auth.md): sign-in, account linking, importing browser progress, the GitHub sign-in evaluation.
 - [docs/monetization.md](docs/monetization.md): FREE/PRO/ADMIN entitlements and what is needed before payments.

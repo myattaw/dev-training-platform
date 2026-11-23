@@ -22,9 +22,18 @@ export const routes: Routes = [
       import('./features/challenges/challenges.routes').then((m) => m.CHALLENGE_ROUTES),
   },
   {
+    path: 'scenarios',
+    loadChildren: () =>
+      import('./features/scenarios/scenarios.routes').then((m) => m.SCENARIO_ROUTES),
+  },
+  {
     path: 'companies',
     loadChildren: () =>
       import('./features/companies/companies.routes').then((m) => m.COMPANY_ROUTES),
+  },
+  {
+    path: 'roles',
+    loadChildren: () => import('./features/roles/roles.routes').then((m) => m.ROLE_ROUTES),
   },
   {
     path: 'account',

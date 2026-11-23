@@ -38,6 +38,12 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 | GET    | `/api/me/companies`                          |                            | saved companies with progress |
 | POST / DELETE | `/api/me/companies/:slug/save`        |                            | save / unsave          |
 | PUT    | `/api/me/companies/:slug/questions/:questionId` | `{ status }`            | the learner's own mark |
+| GET    | `/api/me/preparation`                        |                            | target job role and saved plans |
+| PUT    | `/api/me/preparation/target-role`            | `{ roleId }` (null clears) | target role (available roles only) |
+| POST / DELETE | `/api/me/preparation/plans`, `/plans/:id` | `{ title, termIds }`  | save (max 10, term ids only) / delete a plan |
+| GET    | `/api/scenarios/progress`                    |                            | Enterprise Scenarios the learner has started, with per-task status |
+| GET    | `/api/scenarios/:id/progress`                 |                            | one scenario's task statuses |
+| POST   | `/api/scenarios/:id/answer`                   | `{ taskId, answer }`       | grades a question task against the private key; returns the result, the correct answer, the explanation and progress. Challenge tasks are done only through an accepted challenge submission |
 | GET    | `/api/companies`                             | `?q=&letter=&page=`        | one page of companies (25) |
 | GET    | `/api/companies/:slug`                       |                            | reported questions, progress, paths |
 | GET    | `/api/companies/:slug/questions`             |                            | reported questions only |
@@ -49,7 +55,8 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 | POST   | `/api/interview-sessions/:id/finish`         | `{ outcome }`              | finished session (idempotent) |
 
 Company Interview Prep, timed sessions, accounts and plans are described in
-[company-interview-prep.md](company-interview-prep.md), [accounts-and-auth.md](accounts-and-auth.md)
+[company-interview-prep.md](company-interview-prep.md), [job-roles.md](job-roles.md) (Job Role
+Preparation; job postings are analysed in the browser and never sent), [accounts-and-auth.md](accounts-and-auth.md)
 and [monetization.md](monetization.md). Account data is stored by `AccountStore`
 (`src/store/account-store.ts`; DynamoDB layout at the top of `src/store/dynamo-account.ts`).
 

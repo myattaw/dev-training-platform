@@ -1,0 +1,183 @@
+@let state = data.state();
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading role…" />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="This role could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="data.reload()">Try again</button>
+  </app-alert>
+} @else if (notFound()) {
+  <app-not-found
+    heading="Role not found"
+    [message]="'PracStack has no job role with the ID “' + roleId() + '”.'"
+    backLink="/roles"
+    backLabel="Browse job roles"
+  />
+} @else if (role(); as r) {
+  <app-page-header
+    [heading]="r.title"
+    [description]="r.summary"
+    [breadcrumbs]="[{ label: 'Job Role Preparation', link: '/roles' }, { label: r.title }]"
+  >
+    <span headerBadge class="badges">
+      <app-badge [color]="r.status === 'available' ? 'green' : 'grey'">
+        {{ statusLabels[r.status] }}
+      </app-badge>
+      @if (isTarget()) {
+        <app-badge color="blue">Your target role</app-badge>
+      }
+    </span>
+  </app-page-header>
+
+  @if (actionError(); as err) {
+    <app-alert type="error">{{ err }}</app-alert>
+  }
+
+  <app-panel heading="About this role">
+    @if (available(); as a) {
+      <p class="description">{{ a.description }}</p>
+    }
+    <p class="techs">
+      <span class="text-secondary">Technologies:</span>
+      @for (t of technologies(); track t.id; let last = $last) {
+        {{ t.label }}{{ last ? '' : ', ' }}
+      }
+    </p>
+    @if (available(); as a) {
+      <div class="actions">
+        @if (auth.status() === 'signed-out') {
+          <button type="button" class="btn btn--primary" (click)="signIn()">
+            Sign in to set as your target role
+          </button>
+        } @else if (isTarget()) {
+          <app-status-indicator type="success">This is your target role</app-status-indicator>
+          <button type="button" class="btn" [disabled]="saving()" (click)="setTarget(a, false)">
+            Remove as target
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="saving()"
+            (click)="setTarget(a, true)"
+          >
+            Set as my target role
+          </button>
+        }
+      </div>
+    }
+  </app-panel>
+
+  @if (r.status === 'coming-soon') {
+    <app-panel heading="Coming soon">
+      <p>
+        There is no preparation path for this role yet, so there is nothing to follow or track. No
+        release date has been set.
+      </p>
+      @if (relatedPractice().length > 0) {
+        <h3 class="sub-heading">Related practice available now</h3>
+        <p class="text-secondary small">
+          PracStack practice for this role's technologies that already covers part of it:
+        </p>
+        <app-activity-list [activities]="relatedPractice()" />
+      } @else {
+        <p class="text-secondary">No related practice on PracStack yet.</p>
+      }
+      <a class="btn" routerLink="/roles">Browse available roles</a>
+    </app-panel>
+  } @else if (progress(); as p) {
+    <app-panel heading="Your progress" headingId="progress-heading">
+      <dl class="progress">
+        <div>
+          <dt>Content coverage</dt>
+          <dd>
+            {{ p.competenciesWithPractice }} of {{ p.competencies }} competencies have practice on
+            PracStack
+          </dd>
+        </div>
+        @if (progressData()) {
+          <div>
+            <dt>Skills mastered</dt>
+            <dd>{{ p.skills.mastered }} of {{ p.skills.total }}</dd>
+          </div>
+          <div>
+            <dt>Skills practised, not yet mastered</dt>
+            <dd>{{ p.skills.practised }}</dd>
+          </div>
+          <div>
+            <dt>Skills not yet assessed</dt>
+            <dd>{{ p.skills.notAssessed }}</dd>
+          </div>
+          <div>
+            <dt>Challenges solved</dt>
+            <dd>{{ p.challenges.solved }} of {{ p.challenges.total }}</dd>
+          </div>
+          @if (p.scenarios.total > 0) {
+            <div>
+              <dt>Scenarios completed</dt>
+              <dd>{{ p.scenarios.completed }} of {{ p.scenarios.total }}</dd>
+            </div>
+          }
+        }
+      </dl>
+      @if (progressError(); as err) {
+        <app-alert type="error">Progress could not be loaded: {{ err }}</app-alert>
+      } @else if (auth.status() === 'signed-out') {
+        <p class="note text-secondary">
+          Sign in to track your progress: mastered skills and solved challenges are recorded on your
+          account.
+        </p>
+      }
+      <p class="note text-secondary">
+        Skills count as mastered when PracStack's scoring says so; challenges count as solved when a
+        submission passes every test in the language listed. Competencies without practice are not
+        counted.
+      </p>
+      <app-experience-note />
+    </app-panel>
+
+    @if (next(); as n) {
+      <app-panel heading="Suggested next activity">
+        <div class="next">
+          <div>
+            <p class="next-title">
+              @if (n.activity.link) {
+                <a [routerLink]="n.activity.link">{{ n.activity.title }}</a>
+              } @else {
+                {{ n.activity.title }}
+              }
+            </p>
+            <p class="text-secondary small">{{ n.activity.detail }} · {{ n.competency }}</p>
+          </div>
+          <app-activity-status [status]="statusOf(n.activity)" />
+        </div>
+      </app-panel>
+    } @else if (progressData()) {
+      <app-alert type="success" heading="Every activity in this path is done">
+        You have mastered every skill and solved every challenge PracStack has for this role so far.
+      </app-alert>
+    }
+
+    <app-panel heading="Preparation path" headingId="path-heading">
+      <ol class="path" aria-labelledby="path-heading">
+        @for (c of competencies(); track c.competency.id; let i = $index) {
+          <li class="competency">
+            <h3 class="competency-name">
+              <span class="step">{{ i + 1 }}</span>{{ c.competency.name }}
+            </h3>
+            <p class="text-secondary small">{{ c.competency.description }}</p>
+            @if (c.activities.length > 0) {
+              <app-activity-list [activities]="c.activities" [statusOf]="statusOf" />
+            } @else {
+              <p class="no-practice">
+                <app-status-indicator type="neutral"
+                  >No practice on PracStack yet</app-status-indicator
+                >
+              </p>
+            }
+          </li>
+        }
+      </ol>
+    </app-panel>
+  }
+}

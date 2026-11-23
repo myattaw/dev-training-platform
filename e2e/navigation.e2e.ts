@@ -17,14 +17,14 @@ test.describe('navigation and catalog', () => {
       .click();
     await expect(page).toHaveURL('/challenges');
     await expect(page.getByRole('heading', { level: 1, name: 'Coding Challenges' })).toBeVisible();
-    await expect(challengeRows(page)).toHaveCount(8);
+    await expect(challengeRows(page)).toHaveCount(12);
   });
 
   test('catalog filters are reflected in, and restored from, the URL', async ({ page }) => {
     await page.goto('/challenges');
     await page.getByRole('combobox', { name: 'Difficulty' }).selectOption('medium');
     await expect(page).toHaveURL(/difficulty=medium/);
-    await expect(challengeRows(page)).toHaveCount(5);
+    await expect(challengeRows(page)).toHaveCount(9);
 
     await page.getByRole('searchbox', { name: 'Search challenges' }).fill('interval');
     await expect(challengeRows(page)).toHaveCount(1);
@@ -34,7 +34,7 @@ test.describe('navigation and catalog', () => {
     await expect(page.getByRole('link', { name: 'Merge Intervals' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Clear filters' }).first().click();
-    await expect(challengeRows(page)).toHaveCount(8);
+    await expect(challengeRows(page)).toHaveCount(12);
   });
 
   test('challenge detail shows the problem and opens the workspace', async ({ page }) => {
@@ -76,7 +76,7 @@ test.describe('navigation and catalog', () => {
 
     fail = false;
     await page.getByRole('button', { name: 'Try again' }).click();
-    await expect(challengeRows(page)).toHaveCount(8);
+    await expect(challengeRows(page)).toHaveCount(12);
   });
 
   test('skip link moves focus to the main content', async ({ page }) => {
@@ -110,6 +110,21 @@ test.describe('navigation and catalog', () => {
     expect(box?.width).toBeLessThanOrEqual(260);
     await expect(nav.getByRole('heading', { name: 'Practice' })).toBeVisible();
     await expect(nav.getByRole('list', { name: 'Practice' })).toContainText('Coding Challenges');
+    await expect(nav.getByRole('heading', { name: 'Career Preparation' })).toBeVisible();
+    const career = nav.getByRole('list', { name: 'Career Preparation' });
+    await expect(career.getByRole('link')).toHaveText([
+      'Company Interview Prep',
+      'Job Role Preparation',
+    ]);
+    // Each area is listed once.
+    await expect(nav.getByRole('link', { name: 'Company Interview Prep' })).toHaveCount(1);
+    await expect(nav.getByRole('link', { name: 'Job Role Preparation' })).toHaveCount(1);
+    // Keyboard: Tab reaches every link in order.
+    await nav.getByRole('link', { name: 'Company Interview Prep' }).focus();
+    await page.keyboard.press('Tab');
+    await expect(nav.getByRole('link', { name: 'Job Role Preparation' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL('/roles');
     // No label is cut off.
     for (const label of await nav.locator('.label').all()) {
       expect(await label.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);

@@ -4,7 +4,12 @@ import {
   challengeFile,
   MANIFEST_FILE,
   type PublicManifest,
+  type RolesFile,
+  type Scenario,
+  scenarioFile,
+  type ScenariosFile,
   SCHEMA_VERSION,
+  type TaxonomyFile,
   trackFile,
   type TrackCatalog,
 } from '@pracstack/content-model';
@@ -17,6 +22,14 @@ export abstract class ContentRepository {
   abstract manifest(): Promise<PublicManifest>;
   abstract challenge(id: string, version: number): Promise<Challenge>;
   abstract track(technologyId: string): Promise<TrackCatalog>;
+  /** Job roles (Job Role Preparation). */
+  abstract roles(): Promise<RolesFile>;
+  /** Technology taxonomy for roles and the job description analyzer. */
+  abstract taxonomy(): Promise<TaxonomyFile>;
+  /** Enterprise Scenarios catalog. */
+  abstract scenarios(): Promise<ScenariosFile>;
+  /** One scenario (public part: no answers). */
+  abstract scenario(id: string, version: number): Promise<Scenario>;
 }
 
 export class ContentLoadError extends Error {
@@ -52,6 +65,30 @@ export class HttpContentRepository extends ContentRepository {
   override track(technologyId: string): Promise<TrackCatalog> {
     // Not versioned in the file name, so revalidate like the manifest.
     return this.get<TrackCatalog>(trackFile(technologyId), 'no-cache');
+  }
+
+  override async roles(): Promise<RolesFile> {
+    const file = (await this.manifest()).preparation?.rolesFile;
+    if (!file) throw new ContentLoadError('Job roles are not available in this content version.');
+    return this.get<RolesFile>(file, 'no-cache');
+  }
+
+  override async taxonomy(): Promise<TaxonomyFile> {
+    const file = (await this.manifest()).preparation?.taxonomyFile;
+    if (!file) throw new ContentLoadError('Job roles are not available in this content version.');
+    return this.get<TaxonomyFile>(file, 'no-cache');
+  }
+
+  override async scenarios(): Promise<ScenariosFile> {
+    const file = (await this.manifest()).scenariosFile;
+    if (!file)
+      throw new ContentLoadError('Enterprise Scenarios are not available in this content version.');
+    return this.get<ScenariosFile>(file, 'no-cache');
+  }
+
+  override scenario(id: string, version: number): Promise<Scenario> {
+    // Versioned file names never change content.
+    return this.get<Scenario>(scenarioFile(id, version), 'default');
   }
 
   private get<T>(path: string, cache: RequestCache): Promise<T> {

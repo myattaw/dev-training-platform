@@ -1,0 +1,132 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1100px;
+}
+
+.badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.description {
+  margin: 0 0 var(--space-3);
+  max-width: 90ch;
+}
+
+.techs {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.progress {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3) var(--space-6);
+  margin: 0 0 var(--space-3);
+}
+
+.progress dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.progress dd {
+  margin: 2px 0 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.note {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-sm);
+  max-width: 90ch;
+}
+
+.small {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.next-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+}
+
+.sub-heading {
+  margin: var(--space-4) 0 var(--space-1);
+  font-size: var(--font-size-base);
+}
+
+.path {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.competency {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border-divider);
+}
+
+.competency:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+.competency-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 2px;
+  font-size: var(--font-size-base);
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  font-size: var(--font-size-xs);
+}
+
+.competency app-activity-list {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+.no-practice {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-sm);
+}
+
+app-panel .btn {
+  margin-top: var(--space-3);
+}
+
+.actions .btn {
+  margin-top: 0;
+}

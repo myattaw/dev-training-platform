@@ -1,0 +1,203 @@
+@let state = loaded.state();
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading scenario…" />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="This scenario could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="loaded.reload()">
+      Try again
+    </button>
+  </app-alert>
+} @else if (scenario(); as s) {
+  <app-page-header [heading]="s.title" [description]="s.summary" [breadcrumbs]="breadcrumbs()">
+    <app-difficulty-badge headerBadge [difficulty]="s.difficulty" />
+  </app-page-header>
+
+  <div class="meta">
+    <app-assessment-badge [assessment]="s.assessment" />
+    <span class="text-secondary">About {{ s.estimatedMinutes }} minutes</span>
+    <span class="tags">
+      @for (t of s.technologies; track t) {
+        <app-badge>{{ t }}</app-badge>
+      }
+    </span>
+    @if (progress(); as p) {
+      <span class="progress-text" role="status">
+        {{ p.done }} of {{ p.total }} tasks done{{ p.completed ? ' · scenario complete' : '' }}
+      </span>
+    }
+  </div>
+
+  <div class="layout">
+    <div class="brief">
+      <app-panel heading="Business context">
+        <app-instruction-blocks [blocks]="s.context" />
+      </app-panel>
+      <app-panel heading="Requirements">
+        <app-instruction-blocks [blocks]="s.requirements" />
+      </app-panel>
+      <app-panel heading="Acceptance criteria">
+        <ul class="criteria">
+          @for (c of s.acceptanceCriteria; track c) {
+            <li>{{ c }}</li>
+          }
+        </ul>
+      </app-panel>
+      <app-panel heading="Artifacts" [counter]="s.artifacts.length">
+        @for (a of s.artifacts; track a.id) {
+          <section class="artifact" [attr.aria-labelledby]="'artifact-' + a.id">
+            <h3 [id]="'artifact-' + a.id">{{ a.title }}</h3>
+            <p class="text-secondary">{{ a.description }}</p>
+            <pre
+              class="code"
+              tabindex="0"
+              [attr.aria-label]="a.title"
+            ><code>{{ a.snippet.source }}</code></pre>
+          </section>
+        }
+      </app-panel>
+    </div>
+
+    <div class="tasks">
+      <app-panel heading="Tasks" headingId="tasks-heading" [counter]="s.tasks.length">
+        <app-alert type="info" heading="How this scenario is graded">
+          @switch (s.assessment) {
+            @case ('structured') {
+              Every task is a question about the artifacts, graded against a private answer key.
+              Nothing is executed.
+            }
+            @case ('executable') {
+              Every task is code, compiled and run against hidden tests.
+            }
+            @default {
+              Code tasks are compiled and run against hidden tests in the challenge workspace; the
+              other tasks are questions graded against a private answer key.
+            }
+          }
+          @if (s.limitations) {
+            {{ s.limitations }}
+          }
+        </app-alert>
+
+        @if (auth.status() === 'signed-out') {
+          <p class="sign-in">
+            <button type="button" class="btn btn--sm btn--primary" (click)="signIn()">
+              Sign in
+            </button>
+            <span class="text-secondary">to check your answers and save your progress.</span>
+          </p>
+        }
+
+        <ol class="task-list" aria-labelledby="tasks-heading">
+          @for (task of s.tasks; track task.id; let i = $index) {
+            <li class="task" [attr.data-task]="task.id">
+              <div class="task-head">
+                <h3>{{ i + 1 }}. {{ task.title }}</h3>
+                <app-badge
+                  [color]="
+                    statusOf(task.id) === 'done'
+                      ? 'green'
+                      : statusOf(task.id) === 'attempted'
+                        ? 'amber'
+                        : 'grey'
+                  "
+                  >{{ statusLabel(task.id) }}</app-badge
+                >
+              </div>
+
+              @if (task.kind === 'challenge') {
+                <app-instruction-blocks [blocks]="task.brief" />
+                <p>
+                  <a
+                    class="btn btn--sm"
+                    [routerLink]="['/challenges', task.challengeId, 'workspace']"
+                    (click)="openChallenge(task.challengeId, task.language)"
+                    >Open the {{ languageLabels[task.language] }} workspace</a
+                  >
+                  <span class="text-secondary">
+                    Done when a submission is accepted (all hidden tests pass).</span
+                  >
+                </p>
+              } @else {
+                @let q = task.question;
+                @let result = results()[task.id];
+                <app-instruction-blocks class="prompt" [blocks]="q.prompt" />
+                @if (q.format === 'multiple-choice') {
+                  @if (q.code; as code) {
+                    <pre class="code" tabindex="0"><code>{{ code.source }}</code></pre>
+                  }
+                  <app-multiple-choice
+                    [question]="q"
+                    [revealed]="result?.correctAnswer"
+                    [answer]="drafts()[task.id] ?? null"
+                    (answerChange)="setDraft(task.id, $event)"
+                  />
+                } @else if (q.format === 'predict-output') {
+                  <app-predict-output
+                    [question]="q"
+                    [revealed]="result?.correctAnswer"
+                    [answer]="drafts()[task.id] ?? null"
+                    (answerChange)="setDraft(task.id, $event)"
+                  />
+                } @else if (q.format === 'fill-in-blank') {
+                  <app-fill-in-blank
+                    [question]="q"
+                    [revealed]="result?.correctAnswer"
+                    [answer]="drafts()[task.id] ?? null"
+                    (answerChange)="setDraft(task.id, $event)"
+                  />
+                }
+
+                @if (result; as r) {
+                  <div class="feedback" role="status">
+                    <p class="verdict" [class]="'verdict--' + r.result">
+                      {{
+                        r.result === 'correct'
+                          ? 'Correct'
+                          : r.result === 'partial'
+                            ? 'Partly right'
+                            : 'Not quite'
+                      }}
+                    </p>
+                    @if (r.resultNote) {
+                      <p class="text-secondary">{{ r.resultNote }}</p>
+                    }
+                    <app-instruction-blocks [blocks]="r.explanation" />
+                    @if (r.result !== 'correct') {
+                      <button type="button" class="btn btn--sm" (click)="retry(task.id)">
+                        Try again
+                      </button>
+                    }
+                  </div>
+                } @else if (auth.status() !== 'signed-out') {
+                  <p class="actions">
+                    <button
+                      type="button"
+                      class="btn btn--sm btn--primary"
+                      [disabled]="!drafts()[task.id] || busyTask() === task.id"
+                      (click)="submit(task)"
+                    >
+                      {{ busyTask() === task.id ? 'Checking…' : 'Check answer' }}
+                    </button>
+                  </p>
+                }
+                @if (errors()[task.id]; as message) {
+                  <app-alert type="error" heading="Your answer could not be checked">
+                    {{ message }}
+                  </app-alert>
+                }
+              }
+            </li>
+          }
+        </ol>
+      </app-panel>
+    </div>
+  </div>
+} @else {
+  <app-not-found
+    heading="Scenario not found"
+    message="There is no scenario at this address."
+    backLink="/scenarios"
+    backLabel="All scenarios"
+  />
+}

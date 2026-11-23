@@ -4,6 +4,8 @@ import { EntitlementService } from './account/entitlements';
 import { IdentityService } from './account/identity';
 import { CompanyService } from './companies/company-service';
 import { InterviewService } from './interview/interview-service';
+import { PreparationService } from './roles/preparation-service';
+import { ScenarioService } from './scenarios/scenario-service';
 import type { AccountStore } from './store/account-store';
 import type { ProgressStore } from './store/progress-store';
 import type { Authenticator, Caller } from './auth';
@@ -19,16 +21,19 @@ import {
   parseId,
   parseNextQuestionRequest,
   parseRunSqlRequest,
+  parseScenarioAnswerRequest,
 } from './validation';
 import {
   parseCompanyQuery,
   parseCreateInterviewSession,
+  parseCreatePlan,
   parseDisplayName,
   parseFinishInterview,
   parseLanguage,
   parseProgressImport,
   parseQuestionId,
   parseQuestionStatus,
+  parseSetTargetRole,
   parseUuid,
 } from './prep-validation';
 
@@ -102,6 +107,24 @@ export function createApi(deps: ApiDeps): ApiHandler {
     entitlements,
     now: deps.now,
   });
+  const preparation = new PreparationService({
+    content: deps.content,
+    accounts: deps.accounts,
+    now: deps.now,
+    newId: deps.newId,
+  });
+  const scenarios = new ScenarioService({
+    content: deps.content,
+    store: deps.accounts,
+    now: deps.now,
+    solvedLanguages: async (userId) =>
+      new Map(
+        (await deps.store.listChallengeProgress(userId)).map((p) => [
+          p.challengeId,
+          p.languagesSolved,
+        ]),
+      ),
+  });
   const interviews = new InterviewService({
     content: deps.content,
     accounts: deps.accounts,
@@ -167,6 +190,8 @@ export function createApi(deps: ApiDeps): ApiHandler {
       return ok(await identities.completeLink(raw, parseUuid(body?.['token'], 'token')));
     }
     if (method === 'GET' && path === '/api/me/companies') return ok(await companies.saved(user));
+    const prep = await routePreparation(request, user);
+    if (prep) return prep;
     const save = /^\/api\/me\/companies\/([^/]+)\/save$/.exec(path);
     if (save) {
       const slug = segment(save[1], 'companySlug');
@@ -182,6 +207,31 @@ export function createApi(deps: ApiDeps): ApiHandler {
           parseQuestionId(decodeURIComponent(mark[2] ?? '')),
           parseQuestionStatus(request.body),
         ),
+      );
+    }
+    return undefined;
+  }
+
+  /**
+   * /api/me/preparation: target job role and saved plans (taxonomy term ids
+   * only; job postings are analysed in the browser and never sent).
+   */
+  async function routePreparation(
+    request: ApiRequest,
+    user: Caller,
+  ): Promise<ApiResponse | undefined> {
+    const { method, path } = request;
+    if (method === 'GET' && path === '/api/me/preparation') return ok(await preparation.get(user));
+    if (method === 'PUT' && path === '/api/me/preparation/target-role') {
+      return ok(await preparation.setTargetRole(user, parseSetTargetRole(request.body)));
+    }
+    if (method === 'POST' && path === '/api/me/preparation/plans') {
+      return ok(await preparation.createPlan(user, parseCreatePlan(request.body)));
+    }
+    const plan = /^\/api\/me\/preparation\/plans\/([^/]+)$/.exec(path);
+    if (method === 'DELETE' && plan) {
+      return ok(
+        await preparation.deletePlan(user, parseUuid(decodeURIComponent(plan[1] ?? ''), 'planId')),
       );
     }
     return undefined;
@@ -284,6 +334,21 @@ export function createApi(deps: ApiDeps): ApiHandler {
         return ok(
           await practice.history(user, parseId(decodeURIComponent(history[1] ?? ''), 'skillId')),
         );
+      }
+      if (method === 'GET' && path === '/api/scenarios/progress') {
+        return ok(await scenarios.list(user, deps.content.scenarioIds()));
+      }
+      const scenarioRoute = /^\/api\/scenarios\/([^/]+)\/(progress|answer)$/.exec(path);
+      if (scenarioRoute) {
+        const id = parseId(decodeURIComponent(scenarioRoute[1] ?? ''), 'scenarioId');
+        if (method === 'GET' && scenarioRoute[2] === 'progress') {
+          return ok(await scenarios.progress(user, id));
+        }
+        if (method === 'POST' && scenarioRoute[2] === 'answer') {
+          await limit(sqlRateLimiter, user.id);
+          const body = parseScenarioAnswerRequest(request.body);
+          return ok(await scenarios.answer(user, id, body.taskId, body.answer));
+        }
       }
       if (method === 'GET' && path === '/api/challenges/progress') {
         return ok(await challenges.progress(user));

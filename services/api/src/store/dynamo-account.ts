@@ -1,3 +1,4 @@
+import type { ScenarioProgressRecord } from '../scenarios/scenario-service';
 import {
   ConditionalCheckFailedException,
   DynamoDBClient,
@@ -22,9 +23,11 @@ import type {
   ImportRecord,
   InterviewSessionRecord,
   LinkIntentRecord,
+  PreparationRecord,
   ProfileRecord,
   QuestionMarkRecord,
   SavedCompanyRecord,
+  SavedPlanRecord,
 } from './account-store';
 import { documentClient, type DynamoStoreOptions } from './dynamo-store';
 
@@ -43,6 +46,14 @@ import { documentClient, type DynamoStoreOptions } from './dynamo-store';
  *   USER#<user>                ISREQ#<clientRequestId>       { sessionId }             (idempotency)
  *   USER#<user>                DRAFT#<challenge>#<language>  { data: DraftRecord }
  *   USER#<user>                IMPORT#<importId>             { data: ImportRecord }    (TTL 30 days)
+ *   USER#<user>                PREP                          { targetRoleId?, plans, updatedAt }
+ *   USER#<user>                SCENARIO#<scenario>           { data: ScenarioProgressRecord }
+ *
+ * PREP keeps its fields at the top level (not under `data`) so that adding a
+ * plan is one conditional UpdateItem: `list_append` guarded by
+ * `size(plans) < max`, which enforces the plan limit atomically. Removing a
+ * plan removes its list index with a condition on that index's id, retried
+ * if the list changed in between. Plans hold taxonomy term ids only.
  *
  * Everything a user owns stays in their partition (single-Query listings, and
  * a session can only be read through its owner's key). Identity lookups use
@@ -251,6 +262,113 @@ export class DynamoAccountStore implements AccountStore {
   async listQuestionMarks(userId: string): Promise<readonly QuestionMarkRecord[]> {
     const items = await this.query(user(userId), 'MARK#');
     return items.map((i) => i['data'] as QuestionMarkRecord);
+  }
+
+  async getScenarioProgress(
+    userId: string,
+    scenarioId: string,
+  ): Promise<ScenarioProgressRecord | undefined> {
+    const res = await this.db.send(
+      new GetCommand({
+        TableName: this.table,
+        Key: { pk: user(userId), sk: `SCENARIO#${scenarioId}` },
+        ConsistentRead: true,
+      }),
+    );
+    return res.Item?.['data'] as ScenarioProgressRecord | undefined;
+  }
+
+  async putScenarioProgress(record: ScenarioProgressRecord): Promise<void> {
+    await this.db.send(
+      new PutCommand({
+        TableName: this.table,
+        Item: { pk: user(record.userId), sk: `SCENARIO#${record.scenarioId}`, data: record },
+      }),
+    );
+  }
+
+  async listScenarioProgress(userId: string): Promise<readonly ScenarioProgressRecord[]> {
+    const items = await this.query(user(userId), 'SCENARIO#');
+    return items.map((i) => i['data'] as ScenarioProgressRecord);
+  }
+
+  async getPreparation(userId: string): Promise<PreparationRecord | undefined> {
+    const item = await this.get(user(userId), 'PREP');
+    if (!item) return undefined;
+    const targetRoleId = item['targetRoleId'];
+    return {
+      userId,
+      ...(typeof targetRoleId === 'string' ? { targetRoleId } : {}),
+      plans: (item['plans'] as SavedPlanRecord[] | undefined) ?? [],
+      updatedAt: String(item['updatedAt'] ?? ''),
+    };
+  }
+
+  async setTargetRole(userId: string, roleId: string | null, updatedAt: string): Promise<void> {
+    await this.db.send(
+      new UpdateCommand({
+        TableName: this.table,
+        Key: { pk: user(userId), sk: 'PREP' },
+        UpdateExpression: roleId
+          ? 'SET targetRoleId = :role, updatedAt = :at'
+          : 'SET updatedAt = :at REMOVE targetRoleId',
+        ExpressionAttributeValues: { ':at': updatedAt, ...(roleId ? { ':role': roleId } : {}) },
+      }),
+    );
+  }
+
+  async addPreparationPlan(
+    userId: string,
+    plan: SavedPlanRecord,
+    maxPlans: number,
+    updatedAt: string,
+  ): Promise<boolean> {
+    try {
+      await this.db.send(
+        new UpdateCommand({
+          TableName: this.table,
+          Key: { pk: user(userId), sk: 'PREP' },
+          UpdateExpression:
+            'SET plans = list_append(if_not_exists(plans, :empty), :plan), updatedAt = :at',
+          ConditionExpression: 'attribute_not_exists(plans) OR size(plans) < :max',
+          ExpressionAttributeValues: {
+            ':empty': [],
+            ':plan': [plan],
+            ':at': updatedAt,
+            ':max': maxPlans,
+          },
+        }),
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof ConditionalCheckFailedException) return false;
+      throw err;
+    }
+  }
+
+  async deletePreparationPlan(userId: string, planId: string, updatedAt: string): Promise<boolean> {
+    // The list can change between reading and writing; retry on a lost race.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await this.getPreparation(userId);
+      const index = current?.plans.findIndex((p) => p.id === planId) ?? -1;
+      if (index < 0) return false;
+      try {
+        await this.db.send(
+          new UpdateCommand({
+            TableName: this.table,
+            Key: { pk: user(userId), sk: 'PREP' },
+            UpdateExpression: `REMOVE plans[${index}] SET updatedAt = :at`,
+            ConditionExpression: `plans[${index}].#id = :id`,
+            ExpressionAttributeNames: { '#id': 'id' },
+            ExpressionAttributeValues: { ':id': planId, ':at': updatedAt },
+          }),
+        );
+        return true;
+      } catch (err) {
+        if (!(err instanceof ConditionalCheckFailedException)) throw err;
+      }
+    }
+    throw new Error('Could not delete the plan: the list kept changing.');
   }
 
   async createInterviewSession(session: InterviewSessionRecord): Promise<CreateSessionOutcome> {

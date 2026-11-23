@@ -11,9 +11,26 @@ import {
   trackFile,
   type TrackSource,
   validateChallenges,
+  validateRoles,
+  validateTaxonomy,
   validateTracks,
+  type JobRole,
+  type LanguageId,
+  ROLES_FILE,
+  type RolesFile,
+  TAXONOMY_FILE,
+  type TaxonomyFile,
+  type TaxonomyTerm,
   type ValidationIssue,
   type SqlDialect,
+  SCENARIOS_FILE,
+  scenarioFile,
+  type ScenarioSource,
+  type ScenariosFile,
+  type ScenarioSummary,
+  scenarioSummary,
+  splitScenario,
+  validateScenarios,
 } from '@pracstack/content-model';
 import { CHALLENGES, type ChallengeEntry } from './challenges';
 import { checkReferenceSolutions } from './checks/reference-solutions';
@@ -24,6 +41,9 @@ import { checkTypeScriptSnippets } from './checks/typescript-snippets';
 import { TRACKS } from './skill-mastery';
 import { buildCompanies } from './companies/build-companies';
 import { PLANNED_CHALLENGES } from './companies/planned';
+import { ROLES } from './roles/roles';
+import { TAXONOMY } from './roles/taxonomy';
+import { SCENARIOS } from './scenarios';
 
 /** Relative path → JSON-serialisable value. */
 export type FileSet = ReadonlyMap<string, unknown>;
@@ -44,6 +64,10 @@ export interface BuildOptions {
   readonly sqlEngine?: SqlEngine;
   /** Engines for other dialects (Oracle needs a running database; see oracle-container). */
   readonly sqlEngines?: Partial<Record<SqlDialect, SqlEngine>>;
+  /** Job roles and the taxonomy (defaults: the real ones). */
+  readonly roles?: readonly JobRole[];
+  readonly taxonomy?: readonly TaxonomyTerm[];
+  readonly scenarios?: readonly ScenarioSource[];
 }
 
 /** Validates all content (including running code and SQL) and produces the output files. */
@@ -66,8 +90,45 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     ...sqlIssues,
   ];
 
+  // Enterprise Scenarios: public scenarios, private answer keys.
+  const scenarios = options.scenarios ?? SCENARIOS;
+
+  // Job Role Preparation: public (no secrets), checked against the real skills and challenges.
+  const roles = options.roles ?? ROLES;
+  const taxonomy = options.taxonomy ?? TAXONOMY;
+  const contentIds = {
+    skillIds: new Set(tracks.flatMap((t) => t.topics.flatMap((x) => x.skills.map((s) => s.id)))),
+    challengeIds: new Set(sources.map((s) => s.challenge.id)),
+    scenarioIds: new Set(scenarios.map((s) => s.id)),
+    challengeLanguages: new Map(
+      sources.map((s) => [s.challenge.id, Object.keys(s.challenge.languages) as LanguageId[]]),
+    ),
+  };
+  issues.push(
+    ...validateTaxonomy(taxonomy, {
+      ...contentIds,
+      technologyIds: new Set(tracks.map((t) => t.id)),
+    }),
+    ...validateRoles(roles, { ...contentIds, termIds: new Set(taxonomy.map((t) => t.id)) }),
+  );
+
+  issues.push(
+    ...validateScenarios(scenarios, { challenges: sources, skillIds: contentIds.skillIds }),
+  );
+
   const publicFiles = new Map<string, unknown>();
+  publicFiles.set(ROLES_FILE, { roles } satisfies RolesFile);
+  publicFiles.set(TAXONOMY_FILE, { terms: taxonomy } satisfies TaxonomyFile);
   const privateFiles = new Map<string, unknown>();
+
+  const scenarioSummaries: ScenarioSummary[] = [];
+  for (const source of scenarios) {
+    const { scenario, grading } = splitScenario(source);
+    scenarioSummaries.push(scenarioSummary(scenario));
+    publicFiles.set(scenarioFile(scenario.id, scenario.version), scenario);
+    privateFiles.set(`scenarios/${scenario.id}@${scenario.version}.grading.json`, grading);
+  }
+  publicFiles.set(SCENARIOS_FILE, { scenarios: scenarioSummaries } satisfies ScenariosFile);
 
   const summaries: ChallengeSummary[] = [];
   for (const source of sources) {
@@ -99,6 +160,8 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     challenges: summaries,
     technologies,
     plannedChallenges: PLANNED_CHALLENGES,
+    preparation: { rolesFile: ROLES_FILE, taxonomyFile: TAXONOMY_FILE },
+    scenariosFile: SCENARIOS_FILE,
   } satisfies PublicManifest);
   privateFiles.set(MANIFEST_FILE, { schemaVersion: SCHEMA_VERSION, contentVersion });
 

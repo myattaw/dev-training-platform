@@ -1,0 +1,93 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: var(--content-max-width);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.search {
+  position: relative;
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.search .input {
+  width: 100%;
+  padding-left: var(--space-8);
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  color: var(--color-text-secondary);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.match-count {
+  margin: 0 0 0 auto;
+  font-size: var(--font-size-sm);
+}
+
+.state {
+  padding: var(--space-4);
+}
+
+.name {
+  min-width: 240px;
+}
+
+.name a {
+  margin-right: var(--space-2);
+  font-weight: var(--font-weight-bold);
+}
+
+.summary {
+  display: block;
+  font-size: var(--font-size-sm);
+}
+
+.techs {
+  min-width: 200px;
+  font-size: var(--font-size-sm);
+}
+
+tr.target td {
+  background: var(--color-surface-selected);
+}
+
+tr.target td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.action-cell {
+  width: 1%;
+  text-align: right;
+}
+
+.signed-out {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.signed-out p {
+  margin: 0;
+  max-width: 70ch;
+}
+
+[headerActions] {
+  gap: var(--space-2);
+}

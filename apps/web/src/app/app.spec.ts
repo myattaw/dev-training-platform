@@ -30,9 +30,30 @@ describe('App shell', () => {
       'Dashboard',
       'Skill Mastery',
       'Coding Challenges',
+      'Enterprise Scenarios',
       'Company Interview Prep',
+      'Job Role Preparation',
       'My Progress',
       'Account',
+    ]);
+    // Grouped: practice areas, then goal-oriented career preparation.
+    const groups = [...el.querySelectorAll('nav[aria-label="Primary"] ul')].map((ul) => ({
+      heading: ul.getAttribute('aria-labelledby')
+        ? el.querySelector(`#${ul.getAttribute('aria-labelledby')}`)?.textContent?.trim()
+        : undefined,
+      links: [...ul.querySelectorAll('a')].map((a) => a.textContent?.trim()),
+    }));
+    expect(groups).toEqual([
+      { heading: undefined, links: ['Dashboard'] },
+      {
+        heading: 'Practice',
+        links: ['Skill Mastery', 'Coding Challenges', 'Enterprise Scenarios'],
+      },
+      {
+        heading: 'Career Preparation',
+        links: ['Company Interview Prep', 'Job Role Preparation'],
+      },
+      { heading: 'You', links: ['My Progress', 'Account'] },
     ]);
   });
 

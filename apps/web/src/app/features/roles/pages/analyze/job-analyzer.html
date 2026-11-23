@@ -1,0 +1,211 @@
+<app-page-header
+  heading="Job Description Analyzer"
+  description="Paste a job posting to see the technologies it asks for, the evidence for each, and a preparation path from PracStack's practice."
+  [breadcrumbs]="[
+    { label: 'Job Role Preparation', link: '/roles' },
+    { label: 'Analyze a job description' },
+  ]"
+/>
+
+<app-alert type="info" heading="Analysed in your browser; the text is not sent to PracStack">
+  The posting is matched against a fixed list of technologies on this device. It is not uploaded,
+  logged or stored, not even in this browser. Saving a plan stores only the list of detected
+  technologies.
+</app-alert>
+
+<app-panel heading="Job posting">
+  <label class="field-label" for="posting">Paste the job description</label>
+  <textarea
+    id="posting"
+    class="input posting"
+    rows="12"
+    spellcheck="false"
+    autocomplete="off"
+    placeholder="Paste the job description here…"
+    [value]="draft()"
+    (input)="onInput($event)"
+    (keydown.control.enter)="analyze()"
+  ></textarea>
+  <div class="posting-actions">
+    <button type="button" class="btn btn--primary" (click)="analyze()">Analyze</button>
+    <button type="button" class="btn" (click)="useExample()">Try an example</button>
+    @if (draft() !== '') {
+      <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
+    }
+    <span class="count text-secondary" [class.over]="draft().length > maxChars" aria-live="polite">
+      {{ draft().length.toLocaleString('en') }} / {{ maxChars.toLocaleString('en') }} characters
+    </span>
+  </div>
+</app-panel>
+
+@let s = data.state();
+@if (s.status === 'loading' && draft() !== '') {
+  <app-loading-state label="Loading the technology list…" />
+} @else if (s.status === 'error') {
+  <app-alert type="error" heading="The technology list could not be loaded">
+    {{ s.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="data.reload()">Try again</button>
+  </app-alert>
+}
+
+@if (analysis(); as a) {
+  @if (a.empty) {
+    <app-panel>
+      <app-empty-state
+        heading="Nothing to analyze yet"
+        message="Paste a job description above (the requirements section is enough), then choose Analyze. Or try the example posting."
+      />
+    </app-panel>
+  } @else {
+    @if (a.truncated) {
+      <app-alert
+        type="warning"
+        heading="Only the first {{ maxChars.toLocaleString('en') }} characters were analysed"
+      >
+        The posting has {{ a.inputLength.toLocaleString('en') }} characters. Paste the requirements
+        section to analyse all of it.
+      </app-alert>
+    }
+
+    <app-panel heading="Summary">
+      <p class="summary" aria-live="polite">
+        {{ a.terms.length }}
+        {{ a.terms.length === 1 ? 'technology or practice' : 'technologies and practices' }}
+        detected: {{ covered().length }} with practice on PracStack, {{ uncovered().length }} not
+        covered yet.
+      </p>
+      @if (a.terms.length === 0) {
+        <p class="text-secondary">
+          No known technologies were found. The analyzer recognises a fixed list of names (for
+          example C#, SQL Server, Angular, Azure DevOps or Power Apps); see the documentation for
+          the full list.
+        </p>
+      }
+    </app-panel>
+
+    @if (a.terms.length > 0) {
+      <app-panel heading="Detected requirements" headingId="detected-heading" [flush]="true">
+        @for (g of groups(); track g.category) {
+          <section class="group" [attr.aria-labelledby]="'cat-' + g.category">
+            <h3 class="group-heading" [id]="'cat-' + g.category">{{ g.label }}</h3>
+            <ul class="terms">
+              @for (t of g.terms; track t.term.id) {
+                <li class="term" [attr.data-term]="t.term.id">
+                  <div class="term-head">
+                    <span class="term-label">{{ t.term.label }}</span>
+                    <app-badge [color]="confidenceColors[t.confidence]">
+                      {{ confidenceLabels[t.confidence] }} confidence
+                    </app-badge>
+                    @if (t.covered) {
+                      <app-status-indicator type="success">Practice available</app-status-indicator>
+                    } @else {
+                      <app-status-indicator type="neutral">Not covered yet</app-status-indicator>
+                    }
+                  </div>
+                  <ul class="evidence" aria-label="Evidence from the posting">
+                    @for (e of t.evidence; track e.text) {
+                      <li>
+                        <q>{{ e.text }}</q>
+                      </li>
+                    }
+                  </ul>
+                  @if (t.mentions > t.evidence.length) {
+                    <p class="term-note text-secondary">Mentioned {{ t.mentions }} times.</p>
+                  }
+                  @if (t.confidence === 'low' && t.term.ambiguity) {
+                    <p class="term-note text-secondary">{{ t.term.ambiguity.note }}</p>
+                  }
+                  @if (t.term.note) {
+                    <p class="term-note text-secondary">{{ t.term.note }}</p>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </app-panel>
+    }
+
+    @if (uncovered().length > 0) {
+      <app-panel heading="Not covered by PracStack yet" headingId="uncovered-heading">
+        <p class="text-secondary small">
+          The posting asks for these, but PracStack has no practice for them yet. Prepare for them
+          elsewhere.
+        </p>
+        <ul class="uncovered" aria-labelledby="uncovered-heading">
+          @for (t of uncovered(); track t.term.id) {
+            <li>{{ t.term.label }}</li>
+          }
+        </ul>
+      </app-panel>
+    }
+
+    @if (a.experience.length > 0) {
+      <app-panel heading="Experience requirements" headingId="experience-heading">
+        <ul class="experience" aria-labelledby="experience-heading">
+          @for (x of a.experience; track x.text) {
+            <li>
+              <q>{{ x.text }}</q>
+              <span class="text-secondary">
+                ({{ x.maxYears ? x.minYears + '–' + x.maxYears : x.minYears + '+' }} years)
+              </span>
+            </li>
+          }
+        </ul>
+        <p class="text-secondary small">
+          For information only. PracStack cannot satisfy years-of-experience requirements: practice
+          here is not professional experience.
+        </p>
+      </app-panel>
+    }
+
+    @if (steps().length > 0) {
+      <app-panel heading="Suggested preparation path" headingId="path-heading">
+        <p class="text-secondary small">
+          PracStack practice for the covered requirements, in a sensible order: languages first,
+          ways of working last.
+        </p>
+        <app-term-path [steps]="steps()" [statusOf]="statusOf" />
+
+        <div class="save">
+          @if (auth.status() === 'signed-out') {
+            <button type="button" class="btn" (click)="signIn()">Sign in to save this plan</button>
+          } @else if (savedPlan(); as p) {
+            <app-alert type="success" heading="Plan saved">
+              <a [routerLink]="['/roles/plans', p.id]">{{ p.title }}</a> is in your saved plans.
+            </app-alert>
+          } @else {
+            <label class="field-label" for="plan-title">Plan title</label>
+            <div class="save-row">
+              <input
+                id="plan-title"
+                class="input"
+                type="text"
+                maxlength="80"
+                [value]="planTitle()"
+                (input)="onTitle($event)"
+              />
+              <button
+                type="button"
+                class="btn btn--primary"
+                [disabled]="saving() || planTitle().trim() === ''"
+                (click)="save()"
+              >
+                Save plan
+              </button>
+            </div>
+            <p class="text-secondary small">
+              Saves the title and the {{ termIds().length }} detected technologies only, never the
+              posting.
+            </p>
+            @if (saveError(); as err) {
+              <app-alert type="error">{{ err }}</app-alert>
+            }
+          }
+        </div>
+      </app-panel>
+    }
+
+    <app-experience-note />
+  }
+}

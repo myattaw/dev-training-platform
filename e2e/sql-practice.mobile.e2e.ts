@@ -21,9 +21,12 @@ test.describe('SQL practice on a phone', () => {
     await waitForEditor(page);
     await replaceCode(page, 'SELECT count(*) AS n FROM employees');
     await page.getByRole('button', { name: 'Run query' }).click();
+    // The first query is a cold start of the SQL engine; with the rest of the suite in
+    // parallel it can take longer than the default 5 s (as in skill-mastery.e2e.ts).
     await expect(sections.getByRole('tab', { name: 'Output' })).toHaveAttribute(
       'aria-selected',
       'true',
+      { timeout: 20_000 },
     );
     await expect(page.locator('.result')).toContainText('1 rows');
     // Nothing overflows the phone's width.

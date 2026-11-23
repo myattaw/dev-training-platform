@@ -70,3 +70,18 @@ catalog.
 | TypeScript | Conditional and mapped types; classes; modules and declaration files | Straightforward with the existing checks; not written yet. |
 | PostgreSQL | Window functions, CTEs (including recursive), set operations, data modification (INSERT/UPDATE/DELETE with RETURNING) | Data-modifying questions need graders that compare the table state after the statement, not a result set. |
 | Oracle SQL | Analytic functions, MERGE, PL/SQL blocks | PL/SQL needs a grader for procedural output; Oracle practice is local only. |
+
+## Enterprise tracks (Phase 5)
+
+| Track | Skills | How answers are verified |
+| --- | --- | --- |
+| C# (`csharp`) | 12: value and reference types, nullable types, pattern matching, collections, OOP, records and immutability, methods and generics, delegates and events, LINQ, deferred execution, exceptions, async | Every C# snippet is compiled, and every program run, by the real C# runner (`content/src/checks/csharp-snippets.spec.ts`) |
+| ASP.NET Core (`aspnet-core`) | 8: HTTP and REST, minimal APIs and routing, middleware, DI and configuration, validation and errors, security, EF Core, testing and architecture | C# compiled against the ASP.NET Core framework; HTTP, middleware, DI and authorization questions run a real app on loopback. EF Core and design questions are reviewed reasoning |
+| SQL Server (`sql-server`) | 7: querying, joins and aggregation, advanced queries, programming, transactions, performance, data modelling | Reviewed reasoning only: no SQL Server engine yet (see [enterprise-prep.md](enterprise-prep.md)) |
+| Azure (`azure`) | 5: identity and security, Functions, Service Bus, Logic Apps and integration, Azure DevOps pipelines | Reviewed reasoning with realistic artifacts; no Azure account is used |
+| Engineering practices (`engineering-practices`) | 5: Git, CI/CD, testing, agile and SDLC, secure coding | Reviewed reasoning; the C# test-double and security snippets are compiled and run |
+| Power Platform (`power-platform`) | 6: Power Apps, Power Automate, Dataverse, Dynamics 365, ALM and governance, Power BI | Reviewed reasoning; no Microsoft tenant is used |
+
+Every skill has at least 15 questions, at least two at each tier and at least seven at tiers 4–5
+(`content/src/content.spec.ts`). Not written yet: C# testing and maintainability (TDD, SOLID,
+refactoring), SSIS/SSRS, and hands-on Microsoft tenant labs.

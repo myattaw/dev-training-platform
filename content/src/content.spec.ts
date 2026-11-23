@@ -61,6 +61,9 @@ describe('the real content', { timeout: 120_000 }, () => {
       'text-cursor-buffer',
       'undo-redo-history',
       'employee-api',
+      'transaction-batch',
+      'secure-customer-api',
+      'legacy-invoice-refactor',
     ]);
     // Announced challenges are listed separately and have no tests or code.
     expect(manifest.plannedChallenges?.map((c) => [c.id, c.availability, c.access])).toEqual([
@@ -73,6 +76,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
       expect.objectContaining({ id: 'csharp', skillCount: 12 }),
+      expect.objectContaining({ id: 'aspnet-core', skillCount: 8 }),
       expect.objectContaining({ id: 'sql-server', skillCount: 7 }),
       expect.objectContaining({ id: 'azure', skillCount: 5 }),
       expect.objectContaining({ id: 'engineering-practices', skillCount: 5 }),
@@ -135,11 +139,11 @@ describe('the real content', { timeout: 120_000 }, () => {
       ['dotnet-backend-developer', 'available'],
       ['fullstack-angular-dotnet-developer', 'available'],
       ['csharp-dotnet-developer', 'available'],
-      ['sql-server-database-developer', 'coming-soon'],
-      ['aspnet-core-backend-developer', 'coming-soon'],
+      ['aspnet-core-backend-developer', 'available'],
+      ['sql-server-database-developer', 'available'],
+      ['azure-developer', 'available'],
+      ['power-platform-developer', 'available'],
       ['enterprise-application-developer', 'coming-soon'],
-      ['azure-developer', 'coming-soon'],
-      ['power-platform-developer', 'coming-soon'],
       ['power-platform-solution-architect', 'coming-soon'],
     ]);
     const terms = (result.publicFiles.get('taxonomy.json') as TaxonomyFile).terms;
@@ -185,6 +189,14 @@ describe('the real content', { timeout: 120_000 }, () => {
       'cs-exceptions',
       'cs-async',
     ]);
+    // Every competency has real practice; the last step is the C# Enterprise Scenarios.
+    expect(role.competencies.filter((c) => c.activities.length === 0)).toEqual([]);
+    expect(role.competencies.at(-1)?.activities).toEqual([
+      { kind: 'scenario', scenarioId: 'employee-management-api' },
+      { kind: 'scenario', scenarioId: 'transaction-processing' },
+      { kind: 'scenario', scenarioId: 'secure-customer-api' },
+      { kind: 'scenario', scenarioId: 'legacy-modernization' },
+    ]);
     // C# challenges are opened in C#.
     for (const a of role.competencies.flatMap((c) => c.activities)) {
       if (a.kind === 'challenge') expect(a.language, a.challengeId).toBe('csharp');
@@ -199,10 +211,10 @@ describe('the real content', { timeout: 120_000 }, () => {
     expect(analysis.terms.map((t) => [t.term.id, t.covered])).toEqual([
       ['csharp', true],
       ['dotnet', true],
-      ['aspnet-core', false],
-      ['sql-server', false],
-      ['azure-devops', false],
-      ['power-automate', false],
+      ['aspnet-core', true],
+      ['sql-server', true],
+      ['azure-devops', true],
+      ['power-automate', true],
     ]);
     expect(analysis.experience).toHaveLength(1);
   });

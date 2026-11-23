@@ -13,8 +13,23 @@ public sealed class EmployeeApiClient
 {
     private readonly HttpClient _http;
 
+    /// <summary>The app of the previous test; stopped before the next one starts.</summary>
+    private static WebApplication? _current;
+    private static HttpClient? _currentClient;
+
     public EmployeeApiClient()
     {
+        // One app at a time: each test gets a fresh one, and the old one's server,
+        // threads and memory are released first.
+        if (_current is not null)
+        {
+            // Close the old client's keep-alive connections first, so shutdown is quick.
+            _currentClient?.Dispose();
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            _current.StopAsync(stop.Token).GetAwaiter().GetResult();
+            _current.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _current = null;
+        }
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
@@ -22,9 +37,11 @@ public sealed class EmployeeApiClient
         var app = builder.Build();
         EmployeeApi.MapEndpoints(app);
         app.StartAsync().GetAwaiter().GetResult();
+        _current = app;
         var address = app.Services.GetRequiredService<IServer>()
             .Features.Get<IServerAddressesFeature>()!.Addresses.First();
         _http = new HttpClient { BaseAddress = new Uri(address), Timeout = TimeSpan.FromSeconds(5) };
+        _currentClient = _http;
     }
 
     /// <summary>Sends a request and returns the status code.</summary>

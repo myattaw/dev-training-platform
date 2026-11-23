@@ -28,6 +28,13 @@ const session = (
   ...over,
 });
 
+const plan = (id: string) => ({
+  id,
+  title: `Plan ${id}`,
+  termIds: ['csharp', 'sql-server'],
+  createdAt: '2026-11-23T10:00:00.000Z',
+});
+
 function accountContract(name: string, create: () => Promise<AccountStore>): void {
   describe(name, () => {
     let store: AccountStore;
@@ -186,6 +193,53 @@ function accountContract(name: string, create: () => Promise<AccountStore>): voi
         'typescript',
       ]);
       expect(await store.getDraft('bob', 'pangram', 'typescript')).toBeUndefined();
+    });
+
+    it('sets and clears the target role, keeping saved plans', async () => {
+      expect(await store.getPreparation('alice')).toBeUndefined();
+      await store.setTargetRole('alice', 'dotnet-backend-developer', '2026-11-23T10:00:00.000Z');
+      expect(await store.getPreparation('alice')).toEqual({
+        userId: 'alice',
+        targetRoleId: 'dotnet-backend-developer',
+        plans: [],
+        updatedAt: '2026-11-23T10:00:00.000Z',
+      });
+      await store.addPreparationPlan('alice', plan('p1'), 10, 't2');
+      await store.setTargetRole('alice', null, '2026-11-23T11:00:00.000Z');
+      const prep = await store.getPreparation('alice');
+      expect(prep?.targetRoleId).toBeUndefined();
+      expect(prep?.plans.map((p) => p.id)).toEqual(['p1']);
+      expect(await store.getPreparation('bob')).toBeUndefined();
+    });
+
+    it('adds plans up to the limit, even when requests race, and deletes them', async () => {
+      for (const id of ['p1', 'p2']) {
+        expect(await store.addPreparationPlan('alice', plan(id), 3, 't')).toBe(true);
+      }
+      // Two more at once with room for one: exactly one wins.
+      const raced = await Promise.all([
+        store.addPreparationPlan('alice', plan('p3'), 3, 't'),
+        store.addPreparationPlan('alice', plan('p4'), 3, 't'),
+      ]);
+      expect(raced.filter(Boolean)).toHaveLength(1);
+      expect(await store.addPreparationPlan('alice', plan('p5'), 3, 't')).toBe(false);
+      const prep = await store.getPreparation('alice');
+      expect(prep?.plans).toHaveLength(3);
+      expect(prep?.plans[0]).toEqual(plan('p1'));
+
+      expect(await store.deletePreparationPlan('alice', 'p1', 't')).toBe(true);
+      expect(await store.deletePreparationPlan('alice', 'p1', 't')).toBe(false);
+      expect(await store.deletePreparationPlan('bob', 'p2', 't')).toBe(false);
+      expect((await store.getPreparation('alice'))?.plans.map((p) => p.id)).toEqual(
+        prep?.plans.slice(1).map((p) => p.id),
+      );
+      expect(await store.addPreparationPlan('alice', plan('p6'), 3, 't')).toBe(true);
+    });
+
+    it('counts preparation choices as user data', async () => {
+      expect(await store.hasUserData('dave')).toBe(false);
+      await store.setTargetRole('dave', 'csharp-dotnet-developer', 't');
+      expect(await store.hasUserData('dave')).toBe(true);
     });
 
     it('stores each import result once', async () => {

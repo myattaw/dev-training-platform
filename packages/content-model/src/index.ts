@@ -7,3 +7,7 @@ export * from './normalize';
 export * from './manifest';
 export * from './sql';
 export * from './company';
+export * from './roles';
+export * from './taxonomy';
+export * from './job-analysis';
+export * from './scenario';

@@ -8,8 +8,15 @@ import {
   type CompanyContent,
   companyFile,
   type CompanyIndexFile,
+  type JobRole,
   type PlannedChallenge,
   MANIFEST_FILE,
+  type RolesFile,
+  type Scenario,
+  scenarioFile,
+  type ScenarioGrading,
+  type ScenariosFile,
+  type TaxonomyFile,
   type PublicManifest,
   type Skill,
   type SplitQuestion,
@@ -34,7 +41,28 @@ export interface ContentSource {
   findCompany(companyId: string): CompanyContent | undefined;
   /** Announced challenges (Coming soon); metadata only. */
   findPlannedChallenge(id: string): PlannedChallenge | undefined;
+  /** Job roles (public content). */
+  findRole(id: string): JobRole | undefined;
+  /** Whether a taxonomy term id exists (saved plans store term ids). */
+  hasTerm(termId: string): boolean;
+  /** An Enterprise Scenario with its private answer keys. */
+  findScenario(id: string): ScenarioWithGrading | undefined;
+  /** Scenario ids, in catalog order. */
+  scenarioIds(): readonly string[];
 }
+
+export interface ScenarioWithGrading {
+  readonly scenario: Scenario;
+  readonly grading: ScenarioGrading;
+}
+
+/** Job roles and taxonomy term ids, for validating preparation choices. */
+export interface PreparationContent {
+  readonly roles: readonly JobRole[];
+  readonly termIds: readonly string[];
+}
+
+const NO_PREPARATION: PreparationContent = { roles: [], termIds: [] };
 
 export interface CompanyData {
   readonly index: CompanyIndexFile;
@@ -55,7 +83,12 @@ export function createContentSource(
   challenges: readonly ChallengeWithGrading[] = [],
   companies: CompanyData = NO_COMPANIES,
   planned: readonly PlannedChallenge[] = [],
+  preparation: PreparationContent = NO_PREPARATION,
+  scenarios: readonly ScenarioWithGrading[] = [],
 ): ContentSource {
+  const scenarioMap = new Map(scenarios.map((s) => [s.scenario.id, s]));
+  const roleMap = new Map(preparation.roles.map((r) => [r.id, r]));
+  const termIds = new Set(preparation.termIds);
   const companyMap = new Map(companies.companies.map((c) => [c.company.id, c]));
   const plannedMap = new Map(planned.map((p) => [p.id, p]));
   const challengeMap = new Map(challenges.map((c) => [c.challenge.id, c]));
@@ -81,6 +114,10 @@ export function createContentSource(
     companyIndex: () => companies.index,
     findCompany: (id) => companyMap.get(id),
     findPlannedChallenge: (id) => plannedMap.get(id),
+    findRole: (id) => roleMap.get(id),
+    hasTerm: (id) => termIds.has(id),
+    findScenario: (id) => scenarioMap.get(id),
+    scenarioIds: () => scenarios.map((s) => s.scenario.id),
   };
 }
 
@@ -125,6 +162,22 @@ export function loadContentSource(contentDist: string): ContentSource {
       companies: index.companies.map((c) => read<CompanyContent>('private', companyFile(c.id))),
     };
   }
+  let preparation = NO_PREPARATION;
+  if (manifest.preparation) {
+    preparation = {
+      roles: read<RolesFile>('public', manifest.preparation.rolesFile).roles,
+      termIds: read<TaxonomyFile>('public', manifest.preparation.taxonomyFile).terms.map(
+        (t) => t.id,
+      ),
+    };
+  }
+  let scenarios: ScenarioWithGrading[] = [];
+  if (manifest.scenariosFile) {
+    scenarios = read<ScenariosFile>('public', manifest.scenariosFile).scenarios.map((s) => ({
+      scenario: read<Scenario>('public', scenarioFile(s.id, s.version)),
+      grading: read<ScenarioGrading>('private', 'scenarios', `${s.id}@${s.version}.grading.json`),
+    }));
+  }
   return createContentSource(
     manifest.contentVersion,
     catalogs,
@@ -132,5 +185,7 @@ export function loadContentSource(contentDist: string): ContentSource {
     challenges,
     companies,
     manifest.plannedChallenges ?? [],
+    preparation,
+    scenarios,
   );
 }

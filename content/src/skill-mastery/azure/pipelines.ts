@@ -1,5 +1,5 @@
 import type { QuestionSource } from '@pracstack/content-model';
-import { plain, yaml } from '../helpers';
+import { yaml } from '../helpers';
 import { configBlankFamily, scenarioFamily } from './builders';
 
 /*
@@ -387,11 +387,11 @@ steps:
     echo "template: \${{ variables.version }}"
     echo "macro: $(version)"`),
         correct:
-          '`\${{ }}` is evaluated when the YAML is compiled, before any step runs, so it sees the empty initial value; `$(version)` is read at runtime and prints the new value',
+          '`${{ }}` is evaluated when the YAML is compiled, before any step runs, so it sees the empty initial value; `$(version)` is read at runtime and prints the new value',
         wrong: [
           '`task.setvariable` only affects steps in other jobs',
           'Both echoes print empty, because variables are read-only once defined in YAML',
-          '`\${{ }}` reads environment variables, and the variable is not exported',
+          '`${{ }}` reads environment variables, and the variable is not exported',
         ],
         why: 'Template expressions are resolved once, when the pipeline is expanded, so they only see values known at queue time. Values set by a logging command during the run are visible to later steps through macro syntax or runtime expressions.',
       },
@@ -414,7 +414,7 @@ steps:
           'Mark the variable as an output variable: add `;isOutput=true` to the `task.setvariable` command',
         wrong: [
           'Remove `dependsOn: A`, because dependencies are not needed for outputs',
-          'Replace `$[ ]` with `\${{ }}` so the value is read at compile time',
+          'Replace `$[ ]` with `${{ }}` so the value is read at compile time',
           'Rename the step from `setTag` to `A`',
         ],
         why: "A variable set with `task.setvariable` is local to its job unless it is declared an output with `isOutput=true`; only then can other jobs read it as `dependencies.<job>.outputs['<step>.<name>']`. That also requires the `dependsOn` and the step `name`, which are already correct. A compile-time expression cannot see values produced while the run is going.",

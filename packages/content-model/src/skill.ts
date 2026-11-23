@@ -192,8 +192,7 @@ export type TypeScriptKeyCheck =
  *   those that compile (after `prelude`).
  */
 export type CSharpKeyCheck =
-  | { readonly kind: 'compiles' }
-  | { readonly kind: 'options-compile'; readonly prelude?: string };
+  { readonly kind: 'compiles' } | { readonly kind: 'options-compile'; readonly prelude?: string };
 
 /** SQL questions reference a shared practice database instead of repeating it. */
 export type SqlQuestionSource = Omit<

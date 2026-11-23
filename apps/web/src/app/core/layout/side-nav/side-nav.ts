@@ -18,6 +18,8 @@ interface NavGroup {
 /**
  * Primary navigation. Only areas that actually work are listed; planned
  * features appear inside the pages they belong to, marked Coming soon.
+ * Each area appears once: practice in Practice, goal-oriented preparation
+ * (a company, a job role) in Career Preparation.
  */
 const GROUPS: readonly NavGroup[] = [
   { items: [{ label: 'Dashboard', link: '/', icon: 'dashboard', exact: true }] },
@@ -26,7 +28,14 @@ const GROUPS: readonly NavGroup[] = [
     items: [
       { label: 'Skill Mastery', link: '/skills', icon: 'target', exact: false },
       { label: 'Coding Challenges', link: '/challenges', icon: 'code', exact: false },
+      { label: 'Enterprise Scenarios', link: '/scenarios', icon: 'workflow', exact: false },
+    ],
+  },
+  {
+    heading: 'Career Preparation',
+    items: [
       { label: 'Company Interview Prep', link: '/companies', icon: 'building', exact: false },
+      { label: 'Job Role Preparation', link: '/roles', icon: 'briefcase', exact: false },
     ],
   },
   {

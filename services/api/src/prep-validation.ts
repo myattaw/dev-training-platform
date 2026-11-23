@@ -1,10 +1,12 @@
 import {
   CODE_LIMITS,
   type CreateInterviewSessionRequest,
+  type CreatePlanRequest,
   type FinishInterviewRequest,
   type ImportedDraft,
   INTERVIEW_DURATIONS,
   type InterviewDuration,
+  PREPARATION_LIMITS,
   PROFILE_LIMITS,
   type ProgressImportRequest,
   type ReportedQuestionStatus,
@@ -84,15 +86,61 @@ export function parseQuestionStatus(body: unknown): ReportedQuestionStatus {
 export function parseDisplayName(body: unknown): string {
   const value = asObject(body)['displayName'];
   if (typeof value !== 'string') throw badRequest('"displayName" must be a string.');
-  const name = value
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const name = cleanText(value);
   if (name.length < 1 || name.length > PROFILE_LIMITS.maxDisplayName) {
     throw badRequest(`"displayName" must be 1–${PROFILE_LIMITS.maxDisplayName} characters.`);
   }
   return name;
+}
+
+/** User-chosen text: control characters removed, whitespace collapsed, trimmed. */
+function cleanText(value: string): string {
+  return (
+    value
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\u0000-\u001f\u007f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
+/** `{ roleId }`: a role id, or null to clear the target. */
+export function parseSetTargetRole(body: unknown): string | null {
+  const o = asObject(body);
+  if (!Object.hasOwn(o, 'roleId')) throw badRequest('"roleId" is required (a role id or null).');
+  const roleId = o['roleId'];
+  return roleId === null ? null : parseId(roleId, 'roleId');
+}
+
+const PLAN_FIELDS = new Set(['title', 'termIds']);
+
+/**
+ * `{ title, termIds }` and nothing else. Any other field is refused, so job
+ * posting text cannot be stored even by a modified client.
+ */
+export function parseCreatePlan(body: unknown): CreatePlanRequest {
+  const o = asObject(body);
+  if (Object.keys(o).some((k) => !PLAN_FIELDS.has(k))) {
+    throw badRequest('A plan has only "title" and "termIds"; other fields are not accepted.');
+  }
+  const rawTitle = o['title'];
+  if (typeof rawTitle !== 'string') throw badRequest('"title" must be a string.');
+  const title = cleanText(rawTitle);
+  if (title.length < 1 || title.length > PREPARATION_LIMITS.maxPlanTitle) {
+    throw badRequest(`"title" must be 1–${PREPARATION_LIMITS.maxPlanTitle} characters.`);
+  }
+  const termIds = o['termIds'];
+  if (
+    !Array.isArray(termIds) ||
+    termIds.length < 1 ||
+    termIds.length > PREPARATION_LIMITS.maxPlanTerms
+  ) {
+    throw badRequest(
+      `"termIds" must be a list of 1–${PREPARATION_LIMITS.maxPlanTerms} taxonomy term ids.`,
+    );
+  }
+  const ids = termIds.map((id: unknown, i) => parseId(id, `termIds[${i}]`));
+  return { title, termIds: [...new Set(ids)] };
 }
 
 export function parseProgressImport(body: unknown): ProgressImportRequest {

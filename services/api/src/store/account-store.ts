@@ -1,3 +1,4 @@
+import type { ScenarioProgressRecord } from '../scenarios/scenario-service';
 import type {
   InterviewDuration,
   InterviewResult,
@@ -8,7 +9,8 @@ import type { LanguageId } from '@pracstack/content-model';
 
 /*
  * Account-level records: profile, plan, linked identities, company
- * preparation, timed interview sessions, drafts and progress imports.
+ * preparation, job role preparation, timed interview sessions, drafts and
+ * progress imports.
  * Every record is keyed by user, like the rest of the progress store.
  */
 
@@ -99,6 +101,23 @@ export interface ImportRecord {
   readonly importedAt: string;
 }
 
+/** A preparation plan: taxonomy term ids only (never job-posting text). */
+export interface SavedPlanRecord {
+  readonly id: string;
+  readonly title: string;
+  readonly termIds: readonly string[];
+  readonly createdAt: string;
+}
+
+/** Job Role Preparation choices: one record per user. */
+export interface PreparationRecord {
+  readonly userId: string;
+  readonly targetRoleId?: string;
+  /** In creation order. */
+  readonly plans: readonly SavedPlanRecord[];
+  readonly updatedAt: string;
+}
+
 export type CreateSessionOutcome =
   | { readonly kind: 'created' }
   /** A session was already created for this client request id. */
@@ -134,6 +153,27 @@ export interface AccountStore {
     },
   ): Promise<void>;
   listQuestionMarks(userId: string): Promise<readonly QuestionMarkRecord[]>;
+
+  /** Enterprise Scenarios: answers to question tasks, one record per scenario. */
+  getScenarioProgress(
+    userId: string,
+    scenarioId: string,
+  ): Promise<ScenarioProgressRecord | undefined>;
+  putScenarioProgress(record: ScenarioProgressRecord): Promise<void>;
+  listScenarioProgress(userId: string): Promise<readonly ScenarioProgressRecord[]>;
+
+  getPreparation(userId: string): Promise<PreparationRecord | undefined>;
+  /** `null` clears the target role. */
+  setTargetRole(userId: string, roleId: string | null, updatedAt: string): Promise<void>;
+  /** Appends a plan unless the user already has `maxPlans`; false when full (atomic). */
+  addPreparationPlan(
+    userId: string,
+    plan: SavedPlanRecord,
+    maxPlans: number,
+    updatedAt: string,
+  ): Promise<boolean>;
+  /** False when the user has no plan with this id. */
+  deletePreparationPlan(userId: string, planId: string, updatedAt: string): Promise<boolean>;
 
   /** Creates a session, once per (user, clientRequestId). */
   createInterviewSession(session: InterviewSessionRecord): Promise<CreateSessionOutcome>;

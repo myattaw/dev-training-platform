@@ -47,6 +47,8 @@ const ICONS = {
   building: {
     paths: ['M3 13.5V3h6v10.5', 'M9 6.5h4v7', 'M2 13.5h12', 'M5 5.5h2M5 8h2M5 10.5h2'],
   },
+  briefcase: { paths: ['M2 5.5h12v8H2z', 'M5.5 5.5v-2h5v2', 'M2 9h12'] },
+  workflow: { paths: ['M2 2.5h5v4H2z', 'M9 9.5h5v4H9z', 'M4.5 6.5V11.5H9'] },
   user: {
     paths: ['M10.5 5a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0', 'M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4'],
   },

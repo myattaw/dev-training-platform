@@ -1,3 +1,4 @@
+import type { ScenarioProgressRecord } from '../scenarios/scenario-service';
 import type { LanguageId } from '@pracstack/content-model';
 import type {
   AccountStore,
@@ -8,9 +9,11 @@ import type {
   ImportRecord,
   InterviewSessionRecord,
   LinkIntentRecord,
+  PreparationRecord,
   ProfileRecord,
   QuestionMarkRecord,
   SavedCompanyRecord,
+  SavedPlanRecord,
 } from './account-store';
 
 /** Account data held by the in-memory (and file) store. */
@@ -24,6 +27,10 @@ export interface AccountData {
   interviewSessions: Record<string, InterviewSessionRecord>;
   drafts: Record<string, DraftRecord>;
   imports: Record<string, ImportRecord>;
+  /** Job Role Preparation, by user id. Added later; filled with {} when missing. */
+  preparation: Record<string, PreparationRecord>;
+  /** Enterprise Scenarios answers, by user and scenario. Added later; filled with {} when missing. */
+  scenarioProgress: Record<string, ScenarioProgressRecord>;
 }
 
 export const emptyAccountData = (): AccountData => ({
@@ -36,6 +43,8 @@ export const emptyAccountData = (): AccountData => ({
   interviewSessions: {},
   drafts: {},
   imports: {},
+  preparation: {},
+  scenarioProgress: {},
 });
 
 const key = (...parts: string[]): string => parts.join('#');
@@ -126,6 +135,8 @@ export class InMemoryAccountStore implements AccountStore {
         mine(this.data.interviewSessions) ||
         mine(this.data.savedCompanies) ||
         mine(this.data.questionMarks) ||
+        mine(this.data.preparation) ||
+        mine(this.data.scenarioProgress) ||
         this.data.profiles[userId] !== undefined,
     );
   }
@@ -166,6 +177,66 @@ export class InMemoryAccountStore implements AccountStore {
     return Promise.resolve(
       Object.values(this.data.questionMarks).filter((m) => m.userId === userId),
     );
+  }
+
+  getScenarioProgress(
+    userId: string,
+    scenarioId: string,
+  ): Promise<ScenarioProgressRecord | undefined> {
+    return Promise.resolve(this.data.scenarioProgress[key(userId, scenarioId)]);
+  }
+
+  putScenarioProgress(record: ScenarioProgressRecord): Promise<void> {
+    this.data.scenarioProgress[key(record.userId, record.scenarioId)] = record;
+    return this.persist();
+  }
+
+  listScenarioProgress(userId: string): Promise<readonly ScenarioProgressRecord[]> {
+    return Promise.resolve(
+      Object.values(this.data.scenarioProgress)
+        .filter((r) => r.userId === userId)
+        .sort((a, b) => a.scenarioId.localeCompare(b.scenarioId)),
+    );
+  }
+
+  getPreparation(userId: string): Promise<PreparationRecord | undefined> {
+    return Promise.resolve(this.data.preparation[userId]);
+  }
+
+  setTargetRole(userId: string, roleId: string | null, updatedAt: string): Promise<void> {
+    const { targetRoleId, ...rest } = this.data.preparation[userId] ?? { userId, plans: [] };
+    void targetRoleId;
+    this.data.preparation[userId] = {
+      ...rest,
+      ...(roleId ? { targetRoleId: roleId } : {}),
+      updatedAt,
+    };
+    return this.persist();
+  }
+
+  async addPreparationPlan(
+    userId: string,
+    plan: SavedPlanRecord,
+    maxPlans: number,
+    updatedAt: string,
+  ): Promise<boolean> {
+    const current = this.data.preparation[userId] ?? { userId, plans: [], updatedAt };
+    if (current.plans.length >= maxPlans) return false;
+    this.data.preparation[userId] = { ...current, plans: [...current.plans, plan], updatedAt };
+    await this.persist();
+    return true;
+  }
+
+  async deletePreparationPlan(userId: string, planId: string, updatedAt: string): Promise<boolean> {
+    const current = this.data.preparation[userId];
+    if (!current?.plans.some((p) => p.id === planId)) return false;
+    this.data.preparation[userId] = {
+      ...current,
+      plans: current.plans.filter((p) => p.id !== planId),
+      updatedAt,
+    };
+    await this.persist();
+    return true;
   }
 
   async createInterviewSession(session: InterviewSessionRecord): Promise<CreateSessionOutcome> {

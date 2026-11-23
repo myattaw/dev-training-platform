@@ -1,0 +1,175 @@
+<app-page-header
+  heading="Job Role Preparation"
+  description="Pick a target job role and follow a preparation path built only from PracStack's own skills and coding challenges."
+>
+  <a headerActions class="btn" routerLink="analyze">
+    <app-icon name="search" />Analyze a job description
+  </a>
+</app-page-header>
+
+@if (actionError(); as err) {
+  <app-alert type="error">{{ err }}</app-alert>
+}
+
+@if (targetRole(); as target) {
+  <app-alert type="info" heading="Your target role">
+    <a [routerLink]="[target.id]">{{ target.title }}</a>: continue where you left off.
+  </app-alert>
+}
+
+@let s = data.state();
+<app-panel heading="Roles" headingId="roles-heading" [flush]="true">
+  <div class="filters" role="search" aria-label="Find a role">
+    <label class="search">
+      <span class="sr-only">Search roles</span>
+      <app-icon name="search" class="search-icon" />
+      <input
+        class="input"
+        type="search"
+        placeholder="Search by role or technology"
+        autocomplete="off"
+        maxlength="100"
+        [value]="query()"
+        (input)="onSearch($event)"
+      />
+    </label>
+    <label>
+      <span class="sr-only">Technology</span>
+      <select class="select" (change)="onTechnology($event)">
+        <option value="" [selected]="!techFilter()">Any technology</option>
+        @for (t of technologies(); track t.id) {
+          <option [value]="t.id" [selected]="techFilter() === t.id">{{ t.label }}</option>
+        }
+      </select>
+    </label>
+    @if (query() !== '' || techFilter()) {
+      <button type="button" class="btn btn--link" (click)="clearFilters()">Clear filters</button>
+    }
+    <p class="match-count text-secondary" aria-live="polite">
+      @if (s.status === 'ready') {
+        {{ roles().length }} {{ roles().length === 1 ? 'role' : 'roles' }}
+      }
+    </p>
+  </div>
+
+  @if (s.status === 'loading') {
+    <app-loading-state label="Loading roles…" />
+  } @else if (s.status === 'error') {
+    <div class="state">
+      <app-alert type="error" heading="Roles could not be loaded">
+        {{ s.error }}
+        <button alertAction type="button" class="btn btn--sm" (click)="data.reload()">
+          Try again
+        </button>
+      </app-alert>
+    </div>
+  } @else if (roles().length > 0) {
+    <div class="table-scroll">
+      <table class="table" aria-labelledby="roles-heading">
+        <thead>
+          <tr>
+            <th scope="col">Role</th>
+            <th scope="col">Technologies</th>
+            <th scope="col">Practice on PracStack</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of roles(); track r.role.id) {
+            <tr [class.target]="r.target">
+              <td class="name">
+                <a [routerLink]="[r.role.id]">{{ r.role.title }}</a>
+                @if (r.target) {
+                  <app-badge color="blue">Your target</app-badge>
+                }
+                <span class="summary text-secondary">{{ r.role.summary }}</span>
+              </td>
+              <td class="techs">{{ r.labels.join(', ') }}</td>
+              <td>
+                @if (r.coverage; as c) {
+                  {{ c.practised }} of {{ c.total }} competencies
+                } @else {
+                  <span class="text-secondary">No path yet</span>
+                }
+              </td>
+              <td>
+                <app-badge [color]="r.role.status === 'available' ? 'green' : 'grey'">
+                  {{ statusLabels[r.role.status] }}
+                </app-badge>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <app-empty-state
+      heading="No roles found"
+      message="No role matches these filters. Try another technology or a shorter search."
+    >
+      <button type="button" class="btn" (click)="clearFilters()">Clear filters</button>
+    </app-empty-state>
+  }
+</app-panel>
+
+@if (auth.status() === 'signed-out') {
+  <app-panel heading="Save your target role and plans">
+    <div class="signed-out">
+      <p>
+        Roles and the job description analyzer work without an account. Sign in to set a target
+        role, track your progress on it and save preparation plans.
+      </p>
+      <button type="button" class="btn btn--primary" (click)="signIn()">Sign in</button>
+    </div>
+  </app-panel>
+} @else if (plans().length > 0) {
+  <app-panel
+    heading="Saved preparation plans"
+    headingId="plans-heading"
+    [counter]="plans().length"
+    [flush]="true"
+  >
+    <div class="table-scroll">
+      <table class="table" aria-labelledby="plans-heading">
+        <thead>
+          <tr>
+            <th scope="col">Plan</th>
+            <th scope="col">Technologies</th>
+            <th scope="col">Saved</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of plans(); track p.id) {
+            <tr>
+              <td class="name">
+                <a [routerLink]="['plans', p.id]">{{ p.title }}</a>
+              </td>
+              <td class="techs">
+                @for (id of p.termIds.slice(0, 6); track id; let last = $last) {
+                  {{ termLabel(id) }}{{ last ? '' : ', ' }}
+                }
+                @if (p.termIds.length > 6) {
+                  <span class="text-secondary"> and {{ p.termIds.length - 6 }} more</span>
+                }
+              </td>
+              <td>{{ formatDate(p.createdAt) }}</td>
+              <td class="action-cell">
+                <button
+                  type="button"
+                  class="btn btn--sm"
+                  [attr.aria-label]="'Delete plan ' + p.title"
+                  (click)="deletePlan(p.id)"
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </app-panel>
+}
+
+<app-experience-note />

@@ -9,3 +9,6 @@ export { findLeaks, sensitiveStrings } from './leak-check';
 export { CHALLENGES } from './challenges';
 export type { ChallengeEntry } from './challenges';
 export { TRACKS } from './skill-mastery';
+export { ROLES } from './roles/roles';
+export { TAXONOMY } from './roles/taxonomy';
+export { SCENARIOS } from './scenarios';
