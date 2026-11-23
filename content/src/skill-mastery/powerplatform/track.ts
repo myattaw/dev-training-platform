@@ -12,6 +12,7 @@ import { dataverseFamilies, dataverseSelectFamilies, dynamicsFamilies } from './
 export const powerPlatformTrack: TrackSource = {
   id: 'power-platform',
   name: 'Power Platform',
+  category: 'enterprise',
   description:
     'Scenario-based assessments for Microsoft Power Platform: Power Apps and Power Fx, Power Automate cloud flows, Dataverse data modelling and security, ALM and governance, Dynamics 365 extensibility and Power BI modelling with DAX. You reason about formulas, flow definitions, designs and DAX shown in each question; nothing runs in a Microsoft environment. Hands-on labs would need a Microsoft tenant, which PracStack does not provide.',
   topics: [

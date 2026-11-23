@@ -13,6 +13,7 @@ import { exceptionsFamilies, linqBasicsFamilies, linqExecutionFamilies } from '.
 export const csharpTrack: TrackSource = {
   id: 'csharp',
   name: 'C#',
+  category: 'languages',
   description:
     'Modern C# on .NET 10: value and reference semantics, nullable types, pattern matching, collections, OOP, LINQ, exceptions, generics, delegates and async.',
   topics: [

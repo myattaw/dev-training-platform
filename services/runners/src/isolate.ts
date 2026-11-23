@@ -39,6 +39,8 @@ export interface IsolatedRun {
   readonly args: readonly string[];
   readonly stdin: string;
   readonly limits: IsolationLimits;
+  /** Extra environment for the runtime (settings only; never credentials). */
+  readonly env?: Readonly<Record<string, string>>;
 }
 
 export interface IsolatedResult {
@@ -80,7 +82,13 @@ function execute(run: IsolatedRun, dir: string): Promise<IsolatedResult> {
     const child = spawn('prlimit', args, {
       cwd: dir,
       // No credentials, no configuration from the function's environment.
-      env: { PATH: '/usr/local/bin:/usr/bin:/bin', HOME: dir, TMPDIR: dir, LANG: 'C.UTF-8' },
+      env: {
+        ...run.env,
+        PATH: '/usr/local/bin:/usr/bin:/bin',
+        HOME: dir,
+        TMPDIR: dir,
+        LANG: 'C.UTF-8',
+      },
       stdio: ['pipe', 'pipe', 'pipe'],
       // Its own process group, so the whole group can be killed at once.
       detached: true,

@@ -34,6 +34,19 @@
   width: 220px;
 }
 
+/* Every topic table uses the same column widths, so columns line up down the page. */
+@media (min-width: 800px) {
+  .topics .table {
+    table-layout: fixed;
+  }
+  .status-col {
+    width: 170px;
+  }
+  .action-col {
+    width: 130px;
+  }
+}
+
 .action {
   text-align: right;
   white-space: nowrap;

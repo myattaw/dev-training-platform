@@ -43,6 +43,7 @@ const check = (q: QuestionSource) => {
   const track: TrackSource = {
     id: 'pg',
     name: 'PG',
+    category: 'languages',
     description: 'PG.',
     topics: [
       {

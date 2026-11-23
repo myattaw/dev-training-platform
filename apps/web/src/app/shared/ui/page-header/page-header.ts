@@ -17,6 +17,7 @@ import { type Breadcrumb, Breadcrumbs } from '../breadcrumbs/breadcrumbs';
     <div class="row">
       <div class="titles">
         <div class="title-line">
+          <ng-content select="[headerIcon]" />
           <h1>
             {{ heading() }}
             @if (counter() !== undefined) {

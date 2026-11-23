@@ -1,7 +1,7 @@
 /**
  * Prepares the Docker build contexts of the three runner functions:
  *
- *   services/runners/dist/{typescript,java,sql}/   Dockerfile + everything it copies
+ *   services/runners/dist/{typescript,java,csharp,sql}/   Dockerfile + everything it copies
  *
  *   npm run build -w @pracstack/runners              # contexts only (CDK builds the images)
  *   npm run build -w @pracstack/runners -- --images  # also build local images for the tests
@@ -19,7 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const packages = resolve(root, '../../packages');
 export const DIST = join(root, 'dist');
-export const RUNNERS = ['typescript', 'java', 'sql'] as const;
+export const RUNNERS = ['typescript', 'java', 'csharp', 'sql'] as const;
 export type RunnerName = (typeof RUNNERS)[number];
 /** Tags of locally built images (tests only; AWS deployments are built by the CDK). */
 export const localImage = (name: RunnerName): string => `pracstack-lambda-${name}:local`;
@@ -43,7 +43,7 @@ export async function buildContexts(): Promise<void> {
   rmSync(DIST, { recursive: true, force: true });
   const codeRunner = join(packages, 'code-runner');
 
-  for (const lang of ['typescript', 'java'] as const) {
+  for (const lang of ['typescript', 'java', 'csharp'] as const) {
     const out = join(DIST, lang);
     mkdirSync(join(out, 'harness'), { recursive: true });
     cpSync(join(root, 'docker', `${lang}.Dockerfile`), join(out, 'Dockerfile'));
@@ -69,6 +69,9 @@ export async function buildContexts(): Promise<void> {
     join(codeRunner, 'docker', 'java', 'Harness.java'),
     join(DIST, 'java', 'harness', 'Harness.java'),
   );
+  // C#: the same harness project as the local image; the Dockerfile publishes it.
+  for (const file of ['Harness.cs', 'Harness.csproj'])
+    cpSync(join(codeRunner, 'docker', 'csharp', file), join(DIST, 'csharp', 'harness', file));
 
   // SQL: handler, supervisor process and worker; PGlite is installed in the image.
   const sql = join(DIST, 'sql');

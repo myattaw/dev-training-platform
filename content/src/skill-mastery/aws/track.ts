@@ -14,6 +14,7 @@ import { messagingFamilies } from './messaging-events';
 export const awsTrack: TrackSource = {
   id: 'aws',
   name: 'AWS for developers',
+  category: 'cloud',
   description:
     'Scenario-based questions on building and shipping applications on AWS: IAM and secrets, Lambda, API Gateway, DynamoDB and S3, SQS, SNS, EventBridge and Step Functions, and delivery with CloudFormation, the AWS CDK and GitHub Actions. You reason over policies, templates, code, logs and error messages; no AWS account is needed.',
   topics: [

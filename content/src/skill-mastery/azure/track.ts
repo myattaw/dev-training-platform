@@ -13,6 +13,7 @@ import { serviceBusFamilies } from './service-bus';
 export const azureTrack: TrackSource = {
   id: 'azure',
   name: 'Azure for developers',
+  category: 'cloud',
   description:
     'Scenario-based questions on building and shipping applications on Azure: identity and RBAC, managed identities and Key Vault, Azure Functions, Service Bus, Logic Apps and Azure DevOps Pipelines. You reason over configuration, code, pipeline YAML and logs; no Azure account is needed.',
   topics: [

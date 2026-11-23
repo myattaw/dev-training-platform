@@ -22,6 +22,7 @@
     [description]="tech.description"
     [breadcrumbs]="[{ label: 'Skill Mastery', link: '/skills' }, { label: tech.name }]"
   >
+    <app-track-mark headerIcon [trackId]="tech.id" />
     @if (progress.state().status === 'ready') {
       <p headerBadge class="summary text-secondary">
         {{ mastered() }} of {{ state.value.skills.length }} skills mastered
@@ -89,8 +90,8 @@
               <tr>
                 <th scope="col">Skill</th>
                 <th scope="col" class="score-col">Mastery</th>
-                <th scope="col">Status</th>
-                <th scope="col"><span class="sr-only">Actions</span></th>
+                <th scope="col" class="status-col">Status</th>
+                <th scope="col" class="action-col"><span class="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody>

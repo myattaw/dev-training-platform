@@ -14,6 +14,7 @@ const p = (text: string) => [{ kind: 'paragraph' as const, text }];
 export const FIXTURE_TRACK: TrackSource = {
   id: 'demo',
   name: 'Demo',
+  category: 'languages',
   description: 'Demo track.',
   topics: [
     {

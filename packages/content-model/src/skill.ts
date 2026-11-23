@@ -8,10 +8,48 @@ import type { SqlDatabase, SqlTable } from './sql';
  * served one at a time by the API, so the whole question bank, including the
  * question text, ships only in the private bundle.
  */
+/** Sections of the Skill Mastery catalog. */
+export type TechnologyCategory = 'languages' | 'frameworks' | 'databases' | 'cloud' | 'enterprise';
+
+/** Catalog sections, in display order. */
+export const TECHNOLOGY_CATEGORIES: readonly {
+  readonly id: TechnologyCategory;
+  readonly name: string;
+  readonly description: string;
+}[] = [
+  {
+    id: 'languages',
+    name: 'Programming languages',
+    description: 'The languages you write every day.',
+  },
+  {
+    id: 'frameworks',
+    name: 'Frameworks and web development',
+    description: 'Front-end and back-end frameworks for web applications.',
+  },
+  {
+    id: 'databases',
+    name: 'Databases and SQL',
+    description: 'Query, design and tune relational databases.',
+  },
+  {
+    id: 'cloud',
+    name: 'Cloud platforms',
+    description: 'Build and ship applications on the major clouds.',
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise and engineering',
+    description: 'Business applications and the practices teams rely on.',
+  },
+];
+
 export interface Technology {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  /** Catalog section. */
+  readonly category: TechnologyCategory;
 }
 
 export interface Topic {

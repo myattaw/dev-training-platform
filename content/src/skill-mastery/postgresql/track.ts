@@ -17,6 +17,7 @@ import {
 export const postgresqlTrack: TrackSource = {
   id: 'postgresql',
   name: 'PostgreSQL',
+  category: 'databases',
   description:
     'Query relational data with SQL: filtering, sorting, expressions, aggregation, joins and subqueries.',
   topics: [

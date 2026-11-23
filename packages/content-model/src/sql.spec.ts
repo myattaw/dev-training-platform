@@ -28,6 +28,7 @@ const question = (database: SqlDatabase = db): QuestionSource => ({
 const track = (q: QuestionSource): TrackSource => ({
   id: 'pg',
   name: 'PostgreSQL',
+  category: 'languages',
   description: 'SQL.',
   topics: [
     {

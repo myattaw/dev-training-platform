@@ -403,6 +403,131 @@ describe.skipIf(skip)('Java runner function', { timeout: 90_000 }, () => {
   }, 60_000);
 });
 
+describe.skipIf(skip)('C# runner function', { timeout: 90_000 }, () => {
+  let fn: Fn;
+  beforeAll(async () => {
+    fn = await startFunction('csharp');
+  }, 60_000);
+  afterAll(() => fn?.stop());
+
+  const csRun = (body: string): CodeRunRequest => ({
+    language: 'csharp',
+    code: `public static class Solution {\n${body}\n}`,
+    entryPoint: 'f',
+    tests: [{ kind: 'call', input: [] }],
+  });
+  const PROC_SCAN = (file: string) => `
+    var sb = new StringBuilder();
+    foreach (var dir in Directory.GetDirectories("/proc"))
+    {
+        if (!int.TryParse(Path.GetFileName(dir), out _)) continue;
+        try { sb.Append(File.ReadAllText(Path.Combine(dir, "${file}")).Replace('\\0', ' ')).Append('\\n'); }
+        catch { }
+    }
+    return sb.ToString();`;
+
+  it('runs a solution, with the PascalCase method name', async () => {
+    const res = await fn.invoke({
+      language: 'csharp',
+      code: 'public static class Solution { public static string Reverse(string s) => new string(s.Reverse().ToArray()); }',
+      entryPoint: 'reverse',
+      tests: [{ kind: 'call', input: ['abc'] }],
+    });
+    expect(res.body).toEqual({
+      kind: 'completed',
+      outcomes: [{ kind: 'call', value: 'cba' }],
+      logs: [],
+    });
+  });
+
+  it("cannot see the function's AWS credentials", async () => {
+    const res = await fn.invoke(
+      csRun(
+        'public static string F() => string.Join(";", Environment.GetEnvironmentVariables().Keys.Cast<object>().Zip(Environment.GetEnvironmentVariables().Values.Cast<object>(), (k, v) => $"{k}={v}"));',
+      ),
+    );
+    const env = String(valueOf(res.body));
+    expect(env).toContain('PATH=');
+    for (const secret of Object.values(FAKE_SECRETS)) expect(env).not.toContain(secret);
+  });
+
+  it('cannot read the credentials from any process, including the supervisor', async () => {
+    const res = await fn.invoke(csRun(`public static string F() { ${PROC_SCAN('environ')} }`));
+    const environs = String(valueOf(res.body));
+    expect(environs).toContain('AWS_LAMBDA_FUNCTION_NAME');
+    for (const secret of Object.values(FAKE_SECRETS)) expect(environs).not.toContain(secret);
+    expect(environs).not.toMatch(/AWS_(SECRET_ACCESS_KEY|ACCESS_KEY_ID|SESSION_TOKEN)=[^\0\n ]/);
+  });
+
+  it('kills detached processes and wipes files before the next run', async () => {
+    await fn.invoke(
+      csRun(`public static bool F()
+      {
+          System.Diagnostics.Process.Start("setsid", "sh -c \\"sleep 60\\"");
+          File.WriteAllText("/tmp/cs-left", "x");
+          return true;
+      }`),
+    );
+    const res = await fn.invoke(
+      csRun(`public static string F()
+      {
+          var left = File.Exists("/tmp/cs-left") ? "FILE " : "";
+          return left + Scan();
+      }
+      static string Scan() { ${PROC_SCAN('cmdline')} }`),
+    );
+    const seen = String(valueOf(res.body));
+    expect(seen).not.toContain('FILE');
+    expect(seen).not.toContain('sleep');
+  });
+
+  it('stops infinite loops and memory bombs, and the next run works', async () => {
+    expect((await fn.invoke(csRun('public static int F() { while (true) { } }'))).body).toEqual({
+      kind: 'timeout',
+      timeoutMs: 15_000,
+    });
+    const bomb = await fn.invoke(
+      csRun(
+        'public static int F() { var keep = new List<long[]>(); while (true) keep.Add(new long[1_000_000]); }',
+      ),
+    );
+    // The managed heap cap holds (OutOfMemoryException), or the supervisor stops the process.
+    const kind = (bomb.body as { kind: string }).kind;
+    if (kind === 'completed') {
+      expect(bomb.body).toMatchObject({
+        outcomes: [{ kind: 'call', error: expect.stringMatching(/^OutOfMemoryException/) }],
+      });
+    } else {
+      expect(bomb.body).toMatchObject({ kind: 'resource-limit' });
+    }
+    const next = await fn.invoke(csRun('public static int F() => 7;'));
+    expect(valueOf(next.body)).toBe(7);
+  }, 60_000);
+
+  it('hosts ASP.NET Core on loopback for API exercises', async () => {
+    const res = await fn.invoke({
+      language: 'csharp',
+      code: `using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
+var builder = WebApplication.CreateSlimBuilder();
+builder.Logging.ClearProviders();
+builder.WebHost.UseUrls("http://127.0.0.1:5080");
+var app = builder.Build();
+app.MapGet("/ping/{id:int}", (int id) => Results.Ok(id));
+await app.StartAsync();
+using var http = new HttpClient();
+Console.WriteLine((int)(await http.GetAsync("http://127.0.0.1:5080/ping/1")).StatusCode);
+Console.WriteLine((int)(await http.GetAsync("http://127.0.0.1:5080/ping/x")).StatusCode);
+await app.StopAsync();`,
+      entryPoint: '$program',
+      tests: [{ kind: 'call', input: [] }],
+    });
+    expect(res.body).toMatchObject({ kind: 'completed', logs: ['200', '404'] });
+  });
+});
+
 describe.skipIf(skip)('SQL runner function', { timeout: 60_000 }, () => {
   let fn: Fn;
   beforeAll(async () => {

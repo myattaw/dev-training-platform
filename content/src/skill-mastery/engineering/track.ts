@@ -14,6 +14,7 @@ import { testingFamilies } from './testing';
 export const engineeringTrack: TrackSource = {
   id: 'engineering-practices',
   name: 'Engineering practices',
+  category: 'enterprise',
   description:
     'Practical scenarios from day-to-day development: Git workflows, CI/CD with GitHub Actions, testing, secure coding, and agile delivery.',
   topics: [

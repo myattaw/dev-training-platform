@@ -15,6 +15,7 @@ const track = (questions: TrackSource['topics'][number]['skills'][number]['quest
   ({
     id: 't',
     name: 'T',
+    category: 'languages',
     description: 'd',
     topics: [
       {

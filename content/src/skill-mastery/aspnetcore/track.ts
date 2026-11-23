@@ -14,6 +14,7 @@ import { securityFamilies, validationErrorFamilies } from './validation-security
 export const aspnetCoreTrack: TrackSource = {
   id: 'aspnet-core',
   name: 'ASP.NET Core',
+  category: 'frameworks',
   description:
     'Build web APIs with ASP.NET Core on .NET 10: HTTP and REST design, minimal APIs and routing, middleware, dependency injection and configuration, validation and error handling, security, EF Core data access, testing and architecture. HTTP, middleware and DI questions run a real ASP.NET Core app and check its actual responses.',
   topics: [

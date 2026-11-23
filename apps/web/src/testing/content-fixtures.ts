@@ -55,7 +55,12 @@ export const FIXTURE_CHALLENGES: readonly Challenge[] = [
 ];
 
 export const FIXTURE_TRACK: TrackCatalog = {
-  technology: { id: 'typescript', name: 'TypeScript', description: 'Types for JavaScript.' },
+  technology: {
+    id: 'typescript',
+    name: 'TypeScript',
+    description: 'Types for JavaScript.',
+    category: 'languages',
+  },
   topics: [
     { id: 'basics', technologyId: 'typescript', name: 'Basics', description: 'The basics.' },
     { id: 'narrowing', technologyId: 'typescript', name: 'Narrowing', description: 'Narrowing.' },

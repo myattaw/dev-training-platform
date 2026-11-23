@@ -20,8 +20,8 @@ export const TRACKS: readonly TrackSource[] = [
   csharpTrack,
   aspnetCoreTrack,
   sqlServerTrack,
-  azureTrack,
   awsTrack,
-  engineeringTrack,
+  azureTrack,
   powerPlatformTrack,
+  engineeringTrack,
 ];

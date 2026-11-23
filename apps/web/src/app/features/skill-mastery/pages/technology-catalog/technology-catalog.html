@@ -1,0 +1,121 @@
+<app-page-header
+  heading="Skill Mastery"
+  description="Practice one concept at a time. Questions get harder as your mastery score rises, and 100 means you have shown you know it."
+/>
+
+@let state = technologies.state();
+@if (state.status === 'loading') {
+  <app-loading-state label="Loading technologies…" />
+} @else if (state.status === 'error') {
+  <app-alert type="error" heading="Technologies could not be loaded">
+    {{ state.error }}
+    <button alertAction type="button" class="btn btn--sm" (click)="technologies.reload()">
+      Try again
+    </button>
+  </app-alert>
+} @else if (state.value.length === 0) {
+  <app-panel><app-empty-state heading="No technologies yet" /></app-panel>
+} @else {
+  <div class="toolbar" role="search" aria-label="Search technologies">
+    <label class="search">
+      <span class="sr-only">Search technologies</span>
+      <app-icon name="search" class="search-icon" />
+      <input
+        class="input"
+        type="search"
+        placeholder="Search technologies"
+        [value]="query()"
+        (input)="setQuery($event)"
+      />
+    </label>
+    <p class="match-count text-secondary" aria-live="polite">
+      {{ matchCount() }} {{ matchCount() === 1 ? 'technology' : 'technologies' }}
+    </p>
+  </div>
+
+  @let recentState = recent.state();
+  @if (recentState.status === 'ready' && recentState.value.length > 0 && query() === '') {
+    <section class="continue" aria-labelledby="continue-heading">
+      <h2 id="continue-heading">Continue learning</h2>
+      <ul class="recent">
+        @for (r of recentState.value; track r.technology.id + r.skillId) {
+          <li>
+            <a class="recent-item" [routerLink]="[r.technology.id, r.skillId]">
+              <app-track-mark [trackId]="r.technology.id" class="small-mark" />
+              <span class="recent-text">
+                <span class="recent-name">{{ r.name }}</span>
+                <span class="text-secondary recent-meta"
+                  >{{ r.technology.name }} · score {{ r.progress.score }}
+                  @if (r.progress.lastPracticedAt; as at) {
+                    · {{ ago(at) }}
+                  }
+                </span>
+              </span>
+              <app-icon name="chevron-right" class="chevron" />
+            </a>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+
+  @for (section of sections(); track section.id) {
+    <section class="category" [attr.aria-labelledby]="'category-' + section.id">
+      <div class="category-head">
+        <h2 [id]="'category-' + section.id">{{ section.name }}</h2>
+        <p class="text-secondary">{{ section.description }}</p>
+      </div>
+      <ul class="grid">
+        @for (tech of section.technologies; track tech.id) {
+          @let p = progressOf(tech.id);
+          <li>
+            <a
+              class="card"
+              [routerLink]="[tech.id]"
+              [attr.aria-label]="'View ' + tech.name + ' skills'"
+              [attr.aria-describedby]="'meta-' + tech.id"
+              [attr.data-technology]="tech.id"
+            >
+              <app-track-mark [trackId]="tech.id" />
+              <span class="card-text">
+                <span class="card-name">{{ tech.name }}</span>
+                <span class="card-meta text-secondary" [id]="'meta-' + tech.id">
+                  {{ tech.skillCount }} {{ tech.skillCount === 1 ? 'skill' : 'skills' }}
+                  @if (p) {
+                    · {{ p.mastered }} mastered
+                  }
+                </span>
+                @if (p) {
+                  <span
+                    class="bar"
+                    role="progressbar"
+                    [attr.aria-label]="tech.name + ' skills mastered'"
+                    aria-valuemin="0"
+                    [attr.aria-valuemax]="tech.skillCount"
+                    [attr.aria-valuenow]="p.mastered"
+                    ><span
+                      class="fill"
+                      [style.width.%]="percent(p.mastered, tech.skillCount)"
+                    ></span
+                  ></span>
+                }
+              </span>
+              <app-icon name="chevron-right" class="chevron" />
+            </a>
+          </li>
+        }
+      </ul>
+    </section>
+  } @empty {
+    <app-panel>
+      <app-empty-state heading="No technologies match your search">
+        <button type="button" class="btn btn--sm" (click)="query.set('')">Clear search</button>
+      </app-empty-state>
+    </app-panel>
+  }
+
+  <p class="credits text-secondary">
+    Technology logos are trademarks of their owners and identify the technology a track teaches;
+    PracStack is not affiliated with them. Angular logo by Google, CC BY 4.0.
+  </p>
+}

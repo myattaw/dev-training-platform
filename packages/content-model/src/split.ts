@@ -103,7 +103,12 @@ export function splitTrack(track: TrackSource): SplitTrack {
 
   return {
     catalog: {
-      technology: { id: track.id, name: track.name, description: track.description },
+      technology: {
+        id: track.id,
+        name: track.name,
+        description: track.description,
+        category: track.category,
+      },
       topics,
       skills,
     },

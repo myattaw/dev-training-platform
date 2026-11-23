@@ -5,6 +5,7 @@ import { tierLabel } from '@pracstack/scoring';
 import { NotFound } from '../../../../core/not-found/not-found';
 import { asyncResource } from '../../../../shared/async/async-state';
 import { InlineText } from '../../../../shared/content/inline-text/inline-text';
+import { TrackMark } from '../../../home/track-mark';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { LoadingState } from '../../../../shared/ui/loading-state/loading-state';
 import { PageHeader } from '../../../../shared/ui/page-header/page-header';
@@ -20,6 +21,7 @@ import { SkillStatus } from '../../ui/skill-status';
   selector: 'app-technology-overview',
   imports: [
     RouterLink,
+    TrackMark,
     NotFound,
     InlineText,
     Alert,

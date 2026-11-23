@@ -51,6 +51,7 @@ const mcq = (overrides: Partial<Extract<QuestionSource, { format: 'multiple-choi
 const track = (questions: QuestionSource[]): TrackSource => ({
   id: 'ts',
   name: 'TypeScript',
+  category: 'languages',
   description: 'Types.',
   topics: [
     {

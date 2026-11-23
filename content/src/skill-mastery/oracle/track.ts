@@ -17,6 +17,7 @@ import {
 export const oracleTrack: TrackSource = {
   id: 'oracle-sql',
   name: 'Oracle SQL',
+  category: 'databases',
   description:
     'Oracle-specific SQL: row limiting, NULLs and NVL, dates, DECODE and CASE, and hierarchical queries.',
   topics: [

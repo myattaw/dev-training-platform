@@ -1,9 +1,7 @@
 /**
  * Lambda handler of the TypeScript and Java runner functions (one container
- * image each; `RUNNER_LANGUAGE` says which). C# runs only in the local Docker
- * runner for now: there is no C# Lambda image yet (docs/runners.md). Invoked
- * only by the API function, with test INPUTS only; expected values never reach
- * this function.
+ * image each; `RUNNER_LANGUAGE` says which). Invoked only by the API
+ * function, with test INPUTS only; expected values never reach this function.
  */
 import { randomBytes } from 'node:crypto';
 import {
@@ -17,16 +15,23 @@ import { type IsolationLimits, runIsolated } from './isolate';
 
 const COMMON = { maxOutputBytes: 1_000_000, maxOpenFiles: 256, maxFileBytes: 16 * 1024 * 1024 };
 
-/** Languages with a Lambda runner image. */
-export type LambdaRunnerLanguage = Exclude<RunnerLanguage, 'csharp'>;
+/** Languages with a Lambda runner image (all of them). */
+export type LambdaRunnerLanguage = RunnerLanguage;
 
 export const LIMITS: Readonly<Record<LambdaRunnerLanguage, IsolationLimits>> = {
   typescript: { ...COMMON, timeoutMs: 10_000, maxRssMb: 384, maxProcesses: 256 },
   java: { ...COMMON, timeoutMs: 15_000, maxRssMb: 768, maxProcesses: 256 },
+  // .NET plus Roslyn; ASP.NET Core exercises host a small app with its own threads.
+  csharp: { ...COMMON, timeoutMs: 15_000, maxRssMb: 768, maxProcesses: 256 },
 };
 
 const HARNESS = '/opt/harness';
-const COMMANDS: Readonly<Record<LambdaRunnerLanguage, { command: string; args: string[] }>> = {
+const COMMANDS: Readonly<
+  Record<
+    LambdaRunnerLanguage,
+    { command: string; args: string[]; env?: Readonly<Record<string, string>> }
+  >
+> = {
   typescript: {
     command: process.execPath,
     args: ['--max-old-space-size=192', `${HARNESS}/harness.mjs`],
@@ -45,6 +50,23 @@ const COMMANDS: Readonly<Record<LambdaRunnerLanguage, { command: string; args: s
       HARNESS,
       'Harness',
     ],
+  },
+  csharp: {
+    command: '/usr/share/dotnet/dotnet',
+    args: [`${HARNESS}/Harness.dll`],
+    env: {
+      DOTNET_ROOT: '/usr/share/dotnet',
+      // As in the local image: W^X double-maps JIT code through a memory file
+      // that exceeds the 16 MB file-size limit; no diagnostics IPC.
+      DOTNET_EnableWriteXorExecute: '0',
+      DOTNET_EnableDiagnostics: '0',
+      DOTNET_gcServer: '0',
+      DOTNET_TieredPGO: '0',
+      DOTNET_NOLOGO: '1',
+      // A managed heap cap well below the RSS limit, so a memory bomb usually ends
+      // with a catchable OutOfMemoryException instead of the process being killed.
+      DOTNET_GCHeapHardLimit: '18000000', // hex: 384 MiB
+    },
   },
 };
 

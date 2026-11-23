@@ -10,6 +10,7 @@ import { componentFamilies, signalFamilies } from './families';
 export const angularTrack: TrackSource = {
   id: 'angular',
   name: 'Angular',
+  category: 'frameworks',
   description:
     'Modern Angular with signals: signal state, computed values, effects, and component inputs, outputs and queries.',
   topics: [

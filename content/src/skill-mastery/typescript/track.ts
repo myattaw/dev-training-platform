@@ -17,6 +17,7 @@ import { unionTypesQuestions } from './union-types';
 export const typescriptTrack: TrackSource = {
   id: 'typescript',
   name: 'TypeScript',
+  category: 'languages',
   description:
     'Static types for JavaScript: annotations, unions, narrowing, object and function types, generics and utility types.',
   topics: [

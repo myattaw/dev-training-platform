@@ -15,6 +15,7 @@ import { transactionFamilies } from './transactions';
 export const sqlServerTrack: TrackSource = {
   id: 'sql-server',
   name: 'SQL Server (T-SQL)',
+  category: 'databases',
   description:
     'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, and table design. Questions are reviewed by hand; running your own T-SQL needs a SQL Server engine, which is not set up yet.',
   topics: [
