@@ -37,6 +37,21 @@ export const source: ChallengeSource = {
 }
 `,
       },
+      csharp: {
+        entryPoint: 'reverse',
+        starterCode: `public static class Solution
+{
+    /// <summary>
+    /// Returns the characters of <paramref name="input"/> in reverse order.
+    /// </summary>
+    public static string Reverse(string input)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(input: string) => string>([
       { description: 'an empty string', input: [''], expected: '' },

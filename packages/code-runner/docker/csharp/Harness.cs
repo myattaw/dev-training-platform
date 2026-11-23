@@ -59,7 +59,8 @@ public static class Harness
         var entryPoint = input.GetProperty("entryPoint").GetString()!;
         var tests = input.GetProperty("tests").EnumerateArray().ToList();
 
-        var (assemblyBytes, diagnostics) = Compile(code);
+        var program = entryPoint == ProgramEntryPoint;
+        var (assemblyBytes, diagnostics) = Compile(code, program);
         if (assemblyBytes is null)
         {
             return new() { ["kind"] = "compile-error", ["diagnostics"] = diagnostics };
@@ -67,6 +68,7 @@ public static class Harness
 
         var context = new AssemblyLoadContext("submission", isCollectible: true);
         var assembly = context.LoadFromStream(new MemoryStream(assemblyBytes));
+        if (program) return RunProgram(assembly, tests.Count, logs);
         var types = assembly.GetTypes();
         var operations = tests.Any(t => t.GetProperty("kind").GetString() == "operations");
         var outcomes = new List<object?>();
@@ -89,18 +91,48 @@ public static class Harness
         return new() { ["kind"] = "completed", ["outcomes"] = outcomes, ["logs"] = logs.Lines() };
     }
 
+    /// <summary>
+    /// Runs the code as a whole program (top-level statements or Main) instead of
+    /// calling a method; its console output is the result. Used by the content
+    /// build to check C# Skill Mastery snippets, never set from learner input.
+    /// A file with only declarations is compiled and not run.
+    /// </summary>
+    private const string ProgramEntryPoint = "$program";
+
+    private static Dictionary<string, object?> RunProgram(Assembly assembly, int testCount, LogCapture logs)
+    {
+        var outcome = new Dictionary<string, object?> { ["kind"] = "call", ["value"] = Undefined };
+        var main = assembly.EntryPoint;
+        if (main is not null)
+        {
+            try
+            {
+                var args = main.GetParameters().Length == 0 ? null : new object?[] { Array.Empty<string>() };
+                Invoke(main, null, args ?? []);
+            }
+            catch (Exception e)
+            {
+                outcome.Remove("value");
+                outcome["error"] = Describe(Unwrap(e));
+            }
+        }
+        var outcomes = Enumerable.Range(0, testCount).Select(_ => (object?)outcome).ToList();
+        return new() { ["kind"] = "completed", ["outcomes"] = outcomes, ["logs"] = logs.Lines() };
+    }
+
     // ---------- compilation ----------
 
-    private static (byte[]? Assembly, List<object?> Diagnostics) Compile(string code)
+    private static (byte[]? Assembly, List<object?> Diagnostics) Compile(string code, bool program)
     {
         var parse = new CSharpParseOptions(LanguageVersion.CSharp14);
-        var trees = new[]
-        {
-            CSharpSyntaxTree.ParseText(GlobalUsings, parse, path: "GlobalUsings.cs"),
-            CSharpSyntaxTree.ParseText(code, parse, path: "Solution.cs"),
-        };
+        var source = CSharpSyntaxTree.ParseText(code, parse, path: "Solution.cs");
+        var trees = new[] { CSharpSyntaxTree.ParseText(GlobalUsings, parse, path: "GlobalUsings.cs"), source };
+        var hasEntryPoint = program && (
+            source.GetCompilationUnitRoot().Members.OfType<Microsoft.CodeAnalysis.CSharp.Syntax.GlobalStatementSyntax>().Any()
+            || code.Contains("static void Main", StringComparison.Ordinal)
+            || code.Contains("static async Task Main", StringComparison.Ordinal));
         var options = new CSharpCompilationOptions(
-            OutputKind.DynamicallyLinkedLibrary,
+            hasEntryPoint ? OutputKind.ConsoleApplication : OutputKind.DynamicallyLinkedLibrary,
             optimizationLevel: OptimizationLevel.Release,
             nullableContextOptions: NullableContextOptions.Enable,
             allowUnsafe: false,
@@ -127,7 +159,10 @@ public static class Harness
         return result.Success ? (stream.ToArray(), errors) : (null, errors);
     }
 
-    /// <summary>The framework's own assemblies, minus the compiler and this harness.</summary>
+    /// <summary>
+    /// The .NET and ASP.NET Core framework assemblies (and Microsoft.Extensions), minus the
+    /// compiler and this harness.
+    /// </summary>
     private static readonly Lazy<List<MetadataReference>> References = new(() =>
         ((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!)
             .Split(Path.PathSeparator)
@@ -135,6 +170,8 @@ public static class Harness
             {
                 var name = Path.GetFileName(p);
                 return (name.StartsWith("System.", StringComparison.Ordinal) ||
+                        name.StartsWith("Microsoft.AspNetCore.", StringComparison.Ordinal) ||
+                        name.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal) ||
                         name is "netstandard.dll" or "mscorlib.dll" or "Microsoft.CSharp.dll")
                     && !name.StartsWith("System.Private.", StringComparison.Ordinal)
                     || name == "System.Private.CoreLib.dll";

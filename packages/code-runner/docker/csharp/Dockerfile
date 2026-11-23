@@ -1,5 +1,5 @@
 # Runner image for C# submissions. Built by `npm run runners:build`.
-# Contains only the .NET runtime and the harness (with the Roslyn compiler):
+# Contains only the ASP.NET Core runtime and the harness (with the Roslyn compiler):
 # no SDK, no secrets, no expected values, no network at run time.
 #
 # Versions are pinned: .NET 10 (LTS) SDK 10.0.404 / runtime 10.0.15, Roslyn 5.0.0 (C# 14).
@@ -11,7 +11,8 @@ RUN dotnet restore -r linux-musl-x64
 COPY Harness.cs ./
 RUN dotnet publish -c Release -r linux-musl-x64 --no-restore -o /harness
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0.15-alpine3.24
+# The ASP.NET Core runtime: .NET plus the Microsoft.AspNetCore.App framework.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-alpine3.24
 COPY --from=build /harness /harness
 # No diagnostic IPC (it would create sockets in /tmp and allow attaching a debugger).
 # W^X off: it double-maps JIT code through a memory file that grows past the

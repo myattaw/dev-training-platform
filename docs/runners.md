@@ -34,11 +34,11 @@ Every run uses a fresh container (`packages/code-runner/src/docker-runner.ts`):
 | Unprivileged user | `--user 10001:10001` (also `USER` in the image) |
 | No capabilities, no privilege escalation | `--cap-drop ALL --security-opt no-new-privileges` |
 | Default syscall filter | Docker's built-in seccomp profile |
-| Memory (no swap) | `--memory` = `--memory-swap`: 256 MB TypeScript, 512 MB Java |
+| Memory (no swap) | `--memory` = `--memory-swap`: 256 MB TypeScript, 512 MB Java and C# |
 | CPU | `--cpus 1` |
-| Processes (fork bombs) | `--pids-limit` 64 / 128 |
+| Processes (fork bombs) | `--pids-limit` 64 (TypeScript) / 128 (Java and C#) |
 | Open files, file size | `--ulimit nofile=256 --ulimit fsize=16 MB` |
-| Wall-clock time | killed by name after 10 s (TypeScript) / 15 s (Java), including start and compile |
+| Wall-clock time | killed by name after 10 s (TypeScript) / 15 s (Java and C#), including start and compile |
 | Output floods | killed after 1 MB of output |
 | Nothing persists | `--rm`; a new container per run |
 | No image downloads at run time | `--pull never` |
@@ -60,6 +60,7 @@ exit, forged result lines, and the equivalent Java cases.
 | --- | --- | --- | --- |
 | TypeScript | `pracstack-runner-typescript:1` (Node 22, TypeScript 5.9.3) | `docker/typescript/harness.mjs` | Type-checks with the same settings as the editor (strict, ES2022, no DOM), then runs the shared executor |
 | Java | `pracstack-runner-java:1` (Temurin 21 JDK) | `docker/java/Harness.java` | Compiles in-process with the JDK compiler API; calls a static method (call tests) or a class (operations tests) by reflection |
+| C# | `pracstack-runner-csharp:1` (.NET 10: runtime 10.0.15, SDK 10.0.404; Roslyn 5.0.0, C# 14) | `docker/csharp/Harness.cs` | Compiles in memory with Roslyn, with implicit usings (`System`, `System.Collections.Generic`, `System.Linq`, `System.Text`, `System.Threading`, `System.Threading.Tasks`) and nullable enabled; names also match in PascalCase (`isPangram` finds `IsPangram`, step `insert` finds `Insert`); async `Task`/`ValueTask` methods are awaited |
 
 Java arguments are converted from JSON to the parameter types: primitives and their wrappers,
 `String`, `char`, arrays (any depth) and `List<…>` (generic element types included). Return values
@@ -69,10 +70,28 @@ Adding a language means: a Dockerfile and harness that speak the protocol in
 `packages/code-runner/src/protocol.ts`, an entry in `RUNNER_IMAGES`, and a `languages` entry
 (starter code + entry point) in each challenge.
 
+### C# runner notes
+
+- **W^X is disabled in the image** (`DOTNET_EnableWriteXorExecute=0`). With W^X on, .NET
+  double-maps JIT code through a memory file that grows past the container's 16 MB `fsize`
+  ulimit. The other container controls are unchanged.
+- **Diagnostics IPC is disabled** (`DOTNET_EnableDiagnostics=0`), so the runtime opens no
+  debugger or diagnostics socket.
+- **Memory:** at the container memory limit .NET usually throws a catchable
+  `OutOfMemoryException` (reported as that test's error) rather than being killed by the kernel.
+- **Local Docker only.** There is no Lambda runner image for C# yet, so on AWS the API reports
+  C# as unavailable ("This language is not available on this server yet.").
+
+**Upgrading the C# runner.** Bump the pinned .NET SDK and runtime image tags in
+`docker/csharp/Dockerfile` and the Roslyn package version in `docker/csharp/Harness.csproj`
+together, bump the image tag in `RUNNER_IMAGES`, rebuild with `npm run runners:build`, then rerun
+the container tests (`packages/code-runner/src/docker-runner.spec.ts`) and the challenge grading
+tests (`services/api/src/challenges/challenge-grading.spec.ts`).
+
 ## Running locally
 
 ```bash
-npm run runners:build    # builds both images (needs Docker; ~1 GB of base images on first build)
+npm run runners:build    # builds the TypeScript, Java and C# images (needs Docker; ~1 GB of base images on first build)
 npm start                # the local API uses the runner automatically
 ```
 

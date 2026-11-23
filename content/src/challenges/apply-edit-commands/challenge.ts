@@ -75,6 +75,21 @@ export function applyEdits(commands: string[]): string {
 }
 `,
       },
+      csharp: {
+        entryPoint: 'applyEdits',
+        starterCode: `public static class Solution
+{
+    /// <summary>
+    /// Replays editor commands and returns the final text.
+    /// </summary>
+    public static string ApplyEdits(string[] commands)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<ApplyEdits>([
       { description: 'typing into an empty editor', input: [['type hello']], expected: 'hello' },

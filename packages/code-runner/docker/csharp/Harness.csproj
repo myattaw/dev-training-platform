@@ -13,6 +13,10 @@
     <SelfContained>false</SelfContained>
   </PropertyGroup>
   <ItemGroup>
+    <!-- ASP.NET Core and Microsoft.Extensions, so learners and content can use them. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Pinned. C# 14, the language version that ships with .NET 10. -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
   </ItemGroup>

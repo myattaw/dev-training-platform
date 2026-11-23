@@ -32,7 +32,7 @@ export const source: ChallengeSource = {
       { kind: 'heading', text: 'Hint' },
       {
         kind: 'paragraph',
-        text: 'A `Set<string>` is a handy way to collect the distinct letters you have seen.',
+        text: 'A set is a handy way to collect the distinct letters you have seen.',
       },
     ],
     languages: {
@@ -56,6 +56,21 @@ export function isPangram(sentence: string): boolean {
     static boolean isPangram(String sentence) {
         // TODO: implement me
         throw new UnsupportedOperationException("Remove this line and implement the method");
+    }
+}
+`,
+      },
+      csharp: {
+        entryPoint: 'isPangram',
+        starterCode: `public static class Solution
+{
+    /// <summary>
+    /// Returns true if <paramref name="sentence"/> contains every letter of the alphabet at least once.
+    /// </summary>
+    public static bool IsPangram(string sentence)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
     }
 }
 `,

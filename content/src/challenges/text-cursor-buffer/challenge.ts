@@ -105,6 +105,59 @@ export const source: ChallengeSource = {
 }
 `,
       },
+      csharp: {
+        entryPoint: 'TextBuffer',
+        starterCode: `public class TextBuffer
+{
+    public TextBuffer()
+    {
+        // TODO: set up your storage
+    }
+
+    /// <summary>Inserts <paramref name="text"/> at the cursor and moves the cursor to just after it.</summary>
+    public void Insert(string text)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Deletes up to <paramref name="count"/> characters before the cursor; returns how many were deleted.</summary>
+    public int Backspace(int count)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Moves the cursor, stopping at either end of the text; returns the new cursor position.</summary>
+    public int Move(int offset)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Returns up to <paramref name="radius"/> characters on each side of the cursor, with | marking it.</summary>
+    public string TextAround(int radius)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Returns the whole text.</summary>
+    public string GetText()
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Returns the cursor position (the number of characters before it).</summary>
+    public int GetCursor()
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: operationTests<typeof TextBuffer>([
       {

@@ -54,6 +54,21 @@ export function merge(intervals: Interval[]): Interval[] {
 }
 `,
       },
+      csharp: {
+        entryPoint: 'merge',
+        starterCode: `public static class Solution
+{
+    /// <summary>
+    /// Each interval is a pair { start, end }. Returns the merged intervals, sorted by start.
+    /// </summary>
+    public static int[][] Merge(int[][] intervals)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(intervals: Interval[]) => Interval[]>([
       { description: 'no intervals', input: [[]], expected: [] },

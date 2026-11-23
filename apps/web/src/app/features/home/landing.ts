@@ -41,7 +41,7 @@ import { TrackMark } from './track-mark';
         <article class="feature">
           <h3>Coding Challenges</h3>
           <p>
-            Solve problems in TypeScript or Java in a real code editor. Run the visible tests as
+            Solve problems in TypeScript, Java or C# in a real code editor. Run the visible tests as
             often as you like, then submit: your code is graded on the server against hidden tests.
           </p>
           <a routerLink="/challenges">Browse challenges</a>
@@ -311,7 +311,7 @@ export class Landing {
   );
   protected readonly challengeCount = computed(() => {
     const state = this.catalog.summaries();
-    if (state.status !== 'ready') return 'TypeScript and Java';
+    if (state.status !== 'ready') return 'TypeScript, Java and C#';
     const n = state.value.length;
     return `${n} ${n === 1 ? 'challenge' : 'challenges'}`;
   });

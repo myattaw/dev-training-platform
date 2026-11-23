@@ -33,7 +33,7 @@ export const source: ChallengeSource = {
       { kind: 'heading', text: 'Going further' },
       {
         kind: 'paragraph',
-        text: 'Aim for `get` and `put` in constant time on average. A `Map` remembers insertion order, which helps.',
+        text: 'Aim for `get` and `put` in constant time on average. A hash map that remembers insertion order (`Map` in TypeScript, `LinkedHashMap` in Java), or a hash map plus a doubly linked list (`LinkedList<T>` in C#), helps.',
       },
     ],
     languages: {
@@ -67,6 +67,32 @@ export const source: ChallengeSource = {
 
     void put(int key, int value) {
         throw new UnsupportedOperationException("Not implemented");
+    }
+}
+`,
+      },
+      csharp: {
+        entryPoint: 'LRUCache',
+        starterCode: `public class LRUCache
+{
+    /// <summary>Creates an empty cache that holds at most <paramref name="capacity"/> entries.</summary>
+    public LRUCache(int capacity)
+    {
+        // TODO: set up your storage
+    }
+
+    /// <summary>Returns the value for <paramref name="key"/>, or -1 if it is not in the cache.</summary>
+    public int Get(int key)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Inserts or updates <paramref name="key"/>, evicting the least recently used key when full.</summary>
+    public void Put(int key, int value)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
     }
 }
 `,

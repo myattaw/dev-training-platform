@@ -101,6 +101,52 @@ export const source: ChallengeSource = {
 }
 `,
       },
+      csharp: {
+        entryPoint: 'EditHistory',
+        starterCode: `public class EditHistory
+{
+    public EditHistory()
+    {
+        // TODO: set up your storage
+    }
+
+    /// <summary>Adds <paramref name="text"/> to the end of the document.</summary>
+    public void Type(string text)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Removes up to <paramref name="count"/> characters from the end of the document.</summary>
+    public void Erase(int count)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Reverts the most recent edit; returns false when there is nothing to undo.</summary>
+    public bool Undo()
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Re-applies the most recently undone edit; returns false when there is nothing to redo.</summary>
+    public bool Redo()
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+
+    /// <summary>Returns the document.</summary>
+    public string GetText()
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: operationTests<typeof EditHistory>([
       {

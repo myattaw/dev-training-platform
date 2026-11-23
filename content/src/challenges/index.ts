@@ -26,43 +26,67 @@ export interface ChallengeEntry {
    * real Java runner (services/api/src/challenges/challenge-grading.spec.ts).
    */
   readonly javaReference: string;
+  /**
+   * The C# reference solution source, verified against every test through the
+   * real C# runner (services/api/src/challenges/challenge-grading.spec.ts).
+   */
+  readonly csharpReference: string;
 }
 
 const javaReference = (id: string): string =>
   readFileSync(new URL(`./${id}/Reference.java`, import.meta.url), 'utf8');
 
+const csharpReference = (id: string): string =>
+  readFileSync(new URL(`./${id}/Reference.cs`, import.meta.url), 'utf8');
+
 /** All challenges, in catalog order. */
 export const CHALLENGES: readonly ChallengeEntry[] = [
-  { source: pangram, reference: pangramRef, javaReference: javaReference('pangram') },
+  {
+    source: pangram,
+    reference: pangramRef,
+    javaReference: javaReference('pangram'),
+    csharpReference: csharpReference('pangram'),
+  },
   {
     source: reverseString,
     reference: reverseStringRef,
     javaReference: javaReference('reverse-string'),
+    csharpReference: csharpReference('reverse-string'),
   },
   {
     source: balancedBrackets,
     reference: balancedBracketsRef,
     javaReference: javaReference('balanced-brackets'),
+    csharpReference: csharpReference('balanced-brackets'),
   },
   {
     source: mergeIntervals,
     reference: mergeIntervalsRef,
     javaReference: javaReference('merge-intervals'),
+    csharpReference: csharpReference('merge-intervals'),
   },
-  { source: lruCache, reference: lruCacheRef, javaReference: javaReference('lru-cache') },
+  {
+    source: lruCache,
+    reference: lruCacheRef,
+    javaReference: javaReference('lru-cache'),
+    csharpReference: csharpReference('lru-cache'),
+  },
   {
     source: applyEditCommands,
     reference: applyEditCommandsRef,
     javaReference: javaReference('apply-edit-commands'),
+    csharpReference: csharpReference('apply-edit-commands'),
   },
   {
     source: textCursorBuffer,
     reference: textCursorBufferRef,
     javaReference: javaReference('text-cursor-buffer'),
+    csharpReference: csharpReference('text-cursor-buffer'),
   },
   {
     source: undoRedoHistory,
     reference: undoRedoHistoryRef,
     javaReference: javaReference('undo-redo-history'),
+    csharpReference: csharpReference('undo-redo-history'),
   },
 ];

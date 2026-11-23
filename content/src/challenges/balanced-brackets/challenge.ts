@@ -58,6 +58,21 @@ export function isBalanced(text: string): boolean {
 }
 `,
       },
+      csharp: {
+        entryPoint: 'isBalanced',
+        starterCode: `public static class Solution
+{
+    /// <summary>
+    /// Returns true if every bracket in <paramref name="text"/> is matched and correctly nested.
+    /// </summary>
+    public static bool IsBalanced(string text)
+    {
+        // TODO: implement me
+        throw new NotImplementedException("Remove this line and implement the method");
+    }
+}
+`,
+      },
     },
     visibleTests: callTests<(text: string) => boolean>([
       { description: 'empty string', input: [''], expected: true },
