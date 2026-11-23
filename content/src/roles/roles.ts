@@ -522,6 +522,54 @@ export const ROLES: readonly JobRole[] = [
     ],
   },
   {
+    id: 'aws-developer',
+    version: 1,
+    status: 'available',
+    title: 'AWS Developer',
+    summary: 'Building serverless, event-driven applications on Amazon Web Services.',
+    description:
+      'Builds and runs applications on AWS: least-privilege IAM, Lambda functions behind API Gateway, DynamoDB data models, queues and events, and infrastructure as code delivered through CI/CD. The path starts with the TypeScript and async code most AWS samples use.',
+    technologies: ['aws', 'typescript', 'cicd', 'github-actions', 'microservices'],
+    competencies: [
+      {
+        id: 'typescript-for-cloud',
+        name: 'TypeScript for cloud code',
+        description: 'Types, narrowing and generics for handlers and infrastructure code.',
+        activities: skills('ts-primitive-types', 'ts-union-types', 'ts-generics'),
+      },
+      {
+        id: 'iam-security',
+        name: 'IAM, access and secrets',
+        description: 'Roles instead of keys, policy evaluation, least privilege and secrets.',
+        activities: skills('aws-iam-security', 'eng-secure-coding'),
+      },
+      {
+        id: 'serverless',
+        name: 'Serverless with Lambda',
+        description: 'Cold starts, timeouts, event sources, idempotency and observability.',
+        activities: skills('aws-lambda-serverless'),
+      },
+      {
+        id: 'apis-data',
+        name: 'APIs and data',
+        description: 'API Gateway, DynamoDB key design and conditional writes, and S3 access.',
+        activities: skills('aws-api-data', 'aspnet-http-rest'),
+      },
+      {
+        id: 'events',
+        name: 'Queues and events',
+        description: 'SQS, SNS, EventBridge and idempotent consumers.',
+        activities: skills('aws-messaging-events'),
+      },
+      {
+        id: 'delivery',
+        name: 'Infrastructure as code and delivery',
+        description: 'CloudFormation and CDK, safe releases, and CI/CD to AWS with OIDC.',
+        activities: [...skills('aws-iac-delivery', 'eng-ci-cd'), scenario('cicd-pipeline-failure')],
+      },
+    ],
+  },
+  {
     id: 'power-platform-developer',
     version: 1,
     status: 'available',

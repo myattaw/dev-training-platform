@@ -6,11 +6,12 @@ import { EmptyState } from '../../../../shared/ui/empty-state/empty-state';
 import { LoadingState } from '../../../../shared/ui/loading-state/loading-state';
 import { PageHeader } from '../../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../../shared/ui/panel/panel';
+import { TrackMark } from '../../../home/track-mark';
 import { SkillCatalog } from '../../data-access/skill-catalog';
 
 @Component({
   selector: 'app-technology-catalog',
-  imports: [RouterLink, Alert, EmptyState, LoadingState, PageHeader, Panel],
+  imports: [RouterLink, Alert, EmptyState, LoadingState, PageHeader, Panel, TrackMark],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <app-page-header
@@ -34,11 +35,18 @@ import { SkillCatalog } from '../../data-access/skill-catalog';
       <div class="grid">
         @for (tech of state.value; track tech.id) {
           <app-panel [heading]="tech.name" [description]="tech.skillCount + ' skills'">
-            <p class="description">{{ tech.description }}</p>
+            <div class="intro">
+              <app-track-mark [trackId]="tech.id" />
+              <p class="description">{{ tech.description }}</p>
+            </div>
             <a panelFooter [routerLink]="[tech.id]">View {{ tech.name }} skills</a>
           </app-panel>
         }
       </div>
+      <p class="credits text-secondary">
+        Technology logos are trademarks of their owners and identify the technology a track teaches;
+        PracStack is not affiliated with them. Angular logo by Google, CC BY 4.0.
+      </p>
     }
   `,
   styles: `
@@ -51,8 +59,18 @@ import { SkillCatalog } from '../../data-access/skill-catalog';
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: var(--space-5);
     }
+    .intro {
+      display: flex;
+      gap: var(--space-3);
+      align-items: flex-start;
+    }
     .description {
+      margin: 0;
       color: var(--color-text-secondary);
+    }
+    .credits {
+      margin-top: var(--space-5);
+      font-size: var(--font-size-xs);
     }
   `,
 })

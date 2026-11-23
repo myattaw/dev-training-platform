@@ -467,7 +467,13 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     label: 'AWS',
     category: 'cloud',
     aliases: ['Amazon Web Services'],
-    practice: [],
+    practice: [
+      skill('aws-iam-security'),
+      skill('aws-lambda-serverless'),
+      skill('aws-api-data'),
+      skill('aws-messaging-events'),
+      skill('aws-iac-delivery'),
+    ],
   },
 
   /* ---------------- Business applications ---------------- */

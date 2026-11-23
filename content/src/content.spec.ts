@@ -79,6 +79,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'aspnet-core', skillCount: 8 }),
       expect.objectContaining({ id: 'sql-server', skillCount: 7 }),
       expect.objectContaining({ id: 'azure', skillCount: 5 }),
+      expect.objectContaining({ id: 'aws', skillCount: 5 }),
       expect.objectContaining({ id: 'engineering-practices', skillCount: 5 }),
       expect.objectContaining({ id: 'power-platform', skillCount: 6 }),
     ]);
@@ -142,6 +143,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       ['aspnet-core-backend-developer', 'available'],
       ['sql-server-database-developer', 'available'],
       ['azure-developer', 'available'],
+      ['aws-developer', 'available'],
       ['power-platform-developer', 'available'],
       ['enterprise-application-developer', 'coming-soon'],
       ['power-platform-solution-architect', 'coming-soon'],

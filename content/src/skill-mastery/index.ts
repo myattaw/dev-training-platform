@@ -1,6 +1,7 @@
 import type { TrackSource } from '@pracstack/content-model';
 import { angularTrack } from './angular/track';
 import { aspnetCoreTrack } from './aspnetcore/track';
+import { awsTrack } from './aws/track';
 import { azureTrack } from './azure/track';
 import { csharpTrack } from './csharp/track';
 import { engineeringTrack } from './engineering/track';
@@ -20,6 +21,7 @@ export const TRACKS: readonly TrackSource[] = [
   aspnetCoreTrack,
   sqlServerTrack,
   azureTrack,
+  awsTrack,
   engineeringTrack,
   powerPlatformTrack,
 ];

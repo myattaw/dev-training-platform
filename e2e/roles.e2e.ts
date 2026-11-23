@@ -38,7 +38,7 @@ test.describe('Job Role Preparation', () => {
     await page.reload();
     await expect(roleRows(page)).toHaveCount(1);
     await page.getByRole('button', { name: 'Clear filters' }).click();
-    await expect(roleRows(page)).toHaveCount(9);
+    await expect(roleRows(page)).toHaveCount(10);
   });
 
   test('a role page shows the ordered path, progress and the target role', async ({ page }) => {
