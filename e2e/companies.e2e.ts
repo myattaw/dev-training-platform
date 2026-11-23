@@ -118,6 +118,8 @@ test.describe('Company Interview Prep', () => {
   test('timed practice: server deadline, resume after reload, graded submit, summary', async ({
     page,
   }) => {
+    // The graded submit runs in the Docker code runner (see submissions.e2e.ts).
+    test.skip(process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1', 'Docker tests skipped');
     test.setTimeout(120_000);
     await page.goto('/companies/liberty-mutual/practice');
     await page.getByRole('radio', { name: /Text Buffer with a Cursor/ }).check();
