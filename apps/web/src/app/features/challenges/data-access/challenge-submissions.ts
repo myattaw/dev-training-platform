@@ -39,7 +39,7 @@ export class ChallengeSubmissions {
     );
   }
 
-  /** Visible tests on the server (used for Java, which cannot run in the browser). */
+  /** Visible tests on the server (used for Java and C#, which cannot run in the browser). */
   async run(challengeId: string, request: ChallengeCodeRequest): Promise<RunOutcome> {
     const res = await this.api.post<ChallengeRunResponse>(
       `/challenges/${encodeURIComponent(challengeId)}/run`,

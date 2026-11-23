@@ -30,6 +30,7 @@ import {
   supportedLanguages,
 } from '@pracstack/content-model';
 import { errorMessage } from '../../../../shared/async/async-state';
+
 import { ChallengeSubmissions } from '../../data-access/challenge-submissions';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { SubmissionPanel } from './submission-panel/submission-panel';
@@ -40,6 +41,13 @@ import { LocalRunnerService } from '../../runner/local-runner.service';
 import type { RunOutcome } from '../../runner/runner.models';
 import { DifficultyBadge } from '../../ui/difficulty-badge';
 import { TestResults } from './test-results/test-results';
+
+/** Editor file name per language (it also selects Monaco's model). */
+const SOURCE_FILES: Readonly<Record<LanguageId, string>> = {
+  typescript: 'solution.ts',
+  java: 'Solution.java',
+  csharp: 'Solution.cs',
+};
 
 /**
  * Timed interview mode: the same workspace, with submissions graded through
@@ -122,14 +130,12 @@ export class ChallengeWorkspace {
     return preferred && offered.includes(preferred) ? preferred : offered[0];
   });
   protected readonly languageLabels = LANGUAGE_LABELS;
-  /** Java runs only on the server; TypeScript runs in the browser. */
+  /** Java and C# run only on the server; TypeScript runs in the browser. */
   protected readonly runsInBrowser = computed(() => {
     const lang = this.language();
     return lang !== undefined && BROWSER_LANGUAGES.includes(lang);
   });
-  protected readonly fileName = computed(() =>
-    this.language() === 'java' ? 'Solution.java' : 'solution.ts',
-  );
+  protected readonly fileName = computed(() => SOURCE_FILES[this.language() ?? 'typescript']);
   private readonly setup = computed(() => {
     const lang = this.language();
     return lang ? this.challenge()?.languages[lang] : undefined;

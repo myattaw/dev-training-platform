@@ -1,5 +1,11 @@
 import type { RawOutcome } from '@pracstack/challenge-runtime';
-import type { CodeRunRequest, CodeRunResult, CompileDiagnostic } from './protocol';
+import {
+  type CodeRunRequest,
+  type CodeRunResult,
+  type CompileDiagnostic,
+  RUNNER_LANGUAGES,
+  type RunnerLanguage,
+} from './protocol';
 
 /*
  * Everything that comes back from a runner is untrusted: the learner's code
@@ -91,7 +97,14 @@ export function parseCodeRunResult(value: unknown, testCount: number): CodeRunRe
 export function parseCodeRunRequest(value: unknown): CodeRunRequest | undefined {
   if (!isObj(value)) return undefined;
   const { language, code, entryPoint, tests } = value;
-  if (language !== 'typescript' && language !== 'java') return undefined;
+  if (typeof language !== 'string' || !(RUNNER_LANGUAGES as readonly string[]).includes(language)) {
+    return undefined;
+  }
   if (!isText(code, 100_000) || !isText(entryPoint, 200) || !isList(tests, 500)) return undefined;
-  return { language, code, entryPoint, tests: tests as CodeRunRequest['tests'] };
+  return {
+    language: language as RunnerLanguage,
+    code,
+    entryPoint,
+    tests: tests as CodeRunRequest['tests'],
+  };
 }

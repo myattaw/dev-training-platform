@@ -213,7 +213,7 @@
     </div>
     <app-code-editor
       class="editor"
-      [language]="language() === 'java' ? 'java' : 'typescript'"
+      [language]="language() ?? 'typescript'"
       [fileName]="ch.id + '-' + language() + (interview() ? '-timed' : '')"
       [code]="code()"
       [readOnly]="locked()"

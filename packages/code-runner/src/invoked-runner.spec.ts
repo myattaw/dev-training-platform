@@ -31,6 +31,19 @@ describe('InvokedCodeRunner', () => {
     });
   });
 
+  it('reports a language without a runner function as unavailable, without invoking', async () => {
+    let invoked = false;
+    const result = await runner(() => {
+      invoked = true;
+      return Promise.resolve({ kind: 'refused', message: 'no' });
+    }).run({ ...request, language: 'csharp', code: 'class Solution {}' });
+    expect(invoked).toBe(false);
+    expect(result).toEqual({
+      kind: 'unavailable',
+      message: 'This language is not available on this server yet.',
+    });
+  });
+
   it('treats malformed or oversized runner responses as untrusted garbage', async () => {
     for (const payload of [
       null,

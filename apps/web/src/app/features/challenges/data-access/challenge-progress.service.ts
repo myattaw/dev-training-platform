@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import type { LanguageId } from '@pracstack/content-model';
+import { LANGUAGE_IDS, type LanguageId } from '@pracstack/content-model';
 import {
   readJson,
   removeKey,
@@ -48,7 +48,8 @@ const isLastRun = (v: unknown): v is LastRun =>
   typeof (v as LastRun).total === 'number' &&
   typeof (v as LastRun).at === 'string';
 
-const isLanguage = (v: unknown): v is LanguageId => v === 'typescript' || v === 'java';
+const isLanguage = (v: unknown): v is LanguageId =>
+  (LANGUAGE_IDS as readonly unknown[]).includes(v);
 
 /** `scope` keeps drafts apart, e.g. per timed interview session. */
 const draftKey = (id: string, lang: LanguageId, scope?: string): string =>
@@ -57,7 +58,7 @@ const lastRunKey = (id: string, lang: LanguageId): string => `challenge:${id}:${
 /** Drafts saved before the PracStack rename (TypeScript only, raw string). */
 const legacyDraftKey = (id: string): string => `typexercise:solution:${id}`;
 
-const LANGUAGES: readonly LanguageId[] = ['typescript', 'java'];
+const LANGUAGES: readonly LanguageId[] = LANGUAGE_IDS;
 
 /**
  * Drafts and last visible-test results, stored in localStorage.

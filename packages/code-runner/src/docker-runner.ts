@@ -38,6 +38,15 @@ export const DEFAULT_LIMITS: Readonly<Record<RunnerLanguage, DockerRunnerLimits>
     maxOutputBytes: 1_000_000,
     maxLogLines: 200,
   },
+  // .NET runtime start plus an in-memory Roslyn compile: about 1 s warm, several when busy.
+  csharp: {
+    timeoutMs: 15_000,
+    memoryMb: 512,
+    cpus: 1,
+    pidsLimit: 128,
+    maxOutputBytes: 1_000_000,
+    maxLogLines: 200,
+  },
 };
 
 export interface DockerRunnerOptions {
@@ -76,6 +85,7 @@ export class DockerCodeRunner implements CodeRunner {
     this.limits = {
       typescript: { ...DEFAULT_LIMITS.typescript, ...options.limits?.typescript },
       java: { ...DEFAULT_LIMITS.java, ...options.limits?.java },
+      csharp: { ...DEFAULT_LIMITS.csharp, ...options.limits?.csharp },
     };
     this.maxConcurrent = options.maxConcurrent ?? 2;
     this.maxQueue = options.maxQueue ?? 20;

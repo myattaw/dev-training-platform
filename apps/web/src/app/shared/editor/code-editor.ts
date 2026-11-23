@@ -17,11 +17,12 @@ import type * as Monaco from 'monaco-editor';
 import type { CompileDiagnostic } from './compile.models';
 import { loadMonaco, MONACO_THEME, type MonacoApi } from './monaco-loader';
 
-export type EditorLanguage = 'typescript' | 'java' | 'sql';
+export type EditorLanguage = 'typescript' | 'java' | 'csharp' | 'sql';
 
 const LANGUAGES: Readonly<Record<EditorLanguage, { file: string; monacoId: string }>> = {
   typescript: { file: 'solution.ts', monacoId: 'typescript' },
   java: { file: 'Solution.java', monacoId: 'java' },
+  csharp: { file: 'Solution.cs', monacoId: 'csharp' },
   sql: { file: 'query.sql', monacoId: 'pgsql' },
 };
 

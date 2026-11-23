@@ -24,13 +24,17 @@ export const CATEGORY_LABELS: Readonly<Record<ChallengeCategory, string>> = {
 
 /**
  * Languages a challenge can be solved in. TypeScript can also run in the
- * learner's browser; Java runs only in the server-side runner.
+ * learner's browser; Java and C# run only in the server-side runner.
  */
-export type LanguageId = 'typescript' | 'java';
+export type LanguageId = 'typescript' | 'java' | 'csharp';
+
+/** Every language, in display order. */
+export const LANGUAGE_IDS: readonly LanguageId[] = ['typescript', 'java', 'csharp'];
 
 export const LANGUAGE_LABELS: Readonly<Record<LanguageId, string>> = {
   typescript: 'TypeScript',
   java: 'Java',
+  csharp: 'C#',
 };
 
 /** Languages whose visible tests can run in the browser. */

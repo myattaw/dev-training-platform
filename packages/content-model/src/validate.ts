@@ -107,12 +107,17 @@ function validateChallenge(issues: Issues, source: ChallengeSource): void {
     const pattern =
       lang === 'java'
         ? new RegExp(`\\bclass\\s+${e}\\b|\\bstatic\\s+[\\w<>\\[\\],\\s]+\\s${e}\\s*\\(`)
-        : new RegExp(`export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${e}\\b`);
+        : lang === 'csharp'
+          ? // A class (or record), or a static method; C# methods are PascalCase.
+            new RegExp(
+              `\\b(?:class|record)\\s+${e}\\b|\\bstatic\\s+[\\w<>\\[\\],?()\\s]+\\s${csharpName(e)}\\s*\\(`,
+            )
+          : new RegExp(`export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${e}\\b`);
     if (!pattern.test(setup.starterCode)) {
       issues.error(
         `${path}/languages/${lang}`,
-        lang === 'java'
-          ? `starter code must declare a class or static method "${e}"`
+        lang === 'java' || lang === 'csharp'
+          ? `starter code must declare a class or static method "${lang === 'csharp' ? csharpName(e) : e}"`
           : `starter code must export "${e}"`,
       );
     }
@@ -363,4 +368,9 @@ function contentFingerprint(q: QuestionSource): string {
   void explanation;
   void difficulty;
   return JSON.stringify(rest).replace(/\s+/g, ' ');
+}
+
+/** The C# name the runner also accepts for an entry point: `isPangram` → `IsPangram`. */
+export function csharpName(entryPoint: string): string {
+  return entryPoint.charAt(0).toUpperCase() + entryPoint.slice(1);
 }

@@ -8,7 +8,10 @@
  */
 import type { RawOutcome, TestInput } from '@pracstack/challenge-runtime';
 
-export type RunnerLanguage = 'typescript' | 'java';
+export type RunnerLanguage = 'typescript' | 'java' | 'csharp';
+
+/** Every runner language, in display order. */
+export const RUNNER_LANGUAGES: readonly RunnerLanguage[] = ['typescript', 'java', 'csharp'];
 
 /** Sent to the container on stdin as one JSON document. */
 export interface RunnerInput {
@@ -64,4 +67,5 @@ export interface CodeRunner {
 export const RUNNER_IMAGES: Readonly<Record<RunnerLanguage, string>> = {
   typescript: 'pracstack-runner-typescript:1',
   java: 'pracstack-runner-java:1',
+  csharp: 'pracstack-runner-csharp:1',
 };

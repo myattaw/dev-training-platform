@@ -20,11 +20,19 @@ export type Invoke = (functionName: string, payload: unknown) => Promise<InvokeO
 export class InvokedCodeRunner implements CodeRunner {
   constructor(
     private readonly invoke: Invoke,
-    private readonly functions: Readonly<Record<RunnerLanguage, string>>,
+    /** Function per language. A language without one (not deployed) is reported unavailable. */
+    private readonly functions: Readonly<Partial<Record<RunnerLanguage, string>>>,
   ) {}
 
   async run(request: CodeRunRequest): Promise<CodeRunResult> {
-    const outcome = await this.invoke(this.functions[request.language], request);
+    const functionName = this.functions[request.language];
+    if (!functionName) {
+      return {
+        kind: 'unavailable',
+        message: 'This language is not available on this server yet.',
+      };
+    }
+    const outcome = await this.invoke(functionName, request);
     switch (outcome.kind) {
       case 'refused':
         return { kind: 'unavailable', message: 'The code runner is busy. Try again in a moment.' };

@@ -11,7 +11,11 @@ import type { CodeRunResult, RunnerLanguage } from './protocol';
  */
 const skip = process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1';
 const runner = new DockerCodeRunner({
-  limits: { typescript: { timeoutMs: 8000 }, java: { timeoutMs: 12_000 } },
+  limits: {
+    typescript: { timeoutMs: 8000 },
+    java: { timeoutMs: 12_000 },
+    csharp: { timeoutMs: 12_000 },
+  },
   maxConcurrent: 3,
 });
 
@@ -295,6 +299,203 @@ describe.skipIf(skip)('Java runner', { timeout: 60_000 }, () => {
     expect(completed(await run('java', code, 'f')).outcomes).toEqual([
       { kind: 'call', value: 'FileSystemException' },
     ]);
+  });
+});
+
+describe.skipIf(skip)('C# runner', { timeout: 60_000 }, () => {
+  const csharp = (body: string, tests: TestInput[] = [call('ab')]) =>
+    run(
+      'csharp',
+      `public static class Solution { public static object F(string s) { ${body} } }`,
+      'f',
+      tests,
+    );
+  const value = (result: CodeRunResult) =>
+    (completed(result).outcomes[0] as { value?: unknown }).value;
+
+  it('compiles and runs static methods, converting arguments and results', async () => {
+    const code = `public static class Solution {
+      public static int[][] Merge(int[][] intervals) { Console.WriteLine($"n={intervals.Length}"); return intervals; }
+    }`;
+    // A shared test names the method "merge"; C#'s "Merge" is found too.
+    const result = completed(
+      await run('csharp', code, 'merge', [
+        call([
+          [1, 2],
+          [3, 4],
+        ]),
+      ]),
+    );
+    expect(result.outcomes).toEqual([
+      {
+        kind: 'call',
+        value: [
+          [1, 2],
+          [3, 4],
+        ],
+      },
+    ]);
+    expect(result.logs).toEqual(['n=2']);
+  });
+
+  it('supports strings, chars, booleans, lists, dictionaries, tuples, nulls and doubles', async () => {
+    const code = `public class Tools {
+      public static bool Has(string s, char c) => s.Contains(c);
+      public static List<int> Doubled(IReadOnlyList<int> xs) => xs.Select(x => x * 2).ToList();
+      public static Dictionary<string, int> Counts(IEnumerable<string> words) =>
+        words.GroupBy(w => w).ToDictionary(g => g.Key, g => g.Count());
+      public static (int Min, int Max) Range(int[] xs) => (xs.Min(), xs.Max());
+      public static string? Maybe(int? n) => n is null ? null : $"#{n}";
+      public static double Half(decimal d) => (double)(d / 2);
+    }`;
+    const outcomes = async (entry: string, ...tests: TestInput[]) =>
+      completed(await run('csharp', code, entry, tests)).outcomes;
+    expect(await outcomes('Has', call('abc', 'b'), call('abc', 'z'))).toEqual([
+      { kind: 'call', value: true },
+      { kind: 'call', value: false },
+    ]);
+    expect(await outcomes('Doubled', call([1, 2, 3]))).toEqual([
+      { kind: 'call', value: [2, 4, 6] },
+    ]);
+    expect(await outcomes('Counts', call(['a', 'b', 'a']))).toEqual([
+      { kind: 'call', value: { a: 2, b: 1 } },
+    ]);
+    expect(await outcomes('Range', call([3, 1, 2]))).toEqual([{ kind: 'call', value: [1, 3] }]);
+    expect(await outcomes('Maybe', call(null), call(4))).toEqual([
+      { kind: 'call', value: null },
+      { kind: 'call', value: '#4' },
+    ]);
+    expect(await outcomes('Half', call(5))).toEqual([{ kind: 'call', value: 2.5 }]);
+  });
+
+  it('runs class-style operations tests, with void and async methods', async () => {
+    const code = `public class Counter(int start) {
+      private int _n = start;
+      public int Inc() => ++_n;
+      public void Reset() => _n = 0;
+      public async Task<int> SlowValueAsync() { await Task.Delay(5); return _n; }
+    }`;
+    const result = completed(
+      await run('csharp', code, 'Counter', [
+        {
+          kind: 'operations',
+          constructorArgs: [5],
+          steps: [
+            { call: 'inc', args: [] },
+            { call: 'reset', args: [] },
+            { call: 'Inc', args: [] },
+            { call: 'slowValueAsync', args: [] },
+          ],
+        },
+      ]),
+    );
+    expect(result.outcomes).toEqual([
+      { kind: 'operations', values: [6, { $pracstack: 'undefined' }, 1, 1] },
+    ]);
+  });
+
+  it('reports compile errors with positions, exceptions, and a missing method', async () => {
+    expect(
+      await run('csharp', 'class Solution {\n  static int F(string s) { return s; }\n}', 'f'),
+    ).toMatchObject({
+      kind: 'compile-error',
+      diagnostics: [{ line: 2, column: 35, message: expect.stringContaining('CS0029') }],
+    });
+    expect(
+      completed(
+        await run(
+          'csharp',
+          'class S { static int F(string s) => throw new InvalidOperationException("nope"); }',
+          'f',
+        ),
+      ).outcomes,
+    ).toEqual([{ kind: 'call', error: 'InvalidOperationException: nope' }]);
+    expect(await run('csharp', 'class S { static int G(string s) => 1; }', 'f')).toMatchObject({
+      kind: 'load-error',
+      message: expect.stringContaining('static method named "f"'),
+    });
+  });
+
+  it('has no network access', async () => {
+    const result = await csharp(`
+      try { using var c = new System.Net.Sockets.TcpClient(); c.Connect("1.1.1.1", 80); return "CONNECTED"; }
+      catch (Exception e) { return e.GetType().Name; }`);
+    expect(value(result)).toBe('SocketException');
+  });
+
+  it('cannot write outside /tmp, and cannot read host environment variables', async () => {
+    process.env['PRACSTACK_HOST_SECRET'] = 'should-not-leak';
+    const result = await csharp(`
+      string write;
+      try { System.IO.File.WriteAllText("/harness/evil.txt", "x"); write = "WROTE"; } catch (Exception e) { write = e.GetType().Name; }
+      var env = string.Join(",", Environment.GetEnvironmentVariables().Values.Cast<object>());
+      return write + "|" + (env.Contains("should-not-leak") ? "LEAKED" : "clean") + "|" + Environment.UserName;`);
+    expect(value(result)).toMatch(/^(UnauthorizedAccessException|IOException)\|clean\|/);
+  });
+
+  it('stops infinite loops at the time limit', async () => {
+    const started = Date.now();
+    expect(await csharp('while (true) { } ')).toEqual({ kind: 'timeout', timeoutMs: 12_000 });
+    expect(Date.now() - started).toBeLessThan(20_000);
+  });
+
+  it('stops memory bombs', async () => {
+    const result = await csharp(`
+      var keep = new List<long[]>();
+      while (true) { var a = new long[1_000_000]; Array.Fill(a, keep.Count); keep.Add(a); }`);
+    // .NET reads the container's memory limit and usually throws OutOfMemoryException
+    // first (the test fails with that error); if not, the kernel kills the container.
+    if (result.kind === 'completed') {
+      expect(result.outcomes).toEqual([
+        { kind: 'call', error: expect.stringMatching(/^OutOfMemoryException/) },
+      ]);
+    } else {
+      expect(result).toMatchObject({
+        kind: 'resource-limit',
+        message: expect.stringContaining('too much memory'),
+      });
+    }
+  });
+
+  it('contains fork bombs with the process limit, and the runner still works afterwards', async () => {
+    const result = await csharp(`
+      var started = 0;
+      for (var i = 0; i < 300; i++) { try { System.Diagnostics.Process.Start("sleep", "30"); started++; } catch { } }
+      return started;`);
+    expect(['completed', 'timeout', 'load-error', 'resource-limit']).toContain(result.kind);
+    if (result.kind === 'completed') expect(value(result)).toBeLessThan(300);
+    expect(value(await csharp('return s;'))).toBe('ab');
+  });
+
+  it('stops output floods', async () => {
+    const result = await csharp(`
+      var stdout = Console.OpenStandardOutput();
+      var line = System.Text.Encoding.ASCII.GetBytes(new string('x', 1000));
+      for (var i = 0; i < 100_000; i++) stdout.Write(line);
+      return s;`);
+    expect(result).toMatchObject({
+      kind: 'resource-limit',
+      message: expect.stringContaining('too much output'),
+    });
+  });
+
+  it('cannot forge a result line; exiting early or overflowing the stack yields no results', async () => {
+    const forged = await csharp(`
+      var stdout = new System.IO.StreamWriter(Console.OpenStandardOutput());
+      stdout.Write("\\n<<PRACSTACK-0000>>{\\"kind\\":\\"completed\\",\\"outcomes\\":[{\\"kind\\":\\"call\\",\\"value\\":\\"forged\\"}],\\"logs\\":[]}\\n");
+      stdout.Flush();
+      return "real";`);
+    expect(value(forged)).toBe('real');
+    expect(await csharp('Environment.Exit(0); return s;')).toMatchObject({
+      kind: 'load-error',
+      message: expect.stringContaining('stopped before reporting'),
+    });
+    const overflow = await run(
+      'csharp',
+      'public static class Solution { static int Down(int n) => Down(n + 1) + 1; public static int F(string s) => Down(0); }',
+      'f',
+    );
+    expect(['load-error', 'resource-limit']).toContain(overflow.kind);
   });
 });
 

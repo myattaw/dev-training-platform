@@ -1,7 +1,9 @@
 /**
  * Lambda handler of the TypeScript and Java runner functions (one container
- * image each; `RUNNER_LANGUAGE` says which). Invoked only by the API function,
- * with test INPUTS only; expected values never reach this function.
+ * image each; `RUNNER_LANGUAGE` says which). C# runs only in the local Docker
+ * runner for now: there is no C# Lambda image yet (docs/runners.md). Invoked
+ * only by the API function, with test INPUTS only; expected values never reach
+ * this function.
  */
 import { randomBytes } from 'node:crypto';
 import {
@@ -15,13 +17,16 @@ import { type IsolationLimits, runIsolated } from './isolate';
 
 const COMMON = { maxOutputBytes: 1_000_000, maxOpenFiles: 256, maxFileBytes: 16 * 1024 * 1024 };
 
-export const LIMITS: Readonly<Record<RunnerLanguage, IsolationLimits>> = {
+/** Languages with a Lambda runner image. */
+export type LambdaRunnerLanguage = Exclude<RunnerLanguage, 'csharp'>;
+
+export const LIMITS: Readonly<Record<LambdaRunnerLanguage, IsolationLimits>> = {
   typescript: { ...COMMON, timeoutMs: 10_000, maxRssMb: 384, maxProcesses: 256 },
   java: { ...COMMON, timeoutMs: 15_000, maxRssMb: 768, maxProcesses: 256 },
 };
 
 const HARNESS = '/opt/harness';
-const COMMANDS: Readonly<Record<RunnerLanguage, { command: string; args: string[] }>> = {
+const COMMANDS: Readonly<Record<LambdaRunnerLanguage, { command: string; args: string[] }>> = {
   typescript: {
     command: process.execPath,
     args: ['--max-old-space-size=192', `${HARNESS}/harness.mjs`],
@@ -46,7 +51,9 @@ const COMMANDS: Readonly<Record<RunnerLanguage, { command: string; args: string[
 const MAX_LOG_LINES = 200;
 
 export async function handler(event: unknown): Promise<CodeRunResult> {
-  const language = process.env['RUNNER_LANGUAGE'] as RunnerLanguage | undefined;
+  const configured = process.env['RUNNER_LANGUAGE'];
+  const language =
+    configured && configured in LIMITS ? (configured as LambdaRunnerLanguage) : undefined;
   const request = parseCodeRunRequest(event);
   if (!language || !request || request.language !== language) {
     return { kind: 'unavailable', message: 'The runner received an invalid request.' };
