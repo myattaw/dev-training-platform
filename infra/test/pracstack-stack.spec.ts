@@ -375,7 +375,13 @@ describe('security', () => {
       { Category: 'FORM_LOGO', ColorMode: 'LIGHT', Extension: 'SVG', Bytes: brandLogoBase64() },
     ]);
     const svg = Buffer.from(branding?.Properties.Assets[0].Bytes, 'base64').toString('utf8');
-    expect(svg).toMatch(/^<svg [^>]*viewBox="0 0 105 20"/);
+    // Cognito rejects a logo whose width:height is outside 1:1 to 4:1 (it reads width/height).
+    const width = Number(/^<svg [^>]*\bwidth="([\d.]+)"/.exec(svg)?.[1]);
+    const height = Number(/^<svg [^>]*\bheight="([\d.]+)"/.exec(svg)?.[1]);
+    expect(width / height).toBeGreaterThanOrEqual(1);
+    expect(width / height).toBeLessThan(4);
+    const viewBox = /^<svg [^>]*viewBox="([^"]+)"/.exec(svg)?.[1].split(' ').map(Number) ?? [];
+    expect(viewBox[2]! / viewBox[3]!).toBeCloseTo(width / height, 2);
     expect(svg).toContain('>PracStack</text>');
     // Cognito's limit for one asset (base64 bytes).
     expect(branding?.Properties.Assets[0].Bytes.length).toBeLessThan(1_000_000);
