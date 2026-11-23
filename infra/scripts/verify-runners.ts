@@ -64,9 +64,10 @@ const o = await outputs();
 const fns = {
   typescript: o['TypescriptRunnerName'],
   java: o['JavaRunnerName'],
+  csharp: o['CsharpRunnerName'],
   sql: o['SqlRunnerName'],
 };
-if (!fns.typescript || !fns.java || !fns.sql)
+if (!fns.typescript || !fns.java || !fns.csharp || !fns.sql)
   throw new Error(`Runner outputs missing on ${stackName}.`);
 
 const ts = await invoke(fns.typescript, {
@@ -85,6 +86,14 @@ const java = await invoke(fns.java, {
 });
 check('Java runner runs code', valueOf(java) === 'cba', JSON.stringify(java));
 
+const csharp = await invoke(fns.csharp, {
+  language: 'csharp',
+  code: 'public static class Solution { public static string Reverse(string s) => new string(s.Reverse().ToArray()); }',
+  entryPoint: 'reverse',
+  tests: [{ kind: 'call', input: ['abc'] }],
+});
+check('C# runner runs code', valueOf(csharp) === 'cba', JSON.stringify(csharp));
+
 const sql = (await invoke(fns.sql, {
   database: { schemaSql: 'CREATE TABLE t (a int);', dataSql: 'INSERT INTO t VALUES (1);' },
   query: 'SELECT a FROM t',
@@ -102,6 +111,55 @@ check('no network from learner code', networkBlocked(network), network.replace(/
 
 const environ = String(valueOf(await invoke(fns.typescript, nodeProbe(ENVIRON_PROBE)))).trim();
 check('no AWS credentials visible in any process', credentialsHidden(environ), environ);
+
+// The same two probes from the C# runner, which is its own function and image.
+const csProbe = (body: string) => ({
+  language: 'csharp',
+  code: `public static class Solution { public static string Probe() { ${body} } }`,
+  entryPoint: 'probe',
+  tests: [{ kind: 'call', input: [] }],
+});
+const csNetwork = String(
+  valueOf(
+    await invoke(
+      fns.csharp,
+      csProbe(`
+        var results = new List<string>();
+        foreach (var (host, port) in new[] { ("lambda.${region}.amazonaws.com", 443), ("example.com", 443), ("1.1.1.1", 443) })
+        {
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                results.Add(client.ConnectAsync(host, port).Wait(4000) ? "REACHED " + host : "blocked " + host);
+            }
+            catch (Exception e) { results.Add("blocked " + host + " (" + e.GetBaseException().GetType().Name + ")"); }
+        }
+        return string.Join("; ", results);`),
+    ),
+  ),
+);
+check('no network from C# code', csNetwork !== '' && !csNetwork.includes('REACHED'), csNetwork);
+const csEnviron = String(
+  valueOf(
+    await invoke(
+      fns.csharp,
+      csProbe(`
+        var sb = new StringBuilder();
+        foreach (var dir in Directory.GetDirectories("/proc"))
+        {
+            if (!int.TryParse(Path.GetFileName(dir), out _)) continue;
+            try { sb.Append(File.ReadAllText(Path.Combine(dir, "environ"))).Append('\\n'); } catch { }
+        }
+        return sb.ToString();`),
+    ),
+  ),
+);
+check(
+  'no AWS credentials visible to C# code in any process',
+  csEnviron.includes('AWS_LAMBDA_FUNCTION_NAME') &&
+    !/AWS_(SECRET_ACCESS_KEY|ACCESS_KEY_ID|SESSION_TOKEN)=[^\0\n]/.test(csEnviron),
+  csEnviron.includes('AWS_LAMBDA_FUNCTION_NAME') ? 'none' : csEnviron.slice(0, 200),
+);
 
 if (failures.length > 0) {
   console.error(

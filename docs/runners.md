@@ -79,8 +79,12 @@ Adding a language means: a Dockerfile and harness that speak the protocol in
   debugger or diagnostics socket.
 - **Memory:** at the container memory limit .NET usually throws a catchable
   `OutOfMemoryException` (reported as that test's error) rather than being killed by the kernel.
-- **Local Docker only.** There is no Lambda runner image for C# yet, so on AWS the API reports
-  C# as unavailable ("This language is not available on this server yet.").
+- **On AWS:** a fourth runner function, `CsharpRunner` (`services/runners/docker/csharp.Dockerfile`):
+  the same harness built for linux-x64 on the Node.js Lambda base image with the .NET 10
+  runtime copied in, supervised like Java (prlimit, 15 s, 768 MB RSS, 384 MiB managed heap cap
+  via `DOTNET_GCHeapHardLimit`), 1769 MB (one vCPU). `runner-images.spec.ts` and
+  `infra/scripts/verify-runners.ts` attack it like the others. If the API has no C# function
+  configured, it reports C# as unavailable ("This language is not available on this server yet.").
 
 **Upgrading the C# runner.** Bump the pinned .NET SDK and runtime image tags in
 `docker/csharp/Dockerfile` and the Roslyn package version in `docker/csharp/Harness.csproj`

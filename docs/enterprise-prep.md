@@ -2,7 +2,7 @@
 
 PracStack now prepares people for enterprise .NET and Microsoft-stack jobs, not only
 algorithm interviews. This document records what is implemented, how it is verified, and
-what each part would need before it can run on AWS. Nothing in this phase was deployed.
+what each part needs to run on AWS.
 
 ## What is genuinely executed, and what is not
 
@@ -18,19 +18,15 @@ what each part would need before it can run on AWS. Nothing in this phase was de
 Questions that are not machine-checked say so in their track description, and no page
 claims execution that does not happen.
 
-## C# runner on AWS (not yet deployed)
+## C# runner on AWS
 
-Locally, C# runs in the Docker runner like Java. On AWS the runner functions
-(`services/runners`) exist only for TypeScript, Java and SQL, so the API answers C# runs
-with "This language is not available on this server yet." Before deploying C#:
-
-1. Add a C# Lambda image to `services/runners` (the `aspnet` runtime plus the published
-   harness and the Node supervisor), a `csharp` entry in `code-handler.ts` (command
-   `dotnet /opt/harness/Harness.dll`, about 768 MB RSS limit, 15 s), and a third code-runner
-   function in `infra/lib/pracstack-stack.ts`.
-2. Run `runner-images.spec.ts` attacks against it, then `infra/scripts/verify-runners.ts`.
-3. Keep `DOTNET_EnableWriteXorExecute=0` (the file-size limit otherwise breaks the JIT) and
-   `DOTNET_EnableDiagnostics=0`.
+On AWS, C# runs in its own runner function (`CsharpRunner`, see [runners.md](runners.md)):
+the same Roslyn harness as the local Docker image, on the Node.js Lambda base image with the
+.NET 10 runtime, supervised like Java. Its attacks run locally in `runner-images.spec.ts`
+(credentials hidden from every process, clean-up between runs, loops and memory bombs, ASP.NET
+Core on loopback), and `infra/scripts/verify-runners.ts` probes the deployed function for
+network access and credentials. `DOTNET_EnableWriteXorExecute=0` (the file-size limit otherwise
+breaks the JIT) and `DOTNET_EnableDiagnostics=0` are set as locally.
 
 **Cost.** Lambda bills per GB-second, so the runner costs nothing while idle. A typical C#
 submission takes 1–2 s at 1 GB; an ASP.NET Core API submission (one app per test) about

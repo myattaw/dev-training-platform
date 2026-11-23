@@ -99,6 +99,7 @@ if (githubRepo) {
       runners: {
         typescript: join(BUILD_DIR, 'runners', 'typescript'),
         java: join(BUILD_DIR, 'runners', 'java'),
+        csharp: join(BUILD_DIR, 'runners', 'csharp'),
         sql: join(BUILD_DIR, 'runners', 'sql'),
       },
     },

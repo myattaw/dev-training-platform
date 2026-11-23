@@ -35,6 +35,7 @@ function fakeAssets() {
     runners: {
       typescript: dir('runner-typescript', 'Dockerfile'),
       java: dir('runner-java', 'Dockerfile'),
+      csharp: dir('runner-csharp', 'Dockerfile'),
       sql: dir('runner-sql', 'Dockerfile'),
     },
   };
@@ -182,7 +183,7 @@ describe('cost safety', () => {
     });
     const deny = resourcesOf('AWS::IAM::ManagedPolicy')[0]?.Properties.PolicyDocument.Statement[0];
     expect(deny).toMatchObject({ Effect: 'Deny', Action: 'lambda:InvokeFunction' });
-    expect(deny.Resource).toHaveLength(3);
+    expect(deny.Resource).toHaveLength(4);
     // The budget service may attach exactly that policy, to exactly that role.
     template.hasResourceProperties('AWS::IAM::Policy', {
       PolicyDocument: {
@@ -441,9 +442,9 @@ describe('runners (learner code and SQL)', () => {
     template.hasResourceProperties('AWS::EC2::FlowLog', { TrafficType: 'REJECT' });
   });
 
-  it('runs three container-image functions inside that VPC', () => {
+  it('runs four container-image functions (TypeScript, Java, C#, SQL) inside that VPC', () => {
     const fns = runnerFunctions();
-    expect(fns).toHaveLength(3);
+    expect(fns).toHaveLength(4);
     for (const fn of fns) {
       expect(fn.Properties.VpcConfig.SecurityGroupIds).toHaveLength(1);
       expect(fn.Properties.VpcConfig.SubnetIds).toHaveLength(2);
@@ -456,7 +457,7 @@ describe('runners (learner code and SQL)', () => {
     const roleIds = Object.keys(template.findResources('AWS::IAM::Role')).filter((id) =>
       /RunnerRole/.test(id),
     );
-    expect(roleIds).toHaveLength(3);
+    expect(roleIds).toHaveLength(4);
     for (const id of roleIds) {
       const policies = Object.values(
         template.findResources('AWS::IAM::Policy', { Properties: { Roles: [{ Ref: id }] } }),
@@ -473,7 +474,7 @@ describe('runners (learner code and SQL)', () => {
     }
   });
 
-  it('lets the API invoke exactly the three runners, and tells it their names', () => {
+  it('lets the API invoke exactly the four runners, and tells it their names', () => {
     const policies = template.findResources('AWS::IAM::Policy', {
       Properties: { Roles: [{ Ref: Match.stringLikeRegexp('^ApiFunctionRole') }] },
     });
@@ -484,13 +485,12 @@ describe('runners (learner code and SQL)', () => {
       .filter((st) => st.Action === 'lambda:InvokeFunction');
     expect(invoke).toHaveLength(1);
     const targets = invoke[0]?.Resource as { 'Fn::GetAtt': [string, string] }[];
-    expect(targets.map((t) => t['Fn::GetAtt'][0]).sort()).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/^JavaRunner/),
-        expect.stringMatching(/^SqlRunner/),
-        expect.stringMatching(/^TypescriptRunner/),
-      ]),
-    );
+    expect(targets.map((t) => t['Fn::GetAtt'][0]).sort()).toEqual([
+      expect.stringMatching(/^CsharpRunner/),
+      expect.stringMatching(/^JavaRunner/),
+      expect.stringMatching(/^SqlRunner/),
+      expect.stringMatching(/^TypescriptRunner/),
+    ]);
     expect(targets.every((t) => t['Fn::GetAtt'][1] === 'Arn')).toBe(true);
     template.hasResourceProperties('AWS::Lambda::Function', {
       Handler: 'index.handler',
@@ -499,6 +499,7 @@ describe('runners (learner code and SQL)', () => {
         Variables: Match.objectLike({
           RUNNER_TYPESCRIPT_FUNCTION: { Ref: Match.stringLikeRegexp('^TypescriptRunner') },
           RUNNER_JAVA_FUNCTION: { Ref: Match.stringLikeRegexp('^JavaRunner') },
+          RUNNER_CSHARP_FUNCTION: { Ref: Match.stringLikeRegexp('^CsharpRunner') },
           RUNNER_SQL_FUNCTION: { Ref: Match.stringLikeRegexp('^SqlRunner') },
         }),
       },
@@ -649,7 +650,7 @@ describe('private staging options', () => {
     const { template: t } = synth(false, { runnerConcurrency: 3 });
     const fns = Object.values(t.findResources('AWS::Lambda::Function')) as Resource[];
     const reserved = fns.filter((f) => f.Properties.ReservedConcurrentExecutions === 3);
-    expect(reserved).toHaveLength(3);
+    expect(reserved).toHaveLength(4);
     expect(reserved.every((f) => f.Properties.PackageType === 'Image')).toBe(true);
   });
 

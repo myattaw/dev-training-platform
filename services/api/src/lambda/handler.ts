@@ -33,6 +33,7 @@ const limiter = (name: string, limit: number) =>
 const runnerFunctions = {
   typescript: process.env['RUNNER_TYPESCRIPT_FUNCTION'],
   java: process.env['RUNNER_JAVA_FUNCTION'],
+  csharp: process.env['RUNNER_CSHARP_FUNCTION'],
   sql: process.env['RUNNER_SQL_FUNCTION'],
 };
 const invoke = lambdaInvoke();
@@ -44,6 +45,8 @@ const codeRunner =
         new InvokedCodeRunner(invoke, {
           typescript: runnerFunctions.typescript,
           java: runnerFunctions.java,
+          // Optional: without it the API reports C# as not available.
+          ...(runnerFunctions.csharp ? { csharp: runnerFunctions.csharp } : {}),
         }),
         limiter('code-global', GLOBAL_RUNS_PER_MINUTE.code),
       )

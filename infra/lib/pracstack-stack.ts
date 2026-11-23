@@ -53,12 +53,26 @@ export interface PracStackAssets {
   readonly runners: Readonly<Record<RunnerName, string>>;
 }
 
-export type RunnerName = 'typescript' | 'java' | 'sql';
+export type RunnerName = 'typescript' | 'java' | 'csharp' | 'sql';
+
+/**
+ * Construct id prefixes. Existing ids never change (renaming would replace the
+ * functions); `Csharp` keeps the same pattern.
+ */
+const RUNNER_IDS: Readonly<Record<RunnerName, string>> = {
+  typescript: 'Typescript',
+  java: 'Java',
+  csharp: 'Csharp',
+  sql: 'Sql',
+};
 
 /** Memory (MB) and timeout (s) per runner function. Timeouts include a cold start. */
 export const RUNNER_SIZES: Readonly<Record<RunnerName, { memoryMb: number; timeoutS: number }>> = {
   typescript: { memoryMb: 1024, timeoutS: 20 },
   java: { memoryMb: 1024, timeoutS: 25 },
+  // 1769 MB is one full vCPU: Roslyn compiles faster, and ASP.NET Core exercises
+  // start one small app per test. Billed per use like the others.
+  csharp: { memoryMb: 1769, timeoutS: 25 },
   // 20 s: a cold start (container + PGlite) took ~10 s on AWS. Each query is still capped at 3 s.
   sql: { memoryMb: 1536, timeoutS: 20 },
 };
@@ -353,8 +367,8 @@ export class PracStackStack extends Stack {
     });
 
     const runners = {} as Record<RunnerName, lambda.DockerImageFunction>;
-    for (const name of ['typescript', 'java', 'sql'] as const) {
-      const id = `${name[0]?.toUpperCase()}${name.slice(1)}Runner`;
+    for (const name of ['typescript', 'java', 'csharp', 'sql'] as const) {
+      const id = `${RUNNER_IDS[name]}Runner`;
       const runnerLogs = new logs.LogGroup(this, `${id}Logs`, {
         retention: logs.RetentionDays.TWO_WEEKS,
         removalPolicy: RemovalPolicy.DESTROY,
@@ -363,7 +377,7 @@ export class PracStackStack extends Stack {
       // The runner never uses these: its entrypoint removes the credentials (see services/runners).
       const role = new iam.Role(this, `${id}Role`, {
         assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
-        description: `PracStack ${name} runner: no access to any AWS data.`,
+        description: `PracStack ${RUNNER_IDS[name]} runner: no access to any AWS data.`,
         managedPolicies: [
           iam.ManagedPolicy.fromAwsManagedPolicyName(
             'service-role/AWSLambdaVPCAccessExecutionRole',
@@ -372,7 +386,7 @@ export class PracStackStack extends Stack {
       });
       runnerLogs.grantWrite(role);
       runners[name] = new lambda.DockerImageFunction(this, id, {
-        description: `PracStack ${name} runner: executes learner ${name === 'sql' ? 'SQL' : 'code'} in isolation. No network, no permissions.`,
+        description: `PracStack ${RUNNER_IDS[name]} runner: executes learner ${name === 'sql' ? 'SQL' : 'code'} in isolation. No network, no permissions.`,
         code: lambda.DockerImageCode.fromImageAsset(props.assets.runners[name], {
           platform: Platform.LINUX_AMD64,
         }),
@@ -408,10 +422,11 @@ export class PracStackStack extends Stack {
         NODE_OPTIONS: '--enable-source-maps',
         RUNNER_TYPESCRIPT_FUNCTION: runners.typescript.functionName,
         RUNNER_JAVA_FUNCTION: runners.java.functionName,
+        RUNNER_CSHARP_FUNCTION: runners.csharp.functionName,
         RUNNER_SQL_FUNCTION: runners.sql.functionName,
       },
     });
-    // The API may invoke the three runners, and nothing else.
+    // The API may invoke the runners, and nothing else.
     functionRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],
