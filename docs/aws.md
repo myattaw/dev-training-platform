@@ -21,16 +21,16 @@ Browser ──redirect──▶ Cognito managed login (sign-up, sign-in, PKCE)
 AWS Budgets ──email──▶ you
 ```
 
-| Piece | What it does | Configuration |
-| --- | --- | --- |
-| **CloudFront** | Serves the web app and proxies `/api/*`; same origin, so no CORS | Price class 100; HTTP/2 (HTTP/3 off: it stalled page loads on a network that breaks QUIC); security headers from `@pracstack/web-security` (strict CSP, HSTS, frame-deny); SPA routes rewritten by a CloudFront Function |
-| **S3** | Web build output | Private, encrypted, TLS-only; hashed files cached 1 year, pages/content revalidated |
-| **Cognito** | Accounts and sign-in | Lite plan (free); email sign-in; 12+ character passwords; optional authenticator-app MFA; public client (no secret), authorization code + PKCE; 1 h ID tokens; `admins` group (ADMIN plan, free) |
-| **API Gateway** | HTTP API in front of the function | Every route requires a valid Cognito ID token (signature, expiry, issuer, audience checked by API Gateway); overall throttle 10 req/s (burst 20); JSON access logs without query strings or bodies |
-| **Lambda** | The API (`services/api`, bundled to one file) | 512 MB, 10 s timeout; its own role can only use its table and its log group; re-checks token claims (fails closed) |
-| **DynamoDB** | Progress, tokens, submissions, rate-limit counters, and account data (profiles, plans, identities, saved companies, timed sessions, drafts) | One table, on-demand, TTL, point-in-time recovery; layout in `services/api/src/store/dynamo-store.ts` |
-| **AWS Budgets** | Cost alerts | Monthly budget (default $10) with emails at 50 %, 100 % actual and 100 % forecast |
-| **CloudWatch Logs** | Function and API access logs | 14-day retention |
+| Piece               | What it does                                                                                                                                | Configuration                                                                                                                                                                                                                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **CloudFront**      | Serves the web app and proxies `/api/*`; same origin, so no CORS                                                                            | Price class 100; HTTP/2 (HTTP/3 off: it stalled page loads on a network that breaks QUIC); security headers from `@pracstack/web-security` (strict CSP, HSTS, frame-deny); SPA routes rewritten by a CloudFront Function                                                                                                                                     |
+| **S3**              | Web build output                                                                                                                            | Private, encrypted, TLS-only; hashed files cached 1 year, pages/content revalidated                                                                                                                                                                                                                                                                          |
+| **Cognito**         | Accounts and sign-in                                                                                                                        | Essentials plan (10,000 MAU free); managed login (not the classic hosted UI) with a PracStack style for the web client (colors, logo: `infra/lib/managed-login-branding.ts`); email sign-in; 12+ character passwords; optional authenticator-app MFA; public client (no secret), authorization code + PKCE; 1 h ID tokens; `admins` group (ADMIN plan, free) |
+| **API Gateway**     | HTTP API in front of the function                                                                                                           | Every route requires a valid Cognito ID token (signature, expiry, issuer, audience checked by API Gateway); overall throttle 10 req/s (burst 20); JSON access logs without query strings or bodies                                                                                                                                                           |
+| **Lambda**          | The API (`services/api`, bundled to one file)                                                                                               | 512 MB, 10 s timeout; its own role can only use its table and its log group; re-checks token claims (fails closed)                                                                                                                                                                                                                                           |
+| **DynamoDB**        | Progress, tokens, submissions, rate-limit counters, and account data (profiles, plans, identities, saved companies, timed sessions, drafts) | One table, on-demand, TTL, point-in-time recovery; layout in `services/api/src/store/dynamo-store.ts`                                                                                                                                                                                                                                                        |
+| **AWS Budgets**     | Cost alerts                                                                                                                                 | Monthly budget (default $10) with emails at 50 %, 100 % actual and 100 % forecast                                                                                                                                                                                                                                                                            |
+| **CloudWatch Logs** | Function and API access logs                                                                                                                | 14-day retention                                                                                                                                                                                                                                                                                                                                             |
 
 ### Learner code and SQL (Phase 7)
 
@@ -39,11 +39,11 @@ The API function never runs learner code or SQL. It invokes three **runner funct
 credentials, cleaned between runs. Design, layers and limits:
 [runners.md](runners.md#on-aws-lambda-runner-functions-servicesrunners).
 
-| Runner | Memory | Function timeout | Run limit |
-| --- | --- | --- | --- |
-| TypeScript | 1024 MB | 20 s | 10 s |
-| Java | 1024 MB | 25 s | 15 s |
-| SQL | 1536 MB | 20 s (a cold start took ~10 s) | 3 s per query |
+| Runner     | Memory  | Function timeout               | Run limit     |
+| ---------- | ------- | ------------------------------ | ------------- |
+| TypeScript | 1024 MB | 20 s                           | 10 s          |
+| Java       | 1024 MB | 25 s                           | 15 s          |
+| SQL        | 1536 MB | 20 s (a cold start took ~10 s) | 3 s per query |
 
 The API function's timeout is 29 s (API Gateway allows 30 s): enough for a Java run that starts
 a cold runner.
@@ -75,24 +75,24 @@ g, XP, and progress.
 
 Prices are AWS list prices at the time of writing; check the
 [AWS Pricing Calculator](https://calculator.aws/) for current numbers. "Free tier" below means
-the always-free tiers unless marked *12 months* (only for accounts less than a year old).
+the always-free tiers unless marked _12 months_ (only for accounts less than a year old).
 
-| Service | Idle | Light use (≈ 50 learners, ≈ 50 k API requests/month) | Free allowance that applies |
-| --- | --- | --- | --- |
-| CloudFront | $0 | $0 | 1 TB transfer, 10 M requests, 2 M function runs per month |
-| S3 (≈ 15 MB) | < $0.01 | < $0.01 | — |
-| Cognito (Lite) | $0 | $0 | 10,000 monthly active users |
-| API Gateway (HTTP API) | $0 | ≈ $0.05 | 1 M requests/month (*12 months*) |
-| Lambda: API (arm64) and runners (x86) | $0 | $0 (≈ 2,000 runs ≈ 3,000 GB-s) | 1 M requests + 400,000 GB-s per month |
-| Runner images (ECR, ≈ 0.6 GB compressed) | ≈ $0.06 | ≈ $0.06 | 500 MB (*12 months*) |
-| VPC (isolated subnets, security group) and flow logs of rejected traffic | $0 | ≈ $0 | No NAT, endpoints or gateways: nothing billed by the hour |
-| DynamoDB (on-demand + PITR) | ≈ $0 | ≈ $0.05 | 25 GB storage |
-| CloudWatch Logs | $0 | ≈ $0 | 5 GB ingestion |
-| CloudWatch alarms (6) + SNS email | $0 | $0 | 10 alarms; 1,000 emails per month |
-| CloudFront access logs (S3, 30 days) | $0 | < $0.05 | — |
-| AWS Budgets (one budget, one action) | $0 | $0 | The first two action-enabled budgets are free |
-| CDK bootstrap (staging bucket, roles) | < $0.01 | < $0.01 | — |
-| **Total** | **≈ $0.10/month** | **well under $1/month** | |
+| Service                                                                  | Idle              | Light use (≈ 50 learners, ≈ 50 k API requests/month) | Free allowance that applies                                                                   |
+| ------------------------------------------------------------------------ | ----------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| CloudFront                                                               | $0                | $0                                                   | 1 TB transfer, 10 M requests, 2 M function runs per month                                     |
+| S3 (≈ 15 MB)                                                             | < $0.01           | < $0.01                                              | —                                                                                             |
+| Cognito (Essentials)                                                     | $0                | $0                                                   | 10,000 monthly active users (direct and social sign-in, Google included), then $0.015 per MAU |
+| API Gateway (HTTP API)                                                   | $0                | ≈ $0.05                                              | 1 M requests/month (_12 months_)                                                              |
+| Lambda: API (arm64) and runners (x86)                                    | $0                | $0 (≈ 2,000 runs ≈ 3,000 GB-s)                       | 1 M requests + 400,000 GB-s per month                                                         |
+| Runner images (ECR, ≈ 0.6 GB compressed)                                 | ≈ $0.06           | ≈ $0.06                                              | 500 MB (_12 months_)                                                                          |
+| VPC (isolated subnets, security group) and flow logs of rejected traffic | $0                | ≈ $0                                                 | No NAT, endpoints or gateways: nothing billed by the hour                                     |
+| DynamoDB (on-demand + PITR)                                              | ≈ $0              | ≈ $0.05                                              | 25 GB storage                                                                                 |
+| CloudWatch Logs                                                          | $0                | ≈ $0                                                 | 5 GB ingestion                                                                                |
+| CloudWatch alarms (6) + SNS email                                        | $0                | $0                                                   | 10 alarms; 1,000 emails per month                                                             |
+| CloudFront access logs (S3, 30 days)                                     | $0                | < $0.05                                              | —                                                                                             |
+| AWS Budgets (one budget, one action)                                     | $0                | $0                                                   | The first two action-enabled budgets are free                                                 |
+| CDK bootstrap (staging bucket, roles)                                    | < $0.01           | < $0.01                                              | —                                                                                             |
+| **Total**                                                                | **≈ $0.10/month** | **well under $1/month**                              |                                                                                               |
 
 No NAT gateways, VPC endpoints, load balancers, databases, WAF, or anything else that bills by the hour
 (a test fails if one is added: `infra/test/pracstack-stack.spec.ts`).

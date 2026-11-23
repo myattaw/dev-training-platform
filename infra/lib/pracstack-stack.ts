@@ -40,6 +40,7 @@ import {
   WORKER_PATH_PATTERN,
   workerContentSecurityPolicy,
 } from '@pracstack/web-security';
+import { addManagedLoginBranding } from './managed-login-branding';
 
 export interface PracStackAssets {
   /** Content-hashed web files: cached for a year. */
@@ -140,7 +141,8 @@ export class PracStackStack extends Stack {
 
     // ---------------------------------------------------------------- sign-in
     const userPool = new cognito.UserPool(this, 'UserPool', {
-      featurePlan: cognito.FeaturePlan.LITE,
+      // Essentials (first 10,000 MAU free): the lowest plan with managed login branding.
+      featurePlan: cognito.FeaturePlan.ESSENTIALS,
       selfSignUpEnabled: true,
       signInAliases: { email: true },
       autoVerify: { email: true },
@@ -171,7 +173,7 @@ export class PracStackStack extends Stack {
     const domainPrefix = `pracstack-${props.stage}-${stableSuffix(this.account, this.region)}`;
     const domain = userPool.addDomain('Domain', {
       cognitoDomain: { domainPrefix },
-      managedLoginVersion: cognito.ManagedLoginVersion.CLASSIC_HOSTED_UI,
+      managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
     });
     const cognitoOrigin = `https://${domainPrefix}.auth.${this.region}.amazoncognito.com`;
 
@@ -314,6 +316,10 @@ export class PracStackStack extends Stack {
       enableTokenRevocation: true,
     });
     if (google) client.node.addDependency(google);
+    // PracStack colors and logo on the managed login pages. The Google button comes from the
+    // client's supported identity providers; the style needs nothing extra for it.
+    const branding = addManagedLoginBranding(this, 'WebClientBranding', userPool, client);
+    branding.node.addDependency(domain);
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
 
     // ---------------------------------------------------------------- runners (learner code + SQL)
@@ -482,7 +488,6 @@ export class PracStackStack extends Stack {
     });
     // New pages must never reference files that are not uploaded yet.
     revalidated.node.addDependency(hashed);
-    void domain;
 
     // ---------------------------------------------------------------- cost guardrail
     const budget = new budgets.CfnBudget(this, 'MonthlyBudget', {
@@ -731,7 +736,7 @@ export class PracStackStack extends Stack {
     });
     ack(r.userPool, {
       COG2: 'MFA (authenticator app) is available to every learner but not forced on a learning site.',
-      COG8: 'The Plus plan (threat protection) is paid per active user; the free Lite plan is used.',
+      COG8: 'The Plus plan (threat protection) is paid per active user; Essentials (10,000 MAU free) is used.',
     });
     ack(r.apiFunction, {
       L1: 'Node.js 22 (supported by Lambda until 2027) is the version the API bundle is built for and tested on.',

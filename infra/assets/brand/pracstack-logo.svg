@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="168" height="32" viewBox="0 0 105 20">
+  <title>PracStack</title>
+  <rect x="1" y="2.5" width="12" height="4" rx="1" fill="#1769aa"/>
+  <rect x="4" y="8" width="12" height="4" rx="1" fill="#1769aa" opacity=".6"/>
+  <rect x="7" y="13.5" width="12" height="4" rx="1" fill="#1769aa" opacity=".35"/>
+  <text x="25" y="15" fill="#16191f" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="700">PracStack</text>
+</svg>

@@ -15,6 +15,7 @@ import {
   SPA_REWRITE_SOURCE,
   webConfig,
 } from '../lib/pracstack-stack';
+import { BRANDING_SETTINGS, brandLogoBase64 } from '../lib/managed-login-branding';
 import { isImmutableAsset } from '../scripts/prepare-assets';
 
 const ACCOUNT = '111111111111';
@@ -66,6 +67,7 @@ interface Resource {
   readonly Type: string;
   readonly Properties: Json;
   readonly DeletionPolicy?: string;
+  readonly DependsOn?: string[];
 }
 const resources = (): Record<string, Resource> =>
   template.toJSON()['Resources'] as Record<string, Resource>;
@@ -94,6 +96,7 @@ describe('cost safety', () => {
       'AWS::Cognito::UserPoolDomain',
       'AWS::Cognito::UserPoolClient',
       'AWS::Cognito::UserPoolGroup',
+      'AWS::Cognito::ManagedLoginBranding',
       'AWS::ApiGatewayV2::Api',
       'AWS::ApiGatewayV2::Stage',
       'AWS::ApiGatewayV2::Route',
@@ -126,12 +129,13 @@ describe('cost safety', () => {
     expect([...types].filter((t) => !allowed.has(t))).toEqual([]);
   });
 
-  it('uses on-demand DynamoDB, the free Cognito plan, and bounded log retention', () => {
+  it('uses on-demand DynamoDB, the Cognito Essentials plan, and bounded log retention', () => {
     template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
       BillingMode: 'PAY_PER_REQUEST',
     });
     template.hasResourceProperties('AWS::Cognito::UserPool', {
-      UserPoolTier: 'LITE',
+      // Essentials: 10,000 MAU free; the lowest plan with managed login branding.
+      UserPoolTier: 'ESSENTIALS',
       MfaConfiguration: 'OPTIONAL',
       EnabledMfas: ['SOFTWARE_TOKEN_MFA'],
     });
@@ -351,6 +355,41 @@ describe('security', () => {
       PreventUserExistenceErrors: 'ENABLED',
       CallbackURLs: [{ 'Fn::Join': ['', ['https://', Match.anyValue(), '/auth/callback']] }],
     });
+  });
+
+  it('serves the newer managed login, branded for the web client with the PracStack logo', () => {
+    template.hasResourceProperties('AWS::Cognito::UserPoolDomain', { ManagedLoginVersion: 2 });
+    template.resourceCountIs('AWS::Cognito::ManagedLoginBranding', 1);
+    const [branding] = resourcesOf('AWS::Cognito::ManagedLoginBranding');
+    expect(branding?.Properties.ClientId).toEqual({
+      Ref: expect.stringMatching(/^UserPoolWebClient/),
+    });
+    expect(branding?.Properties.UserPoolId).toEqual({ Ref: expect.stringMatching(/^UserPool/) });
+    expect(branding?.Properties.UseCognitoProvidedValues).toBe(false);
+    expect(branding?.Properties.Settings).toEqual(BRANDING_SETTINGS);
+    expect(branding?.Properties.Settings.components.primaryButton.lightMode.defaults).toEqual({
+      backgroundColor: '1769aaff',
+      textColor: 'ffffffff',
+    });
+    expect(branding?.Properties.Assets).toEqual([
+      { Category: 'FORM_LOGO', ColorMode: 'LIGHT', Extension: 'SVG', Bytes: brandLogoBase64() },
+    ]);
+    const svg = Buffer.from(branding?.Properties.Assets[0].Bytes, 'base64').toString('utf8');
+    expect(svg).toMatch(/^<svg [^>]*viewBox="0 0 105 20"/);
+    expect(svg).toContain('>PracStack</text>');
+    // Cognito's limit for one asset (base64 bytes).
+    expect(branding?.Properties.Assets[0].Bytes.length).toBeLessThan(1_000_000);
+    // Every color is hex with an alpha byte, as Cognito requires.
+    const colors = JSON.stringify(BRANDING_SETTINGS).match(/"[0-9a-f]{6,}"/g) ?? [];
+    expect(colors.length).toBeGreaterThan(10);
+    for (const c of colors) expect(c).toMatch(/^"[0-9a-f]{8}"$/);
+    // The style is created after the client and after the domain switches to managed login.
+    expect(branding?.DependsOn).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^UserPoolDomain/),
+        expect.stringMatching(/^UserPoolWebClient/),
+      ]),
+    );
   });
 });
 

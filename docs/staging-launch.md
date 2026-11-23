@@ -28,7 +28,7 @@ back and remove it. Architecture and security design: [aws.md](aws.md). Runner i
    per-service free tier no longer applies to them. **Check your account's plan and credits in
    the Billing console (Free Tier / Credits pages) before relying on any free allowance.** The
    always-free allowances used in the cost estimate (Lambda, CloudFront, DynamoDB storage,
-   CloudWatch, Cognito Lite) apply to all accounts; nothing here assumes credits or the
+   CloudWatch, Cognito Essentials) apply to all accounts; nothing here assumes credits or the
    GitHub Student Developer Pack.
 2. **An administrator identity for the first deployment**, ideally IAM Identity Center (SSO)
    with MFA. Bootstrapping creates IAM roles, so the first run needs broad rights:
@@ -74,19 +74,19 @@ The CDK CLI reads the account and region from this profile (`CDK_DEFAULT_ACCOUNT
 
 One CloudFormation stack, `PracStack-staging`:
 
-| Resource                                                     | Notes                                                            | Bills while idle?                  |
-| ------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------- |
-| S3 web bucket + access-log bucket                            | Private, encrypted, TLS-only, Origin Access Control              | Storage only (cents)               |
-| CloudFront distribution, function, cache/headers policies    | SPA rewrite, strict CSP, HSTS                                    | No                                 |
-| Cognito user pool (Lite), domain, web client, `admins` group | Email sign-in, PKCE, no secret                                   | No (10,000 MAU free)               |
-| Pre-sign-up Lambda + log group                               | Only with `signUpAllowlist`                                      | No                                 |
-| API Gateway HTTP API + JWT authorizer, stage                 | 10 req/s, burst 20                                               | No                                 |
-| API Lambda (Node 22, arm64, 512 MB)                          |                                                                  | No                                 |
-| 3 runner Lambdas (container images, x86) in an isolated VPC  | No NAT, no endpoints, no routes                                  | No (ECR storage ≈ $0.06/month)     |
-| DynamoDB table (on-demand, PITR)                             |                                                                  | Storage only                       |
-| Budget + budget action + stop-runners policy                 |                                                                  | No (first two action budgets free) |
-| 6 CloudWatch alarms, SNS topic + email subscription          |                                                                  | No (first 10 alarms free)          |
-| Log groups (14 days)                                         | API, access, runners, VPC flow logs (rejects only), sign-up gate | Storage only                       |
+| Resource                                                                                | Notes                                                            | Bills while idle?                     |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------- |
+| S3 web bucket + access-log bucket                                                       | Private, encrypted, TLS-only, Origin Access Control              | Storage only (cents)                  |
+| CloudFront distribution, function, cache/headers policies                               | SPA rewrite, strict CSP, HSTS                                    | No                                    |
+| Cognito user pool (Essentials), domain, web client, `admins` group, managed login style | Email sign-in, PKCE, no secret; branded managed login            | No (10,000 MAU free, then $0.015/MAU) |
+| Pre-sign-up Lambda + log group                                                          | Only with `signUpAllowlist`                                      | No                                    |
+| API Gateway HTTP API + JWT authorizer, stage                                            | 10 req/s, burst 20                                               | No                                    |
+| API Lambda (Node 22, arm64, 512 MB)                                                     |                                                                  | No                                    |
+| 3 runner Lambdas (container images, x86) in an isolated VPC                             | No NAT, no endpoints, no routes                                  | No (ECR storage ≈ $0.06/month)        |
+| DynamoDB table (on-demand, PITR)                                                        |                                                                  | Storage only                          |
+| Budget + budget action + stop-runners policy                                            |                                                                  | No (first two action budgets free)    |
+| 6 CloudWatch alarms, SNS topic + email subscription                                     |                                                                  | No (first 10 alarms free)             |
+| Log groups (14 days)                                                                    | API, access, runners, VPC flow logs (rejects only), sign-up gate | Storage only                          |
 
 **None of the expensive kinds**: no NAT gateways, VPC endpoints, load balancers, EC2, ECS/Fargate,
 RDS, provisioned capacity or WAF. `infra/test/pracstack-stack.spec.ts` fails if one is added.
@@ -411,7 +411,7 @@ List prices for us-east-2 as of late 2026, **without** free-plan credits. Check 
 | Lambda API + runners (always free: 1M requests, 400k GB-s)      | $0                  | $0 (~3,000 GB-s)                                            | ≈ $0 (~140k GB-s, ~1M requests)                           |
 | DynamoDB on-demand (rate-limit counters write on every request) | $0                  | $0.05                                                       | ≈ $2–3                                                    |
 | CloudFront (always free: 1 TB, 10M requests)                    | $0                  | $0                                                          | $0                                                        |
-| Cognito Lite (10,000 MAU free)                                  | $0                  | $0                                                          | $0                                                        |
+| Cognito Essentials (10,000 MAU free, then $0.015/MAU)           | $0                  | $0                                                          | $0                                                        |
 | CloudWatch Logs (5 GB free)                                     | $0                  | $0                                                          | ≈ $0                                                      |
 | Email                                                           | $0 (default sender) | $0 (default sender)                                         | SES needed: ≈ $0.10 per 1,000 emails                      |
 | **Monthly total**                                               | **≈ $0.10**         | **< $1**                                                    | **≈ $3–6**                                                |
