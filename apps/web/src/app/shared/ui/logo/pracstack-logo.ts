@@ -1,16 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { LOGO_MARK, WORDMARK } from './logo-paths';
 
-/**
- * The PracStack mark: three stacked layers, the top one carrying `</>`.
- * Drawn on a 32×32 grid; the round stroke on the top layer softens its corners.
- * public/favicon.svg and infra/assets/brand/pracstack-logo.svg use the same shapes.
- */
-export const LOGO_MARK = {
-  top: 'M16 1.5L30 9.5 16 17.5 2 9.5z',
-  middle: 'M2.5 14.9L16 22.6l13.5-7.7',
-  bottom: 'M2.5 20.4L16 28.1l13.5-7.7',
-  code: ['M11.5 7.5l-2 2 2 2', 'M20.5 7.5l2 2-2 2', 'M17 6.5l-2 6'],
-} as const;
+/** Wordmark height relative to the mark (24px mark: 16px wordmark). */
+const WORDMARK_SCALE = 2 / 3;
 
 /**
  * PracStack logo. `full` is the mark plus the wordmark (navbar); `icon` is the
@@ -38,7 +30,16 @@ export const LOGO_MARK = {
       }
     </svg>
     @if (variant() === 'full') {
-      <span class="wordmark"><span class="prac">Prac</span><span class="stack">Stack</span></span>
+      <svg
+        class="wordmark"
+        [attr.viewBox]="wordmark.viewBox"
+        [attr.height]="size() * wordmarkScale"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path [attr.d]="wordmark.prac" class="prac" />
+        <path [attr.d]="wordmark.stack" class="stack" />
+      </svg>
     }
   `,
   styles: `
@@ -46,19 +47,18 @@ export const LOGO_MARK = {
       --logo-blue: #0866d6;
       --logo-sky: #3baef0;
       --logo-ink: #102238;
+      --logo-text-blue: var(--logo-blue);
       display: inline-flex;
       align-items: center;
       gap: 0.4em;
       line-height: 1;
     }
+    /* Brand blue is too dark to read as text on navy. */
     :host(.on-dark) {
       --logo-ink: #dbe7f5;
+      --logo-text-blue: #5aaaf7;
     }
-    /* Brand blue is too dark to read as text on navy. */
-    :host(.on-dark) .stack {
-      color: #5aaaf7;
-    }
-    .mark {
+    svg {
       flex: none;
       overflow: visible;
     }
@@ -88,22 +88,22 @@ export const LOGO_MARK = {
       stroke-linejoin: round;
     }
     .wordmark {
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      white-space: nowrap;
+      width: auto;
     }
     .prac {
-      color: var(--logo-ink);
+      fill: var(--logo-ink);
     }
     .stack {
-      color: var(--logo-blue);
+      fill: var(--logo-text-blue);
     }
   `,
 })
 export class PracStackLogo {
   readonly variant = input<'full' | 'icon'>('full');
-  /** Height of the mark in pixels; the wordmark follows the surrounding font size. */
+  /** Height of the mark in pixels; the wordmark is two thirds of it. */
   readonly size = input(24);
   readonly surface = input<'light' | 'dark'>('light');
   protected readonly mark = LOGO_MARK;
+  protected readonly wordmark = WORDMARK;
+  protected readonly wordmarkScale = WORDMARK_SCALE;
 }

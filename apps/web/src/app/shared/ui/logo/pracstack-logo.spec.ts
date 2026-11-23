@@ -18,13 +18,14 @@ describe('PracStackLogo', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows the mark and the two-colour wordmark by default', async () => {
+  it('shows the mark and the two-colour wordmark by default, hidden from assistive tech', async () => {
     const full = (await render()).querySelector('#full')!;
-    expect(full.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
-    expect(full.querySelector('svg')?.getAttribute('height')).toBe('24');
-    expect(full.querySelector('.prac')?.textContent).toBe('Prac');
-    expect(full.querySelector('.stack')?.textContent).toBe('Stack');
-    expect(full.textContent?.trim()).toBe('PracStack');
+    const [mark, wordmark] = [...full.querySelectorAll('svg')];
+    expect(mark?.getAttribute('height')).toBe('24');
+    expect(wordmark?.getAttribute('height')).toBe('16');
+    expect(wordmark?.querySelector('.prac')?.getAttribute('d')).toMatch(/^M/);
+    expect(wordmark?.querySelector('.stack')?.getAttribute('d')).toMatch(/^M/);
+    for (const svg of [mark, wordmark]) expect(svg?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('shows only the mark in the icon variant, sized and adapted to dark backgrounds', async () => {

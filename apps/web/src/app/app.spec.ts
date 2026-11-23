@@ -19,7 +19,10 @@ describe('App shell', () => {
 
   it('renders the PracStack brand and primary navigation', async () => {
     const { el } = await setup();
-    expect(el.querySelector('.brand')?.textContent).toContain('PracStack');
+    const brand = el.querySelector('a.brand');
+    expect(brand?.getAttribute('aria-label')).toBe('PracStack home');
+    expect(brand?.getAttribute('href')).toBe('/');
+    expect(brand?.querySelector('app-pracstack-logo')).not.toBeNull();
     const links = [...el.querySelectorAll('nav[aria-label="Primary"] a')].map((a) =>
       a.textContent?.trim(),
     );
