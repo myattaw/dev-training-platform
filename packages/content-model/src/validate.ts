@@ -385,3 +385,27 @@ function contentFingerprint(q: QuestionSource): string {
 export function csharpName(entryPoint: string): string {
   return entryPoint.charAt(0).toUpperCase() + entryPoint.slice(1);
 }
+
+/** Validates questions used outside a skill (e.g. in Enterprise Scenarios). */
+export function validateQuestionSources(
+  path: string,
+  questions: readonly QuestionSource[],
+): ValidationIssue[] {
+  const issues = new Issues();
+  for (const dupe of findDuplicates(questions.map((q) => q.id))) {
+    issues.error(path, `duplicate question id "${dupe}"`);
+  }
+  for (const q of questions) validateQuestion(issues, `${path}/${q.id}`, q);
+  return issues.list;
+}
+
+/** Validates instruction blocks used outside challenges and skills. */
+export function validateInstructionBlocks(
+  path: string,
+  blocks: readonly InstructionBlock[],
+  what: string,
+): ValidationIssue[] {
+  const issues = new Issues();
+  checkBlocks(issues, path, blocks, what);
+  return issues.list;
+}
