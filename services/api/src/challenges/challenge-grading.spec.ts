@@ -200,3 +200,172 @@ describe.skipIf(skip)('rejecting buggy Employee APIs', { timeout: 120_000 }, () 
     });
   }
 });
+
+/*
+ * Enterprise challenges: realistic one-line bugs injected into the C# reference.
+ * Each must still compile, and the hidden tests must reject it.
+ */
+const csharpReferenceOf = (id: string): string =>
+  CHALLENGES.find((c) => c.source.challenge.id === id)?.csharpReference as string;
+
+const ENTERPRISE_BUGS: Readonly<
+  Record<string, readonly { mistake: string; from: string; to: string }[]>
+> = {
+  'transaction-batch': [
+    {
+      mistake: 'totalling money as double',
+      from: 'totals[key] = totals.GetValueOrDefault(key) + record.Amount;',
+      to: 'totals[key] = (decimal)((double)totals.GetValueOrDefault(key) + (double)record.Amount);',
+    },
+    {
+      mistake: 'not detecting duplicates',
+      from: 'if (error is null && !seenIds.Add(record.Id)) error = "duplicate-id";',
+      to: 'if (error is null) seenIds.Add(record.Id);',
+    },
+    {
+      mistake: 'case-sensitive duplicate ids',
+      from: 'new HashSet<string>(StringComparer.OrdinalIgnoreCase)',
+      to: 'new HashSet<string>(StringComparer.Ordinal)',
+    },
+    {
+      mistake: 'accepting a zero amount',
+      from: 'if (amount <= 0) return "non-positive-amount";',
+      to: 'if (amount < 0) return "non-positive-amount";',
+    },
+    {
+      mistake: 'checking decimal places on the parsed value (12.300 accepted)',
+      from: 'if (point >= 0 && amountText.Length - point - 1 > 2) return "too-many-decimals";',
+      to: 'if (decimal.Round(amount, 2) != amount) return "too-many-decimals";',
+    },
+    {
+      mistake: 'line numbers that skip blank lines',
+      from: 'if (string.IsNullOrWhiteSpace(lines[i])) continue;',
+      to: 'if (string.IsNullOrWhiteSpace(lines[i])) { lines = lines.Where((_, j) => j != i).ToArray(); i--; continue; }',
+    },
+    {
+      mistake: 'an invalid line claiming its id',
+      from: 'var error = Validate(lines[i], out var record);',
+      to: "var error = Validate(lines[i], out var record); if (error is not null) seenIds.Add(lines[i].Split(',')[0].Trim());",
+    },
+  ],
+  'secure-customer-api': [
+    {
+      mistake: 'endpoints that do not require authentication',
+      from: 'app.MapGroup("/customers").RequireAuthorization();',
+      to: 'app.MapGroup("/customers");',
+    },
+    {
+      mistake: 'no ownership check on reads (broken object-level authorization)',
+      from: 'store.Find(id) is { } c && CanRead(user, c)',
+      to: 'store.Find(id) is { } c',
+    },
+    {
+      mistake: 'returning the entity instead of the DTO',
+      from: '? Results.Ok(CustomerDto.From(c))',
+      to: '? Results.Ok(c)',
+    },
+    {
+      mistake: 'listing every customer to every user',
+      from: 'store.All().Where(c => CanRead(user, c))',
+      to: 'store.All()',
+    },
+    {
+      mistake: 'letting support change records',
+      from: 'if (!IsOwner(user, customer)) return Results.Forbid();',
+      to: '',
+    },
+    {
+      mistake: '403 instead of 404 for another user’s record',
+      from: 'if (customer is null || !CanRead(user, customer)) return Results.NotFound();',
+      to: 'if (customer is null) return Results.NotFound(); if (!CanRead(user, customer)) return Results.Forbid();',
+    },
+    {
+      mistake: 'echoing the exception message in the 400',
+      from: `            catch (ArgumentException)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["email"] = ["Enter an email address such as name@example.com."],
+                });
+            }`,
+      to: `            catch (ArgumentException ex)
+            {
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["email"] = [ex.Message],
+                });
+            }`,
+    },
+    {
+      mistake: 'validating before checking access',
+      from: `            var customer = store.Find(id);
+            if (customer is null || !CanRead(user, customer)) return Results.NotFound();`,
+      to: `            try { store.UpdateEmail(-1, request.Email); } catch (ArgumentException) { return Results.ValidationProblem(new Dictionary<string, string[]> { ["email"] = ["Invalid email."] }); } catch (KeyNotFoundException) { }
+            var customer = store.Find(id);
+            if (customer is null || !CanRead(user, customer)) return Results.NotFound();`,
+    },
+  ],
+  'legacy-invoice-refactor': [
+    {
+      mistake: 'rounding half-cents away from zero',
+      from: 'Math.Round(total, 2)',
+      to: 'Math.Round(total, 2, MidpointRounding.AwayFromZero)',
+    },
+    {
+      mistake: 'a discount threshold of 100 or more',
+      from: 'private const decimal DiscountThreshold = 100m;',
+      to: 'private const decimal DiscountThreshold = 99.99m;',
+    },
+    {
+      mistake: 'bulk discount only above 10',
+      from: 'Quantity >= BulkQuantity',
+      to: 'Quantity > BulkQuantity',
+    },
+    {
+      mistake: 'free shipping decided on the subtotal before the discount',
+      from: 'discounted >= FreeShippingFrom',
+      to: 'subtotal >= FreeShippingFrom',
+    },
+    {
+      mistake: 'case-insensitive country codes',
+      from: 'private static readonly Dictionary<string, decimal> VatRates = new()',
+      to: 'private static readonly Dictionary<string, decimal> VatRates = new(StringComparer.OrdinalIgnoreCase)',
+    },
+    {
+      mistake: 'a lenient quantity parser',
+      from: 'int.TryParse(fields[1], NumberStyles.None,',
+      to: 'int.TryParse(fields[1].Trim(), NumberStyles.Integer,',
+    },
+    {
+      mistake: 'not fixing INV-4521 (the discount still carries over)',
+      from: `    private decimal DiscountRate(decimal subtotal) => CustomerType switch
+    {
+        "STAFF" => 0.30m,
+        "GOLD" when subtotal > DiscountThreshold => 0.10m,
+        "SILVER" when subtotal > DiscountThreshold => 0.05m,
+        _ => 0m,
+    };`,
+      to: `    private static decimal _carried;
+    private decimal DiscountRate(decimal subtotal) => _carried = CustomerType switch
+    {
+        "STAFF" => 0.30m,
+        "GOLD" when subtotal > DiscountThreshold => 0.10m,
+        "SILVER" when subtotal > DiscountThreshold => 0.05m,
+        _ => _carried,
+    };`,
+    },
+  ],
+};
+
+describe.skipIf(skip)('rejecting buggy enterprise solutions', { timeout: 120_000 }, () => {
+  for (const [id, bugs] of Object.entries(ENTERPRISE_BUGS)) {
+    for (const { mistake, from, to } of bugs) {
+      it(`${id}: ${mistake} is not accepted`, async () => {
+        const reference = csharpReferenceOf(id);
+        expect(reference).toContain(from);
+        const res = await submit(id, 'csharp', reference.replace(from, to));
+        expect(res.submission.status, JSON.stringify(res.detail)).toBe('failed');
+      });
+    }
+  }
+});

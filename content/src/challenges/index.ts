@@ -17,6 +17,9 @@ import * as undoRedoHistoryRef from './undo-redo-history/reference';
 import { source as reverseString } from './reverse-string/challenge';
 import * as reverseStringRef from './reverse-string/reference';
 import { source as employeeApi } from './employee-api/challenge';
+import { source as transactionBatch } from './transaction-batch/challenge';
+import { source as secureCustomerApi } from './secure-customer-api/challenge';
+import { source as legacyInvoiceRefactor } from './legacy-invoice-refactor/challenge';
 
 export interface ChallengeEntry {
   readonly source: ChallengeSource;
@@ -96,5 +99,17 @@ export const CHALLENGES: readonly ChallengeEntry[] = [
   {
     source: employeeApi,
     csharpReference: csharpReference('employee-api'),
+  },
+  {
+    source: transactionBatch,
+    csharpReference: csharpReference('transaction-batch'),
+  },
+  {
+    source: secureCustomerApi,
+    csharpReference: csharpReference('secure-customer-api'),
+  },
+  {
+    source: legacyInvoiceRefactor,
+    csharpReference: csharpReference('legacy-invoice-refactor'),
   },
 ];
