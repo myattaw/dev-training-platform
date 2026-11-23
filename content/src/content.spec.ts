@@ -1,8 +1,18 @@
-import type { PublicManifest, QuestionSource, TrackSource } from '@pracstack/content-model';
+import {
+  analyzeJobDescription,
+  type JobRole,
+  type PublicManifest,
+  type QuestionSource,
+  type RolesFile,
+  type TaxonomyFile,
+  type TrackSource,
+} from '@pracstack/content-model';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { buildContent, type ContentBuild } from './build';
 import { CHALLENGES } from './challenges';
 import { SqlCheckPool } from './checks/sql-check-pool';
+import { ROLES } from './roles/roles';
+import { TAXONOMY } from './roles/taxonomy';
 import { TRACKS } from './skill-mastery';
 
 // One SQL engine pool for the whole file: building content runs every reference
@@ -63,6 +73,10 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
       expect.objectContaining({ id: 'csharp', skillCount: 12 }),
+      expect.objectContaining({ id: 'sql-server', skillCount: 7 }),
+      expect.objectContaining({ id: 'azure', skillCount: 5 }),
+      expect.objectContaining({ id: 'engineering-practices', skillCount: 5 }),
+      expect.objectContaining({ id: 'power-platform', skillCount: 6 }),
     ]);
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
   });
@@ -108,6 +122,89 @@ describe('the real content', { timeout: 120_000 }, () => {
     expect(files).not.toContain('typeCheck');
     expect(files).not.toContain('options-compile');
     expect(files).not.toContain('csharpCheck');
+  });
+
+  it('publishes job roles and the taxonomy as public files referenced from the manifest', () => {
+    const manifest = result.publicFiles.get('manifest.json') as PublicManifest;
+    expect(manifest.preparation).toEqual({
+      rolesFile: 'roles.json',
+      taxonomyFile: 'taxonomy.json',
+    });
+    const roles = (result.publicFiles.get('roles.json') as RolesFile).roles;
+    expect(roles.map((r) => [r.id, r.status])).toEqual([
+      ['dotnet-backend-developer', 'available'],
+      ['fullstack-angular-dotnet-developer', 'available'],
+      ['csharp-dotnet-developer', 'available'],
+      ['sql-server-database-developer', 'coming-soon'],
+      ['aspnet-core-backend-developer', 'coming-soon'],
+      ['enterprise-application-developer', 'coming-soon'],
+      ['azure-developer', 'coming-soon'],
+      ['power-platform-developer', 'coming-soon'],
+      ['power-platform-solution-architect', 'coming-soon'],
+    ]);
+    const terms = (result.publicFiles.get('taxonomy.json') as TaxonomyFile).terms;
+    expect(terms.length).toBeGreaterThanOrEqual(50);
+    // Nothing private: the files are exactly the authored roles and terms.
+    expect(roles).toEqual(ROLES);
+    expect(terms).toEqual(TAXONOMY);
+    expect(result.privateFiles.has('roles.json')).toBe(false);
+  });
+
+  it('builds the .NET Backend Developer path in the specified order, from real content only', () => {
+    const role = ROLES.find((r) => r.id === 'dotnet-backend-developer');
+    if (role?.status !== 'available') throw new Error('missing role');
+    expect(role.competencies.map((c) => c.name)).toEqual([
+      'C# fundamentals',
+      'Collections and LINQ',
+      'Object-oriented programming',
+      'Exceptions and async',
+      'SQL fundamentals',
+      'SQL Server and T-SQL',
+      'REST APIs',
+      'ASP.NET Core',
+      'Automated testing',
+      'Application security',
+      'CI/CD',
+      'Enterprise development scenario',
+    ]);
+    const csharpSkills = role.competencies
+      .flatMap((c) => c.activities)
+      .flatMap((a) => (a.kind === 'skill' && a.skillId.startsWith('cs-') ? [a.skillId] : []));
+    // The twelve C# skills, each once, in the role's learning order.
+    expect(csharpSkills).toEqual([
+      'cs-value-reference-types',
+      'cs-nullable-types',
+      'cs-pattern-matching',
+      'cs-collections',
+      'cs-linq',
+      'cs-linq-execution',
+      'cs-oop',
+      'cs-records-immutability',
+      'cs-generics-methods',
+      'cs-delegates-events',
+      'cs-exceptions',
+      'cs-async',
+    ]);
+    // C# challenges are opened in C#.
+    for (const a of role.competencies.flatMap((c) => c.activities)) {
+      if (a.kind === 'challenge') expect(a.language, a.challengeId).toBe('csharp');
+    }
+  });
+
+  it('analyses a real-world style posting with the real taxonomy', () => {
+    const analysis = analyzeJobDescription(
+      'Senior .NET Developer: 5+ years of C#, ASP.NET Core and SQL Server (T-SQL). Azure DevOps, Power Automate.',
+      TAXONOMY,
+    );
+    expect(analysis.terms.map((t) => [t.term.id, t.covered])).toEqual([
+      ['csharp', true],
+      ['dotnet', true],
+      ['aspnet-core', false],
+      ['sql-server', false],
+      ['azure-devops', false],
+      ['power-automate', false],
+    ]);
+    expect(analysis.experience).toHaveLength(1);
   });
 
   it('is deterministic: building twice gives the same content version', async () => {
@@ -218,6 +315,35 @@ describe('content checks catch broken content', { timeout: 120_000 }, () => {
     expect(errors.join('\n')).toContain(
       '`boolean`): answer key says this does not compile, but it does',
     );
+  });
+
+  it('fails when a job role points at content that does not exist', async () => {
+    const roles: JobRole[] = ROLES.map((r) =>
+      r.id === 'csharp-dotnet-developer' && r.status === 'available'
+        ? {
+            ...r,
+            technologies: [...r.technologies, 'cobol'],
+            competencies: r.competencies.map((c, i) =>
+              i === 0
+                ? {
+                    ...c,
+                    activities: [
+                      ...c.activities,
+                      { kind: 'skill', skillId: 'cs-missing' },
+                      { kind: 'scenario', scenarioId: 'order-api' },
+                    ],
+                  }
+                : c,
+            ),
+          }
+        : r,
+    );
+    const roleErrors = errorsOf(await build({ roles })).filter((e) => e.startsWith('role:'));
+    expect(roleErrors).toEqual([
+      'role:csharp-dotnet-developer/technologies: unknown term "cobol"',
+      'role:csharp-dotnet-developer/language-fundamentals/activities[4]: unknown skill "cs-missing"',
+      'role:csharp-dotnet-developer/language-fundamentals/activities[5]: unknown scenario "order-api" (Enterprise Scenarios are not registered)',
+    ]);
   });
 
   it('checks Angular code against the real Angular types', async () => {

@@ -39,6 +39,12 @@ export const COMPETENCIES = {
   heaps: 'heaps',
   counting: 'counting',
   math: 'arithmetic',
+  // Enterprise development (Enterprise Scenarios and their challenges).
+  'rest-apis': 'REST API design',
+  'input-validation': 'input validation',
+  'access-control': 'access control',
+  'data-aggregation': 'grouping and totals',
+  refactoring: 'refactoring legacy code',
 } as const;
 
 export type Competency = keyof typeof COMPETENCIES;
