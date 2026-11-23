@@ -11,7 +11,7 @@ export const DIFFICULTY_LABELS: Readonly<Record<Difficulty, string>> = {
 };
 
 export type ChallengeCategory =
-  'strings' | 'arrays' | 'data-structures' | 'graphs' | 'parsing' | 'system-design';
+  'strings' | 'arrays' | 'data-structures' | 'graphs' | 'parsing' | 'system-design' | 'enterprise';
 
 export const CATEGORY_LABELS: Readonly<Record<ChallengeCategory, string>> = {
   strings: 'Strings',
@@ -20,6 +20,7 @@ export const CATEGORY_LABELS: Readonly<Record<ChallengeCategory, string>> = {
   graphs: 'Graphs',
   parsing: 'Parsing',
   'system-design': 'System design',
+  enterprise: 'Enterprise',
 };
 
 /**
@@ -47,6 +48,13 @@ export interface LanguageSetup {
    * (TypeScript) or static method (Java); for `operations` tests a class.
    */
   readonly entryPoint: string;
+  /**
+   * Read-only code the server appends to the learner's code before running it,
+   * e.g. a test driver that hosts the learner's ASP.NET Core endpoints on
+   * loopback and sends real HTTP requests. Public (it holds no expected
+   * values); only for languages that run on the server (not TypeScript).
+   */
+  readonly supportCode?: string;
 }
 
 /** Call the exported function with `input` and compare the result to `expected`. */

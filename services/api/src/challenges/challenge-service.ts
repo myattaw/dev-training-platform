@@ -11,7 +11,7 @@ import type {
   UserInfo,
 } from '@pracstack/api-contracts';
 import { gradeOutcomes, toTestInput, type TestResult } from '@pracstack/challenge-runtime';
-import type { CodeRunner, CodeRunResult } from '@pracstack/code-runner';
+import { type CodeRunner, type CodeRunResult, withSupportCode } from '@pracstack/code-runner';
 import type { ChallengeTest, LanguageSetup } from '@pracstack/content-model';
 import type { ContentSource } from '../content/content-source';
 import { ApiError, badRequest, notFound } from '../http';
@@ -151,7 +151,9 @@ export class ChallengeService {
     }
     const result = await this.deps.runner.run({
       language: request.language,
-      code: request.code,
+      // Support code (e.g. an HTTP test driver) is compiled as its own file, so
+      // compiler line numbers still match the editor.
+      code: withSupportCode(request.code, setup.supportCode),
       entryPoint: setup.entryPoint,
       // Inputs only: expected values stay on this side of the boundary.
       tests: tests.map(toTestInput),

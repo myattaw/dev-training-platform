@@ -2,7 +2,12 @@ import { readFileSync } from 'node:fs';
 import type { SubmissionResponse } from '@pracstack/api-contracts';
 import { CHALLENGES } from '@pracstack/content';
 import { DockerCodeRunner } from '@pracstack/code-runner';
-import { type LanguageId, splitChallenge } from '@pracstack/content-model';
+import {
+  LANGUAGE_LABELS,
+  type LanguageId,
+  splitChallenge,
+  supportedLanguages,
+} from '@pracstack/content-model';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createContentSource } from '../content/content-source';
 import { SlidingWindowRateLimiter } from '../rate-limit';
@@ -54,26 +59,27 @@ describe.skipIf(skip)('grading real challenges in containers', { timeout: 120_00
   for (const entry of CHALLENGES) {
     const { id, languages } = entry.source.challenge;
 
-    it(`${id}: the TypeScript reference is accepted`, async () => {
-      const res = await submit(id, 'typescript', typescriptReference(id));
-      expect(res.submission, JSON.stringify(res.detail)).toMatchObject({ status: 'accepted' });
-      expect(res.submission.hiddenPassed).toBe(res.submission.hiddenTotal);
-    });
+    const references: Partial<Record<LanguageId, string>> = {
+      ...(entry.reference ? { typescript: typescriptReference(id) } : {}),
+      ...(entry.javaReference ? { java: entry.javaReference } : {}),
+      ...(entry.csharpReference ? { csharp: entry.csharpReference } : {}),
+    };
+    for (const [language, code] of Object.entries(references) as [LanguageId, string][]) {
+      it(`${id}: the ${LANGUAGE_LABELS[language]} reference is accepted`, async () => {
+        const res = await submit(id, language, code);
+        expect(res.submission, JSON.stringify(res.detail)).toMatchObject({ status: 'accepted' });
+        expect(res.submission.hiddenPassed).toBe(res.submission.hiddenTotal);
+      });
+    }
 
-    it(`${id}: the Java reference is accepted`, async () => {
-      const res = await submit(id, 'java', entry.javaReference);
-      expect(res.submission, JSON.stringify(res.detail)).toMatchObject({ status: 'accepted' });
-      expect(res.submission.hiddenPassed).toBe(res.submission.hiddenTotal);
-    });
-
-    it(`${id}: the C# reference is accepted`, async () => {
-      const res = await submit(id, 'csharp', entry.csharpReference);
-      expect(res.submission, JSON.stringify(res.detail)).toMatchObject({ status: 'accepted' });
-      expect(res.submission.hiddenPassed).toBe(res.submission.hiddenTotal);
+    it(`${id}: every offered language has a reference`, () => {
+      expect(Object.keys(references).sort()).toEqual(
+        supportedLanguages(entry.source.challenge).sort(),
+      );
     });
 
     it(`${id}: starter code compiles in every language but is not accepted`, async () => {
-      for (const language of ['typescript', 'java', 'csharp'] as const) {
+      for (const language of supportedLanguages(entry.source.challenge)) {
         const starter = languages[language]?.starterCode ?? '';
         const res = await submit(id, language, starter);
         expect(res.submission.status, `${language}: ${JSON.stringify(res.detail)}`).toBe('failed');
@@ -150,6 +156,46 @@ describe.skipIf(skip)('rejecting incorrect C# solutions', { timeout: 120_000 }, 
   for (const { id, mistake, code } of INCORRECT_CSHARP) {
     it(`${id}: ${mistake} is not accepted`, async () => {
       const res = await submit(id, 'csharp', code);
+      expect(res.submission.status, JSON.stringify(res.detail)).toBe('failed');
+    });
+  }
+});
+
+/*
+ * Employee API: realistic one-line bugs in an otherwise correct solution. The HTTP
+ * integration tests must catch each of them.
+ */
+const employeeReference = CHALLENGES.find((c) => c.source.challenge.id === 'employee-api')
+  ?.csharpReference as string;
+const EMPLOYEE_API_BUGS: readonly { mistake: string; from: string; to: string }[] = [
+  {
+    mistake: 'reusing ids after a delete (Count + 1)',
+    from: 'new Employee(++_lastId,',
+    to: 'new Employee(_byId.Count + 1,',
+  },
+  {
+    mistake: 'a case-sensitive duplicate check',
+    from: 'request.Email?.Trim().ToLowerInvariant()',
+    to: 'request.Email?.Trim()',
+  },
+  {
+    mistake: '200 OK instead of 201 Created',
+    from: 'Results.Created($"/employees/{created.Id}", created)',
+    to: 'Results.Ok(created)',
+  },
+  { mistake: 'no upper bound on pageSize', from: 'size is < 1 or > 50', to: 'size < 1' },
+  {
+    mistake: 'returning 200 with null for a missing employee',
+    from: 'store.Find(id) is { } employee ? Results.Ok(employee) : Results.NotFound()',
+    to: 'Results.Ok(store.Find(id))',
+  },
+];
+
+describe.skipIf(skip)('rejecting buggy Employee APIs', { timeout: 120_000 }, () => {
+  for (const { mistake, from, to } of EMPLOYEE_API_BUGS) {
+    it(`${mistake} is not accepted`, async () => {
+      expect(employeeReference).toContain(from);
+      const res = await submit('employee-api', 'csharp', employeeReference.replace(from, to));
       expect(res.submission.status, JSON.stringify(res.detail)).toBe('failed');
     });
   }

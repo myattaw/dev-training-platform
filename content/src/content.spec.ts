@@ -50,6 +50,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       'apply-edit-commands',
       'text-cursor-buffer',
       'undo-redo-history',
+      'employee-api',
     ]);
     // Announced challenges are listed separately and have no tests or code.
     expect(manifest.plannedChallenges?.map((c) => [c.id, c.availability, c.access])).toEqual([

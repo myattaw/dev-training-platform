@@ -14,6 +14,14 @@ export function checkReferenceSolutions(entries: readonly ChallengeEntry[]): Val
     // through the real Java runner (services/api/src/challenges/challenge-grading.spec.ts).
     for (const [lang, setup] of Object.entries(source.challenge.languages)) {
       if (!setup || lang !== 'typescript') continue;
+      if (!reference) {
+        issues.push({
+          severity: 'error',
+          path: `${path}/${lang}`,
+          message: 'TypeScript reference solution is missing',
+        });
+        continue;
+      }
       const tests = [...source.challenge.visibleTests, ...source.hiddenTests];
       const outcome = runTests(reference, setup.entryPoint, tests);
       if (outcome.kind === 'load-error') {

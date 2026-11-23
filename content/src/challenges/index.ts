@@ -16,21 +16,25 @@ import { source as undoRedoHistory } from './undo-redo-history/challenge';
 import * as undoRedoHistoryRef from './undo-redo-history/reference';
 import { source as reverseString } from './reverse-string/challenge';
 import * as reverseStringRef from './reverse-string/reference';
+import { source as employeeApi } from './employee-api/challenge';
 
 export interface ChallengeEntry {
   readonly source: ChallengeSource;
-  /** The TypeScript reference solution module. Private: used only to verify the tests. */
-  readonly reference: Readonly<Record<string, unknown>>;
+  /**
+   * The TypeScript reference solution module. Private: used only to verify the tests.
+   * Every language a challenge offers has a reference (content.spec.ts checks it).
+   */
+  readonly reference?: Readonly<Record<string, unknown>>;
   /**
    * The Java reference solution source, verified against every test through the
    * real Java runner (services/api/src/challenges/challenge-grading.spec.ts).
    */
-  readonly javaReference: string;
+  readonly javaReference?: string;
   /**
    * The C# reference solution source, verified against every test through the
    * real C# runner (services/api/src/challenges/challenge-grading.spec.ts).
    */
-  readonly csharpReference: string;
+  readonly csharpReference?: string;
 }
 
 const javaReference = (id: string): string =>
@@ -88,5 +92,9 @@ export const CHALLENGES: readonly ChallengeEntry[] = [
     reference: undoRedoHistoryRef,
     javaReference: javaReference('undo-redo-history'),
     csharpReference: csharpReference('undo-redo-history'),
+  },
+  {
+    source: employeeApi,
+    csharpReference: csharpReference('employee-api'),
   },
 ];

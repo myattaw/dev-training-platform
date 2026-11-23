@@ -100,6 +100,9 @@ public static class Harness
     /// </summary>
     private const string ProgramEntryPoint = "$program";
 
+    /// <summary>Separates the learner's code from support code (SUPPORT_FILE_MARKER in protocol.ts).</summary>
+    private const string SupportFileMarker = "\n// <pracstack:support-file>\n";
+
     private static Dictionary<string, object?> RunProgram(Assembly assembly, int testCount, LogCapture logs)
     {
         var outcome = new Dictionary<string, object?> { ["kind"] = "call", ["value"] = Undefined };
@@ -126,12 +129,20 @@ public static class Harness
     private static (byte[]? Assembly, List<object?> Diagnostics) Compile(string code, bool program)
     {
         var parse = new CSharpParseOptions(LanguageVersion.CSharp14);
-        var source = CSharpSyntaxTree.ParseText(code, parse, path: "Solution.cs");
-        var trees = new[] { CSharpSyntaxTree.ParseText(GlobalUsings, parse, path: "GlobalUsings.cs"), source };
+        // Support code (a read-only test driver from the challenge) is its own file, so it
+        // can have its own using directives and learner line numbers stay exact.
+        var marker = code.IndexOf(SupportFileMarker, StringComparison.Ordinal);
+        var learnerCode = marker < 0 ? code : code[..marker];
+        var source = CSharpSyntaxTree.ParseText(learnerCode, parse, path: "Solution.cs");
+        var trees = new List<SyntaxTree> { CSharpSyntaxTree.ParseText(GlobalUsings, parse, path: "GlobalUsings.cs"), source };
+        if (marker >= 0)
+        {
+            trees.Add(CSharpSyntaxTree.ParseText(code[(marker + SupportFileMarker.Length)..], parse, path: "TestDriver.cs"));
+        }
         var hasEntryPoint = program && (
             source.GetCompilationUnitRoot().Members.OfType<Microsoft.CodeAnalysis.CSharp.Syntax.GlobalStatementSyntax>().Any()
-            || code.Contains("static void Main", StringComparison.Ordinal)
-            || code.Contains("static async Task Main", StringComparison.Ordinal));
+            || learnerCode.Contains("static void Main", StringComparison.Ordinal)
+            || learnerCode.Contains("static async Task Main", StringComparison.Ordinal));
         var options = new CSharpCompilationOptions(
             hasEntryPoint ? OutputKind.ConsoleApplication : OutputKind.DynamicallyLinkedLibrary,
             optimizationLevel: OptimizationLevel.Release,
@@ -149,11 +160,15 @@ public static class Harness
             .Select(d =>
             {
                 var span = d.Location.GetLineSpan();
+                var inLearnerCode = span.Path != "TestDriver.cs";
+                var message = $"{d.Id}: {d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}";
                 return (object?)new Dictionary<string, object?>
                 {
-                    ["line"] = Math.Max(1, span.StartLinePosition.Line + 1),
-                    ["column"] = Math.Max(1, span.StartLinePosition.Character + 1),
-                    ["message"] = $"{d.Id}: {d.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}",
+                    // Errors in the test driver usually mean a required member is missing
+                    // or has the wrong signature; they point at line 1 of the learner's code.
+                    ["line"] = inLearnerCode ? Math.Max(1, span.StartLinePosition.Line + 1) : 1,
+                    ["column"] = inLearnerCode ? Math.Max(1, span.StartLinePosition.Character + 1) : 1,
+                    ["message"] = inLearnerCode ? message : "In the test driver: " + message,
                 };
             })
             .ToList();

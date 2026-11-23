@@ -1,4 +1,4 @@
-import type { ChallengeSource, ChallengeTest } from './challenge';
+import { BROWSER_LANGUAGES, type ChallengeSource, type ChallengeTest } from './challenge';
 import type { InstructionBlock } from './instruction';
 import { blankIds, QUESTION_DIFFICULTIES, type QuestionSource, type TrackSource } from './skill';
 import { SQL_IDENTIFIER, type SqlDatabase, type SqlTable } from './sql';
@@ -113,7 +113,18 @@ function validateChallenge(issues: Issues, source: ChallengeSource): void {
               `\\b(?:class|record)\\s+${e}\\b|\\bstatic\\s+[\\w<>\\[\\],?()\\s]+\\s${csharpName(e)}\\s*\\(`,
             )
           : new RegExp(`export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${e}\\b`);
-    if (!pattern.test(setup.starterCode)) {
+    if (setup.supportCode !== undefined) {
+      if ((BROWSER_LANGUAGES as readonly string[]).includes(lang)) {
+        issues.error(
+          `${path}/languages/${lang}`,
+          'support code is only for languages that run on the server',
+        );
+      } else if (setup.supportCode.trim() === '') {
+        issues.error(`${path}/languages/${lang}`, 'support code must not be empty');
+      }
+    }
+    // The entry point may be declared by the support code (e.g. a test driver class).
+    if (!pattern.test(`${setup.starterCode}\n${setup.supportCode ?? ''}`)) {
       issues.error(
         `${path}/languages/${lang}`,
         lang === 'java' || lang === 'csharp'

@@ -13,6 +13,18 @@ export type RunnerLanguage = 'typescript' | 'java' | 'csharp';
 /** Every runner language, in display order. */
 export const RUNNER_LANGUAGES: readonly RunnerLanguage[] = ['typescript', 'java', 'csharp'];
 
+/**
+ * Joins the learner's code and a challenge's support code (a read-only test
+ * driver). Runners that support it compile the part after the marker as a
+ * separate source file (docker/csharp/Harness.cs).
+ */
+export const SUPPORT_FILE_MARKER = '\n// <pracstack:support-file>\n';
+
+/** Joins learner code and support code for a runner. */
+export function withSupportCode(code: string, supportCode: string | undefined): string {
+  return supportCode === undefined ? code : `${code}${SUPPORT_FILE_MARKER}${supportCode}`;
+}
+
 /** Sent to the container on stdin as one JSON document. */
 export interface RunnerInput {
   /**
