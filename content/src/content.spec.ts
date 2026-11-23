@@ -61,7 +61,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'angular', skillCount: 2 }),
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
-      expect.objectContaining({ id: 'csharp', skillCount: 3 }),
+      expect.objectContaining({ id: 'csharp', skillCount: 12 }),
     ]);
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
   });

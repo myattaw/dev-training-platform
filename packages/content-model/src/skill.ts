@@ -42,7 +42,8 @@ export type QuestionDifficulty = 1 | 2 | 3 | 4 | 5;
 
 export const QUESTION_DIFFICULTIES: readonly QuestionDifficulty[] = [1, 2, 3, 4, 5];
 
-export type CodeLanguage = 'typescript' | 'sql' | 'html' | 'csharp';
+/** Display language of a code snippet. Only typescript and csharp snippets are compiled by content checks. */
+export type CodeLanguage = 'typescript' | 'sql' | 'html' | 'csharp' | 'yaml' | 'json' | 'text';
 
 export interface CodeSnippet {
   readonly language: CodeLanguage;
