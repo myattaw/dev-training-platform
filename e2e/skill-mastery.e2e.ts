@@ -91,9 +91,16 @@ test.describe('Skill Mastery', () => {
       .filter({ has: page.locator('td.name > a', { hasText: /^Primitive types$/ }) });
     await expect(primitivesRow).toContainText('In progress');
     await page.goto('/');
-    await expect(page.getByRole('list', { name: 'Skill Mastery' })).toContainText(
-      'Primitive types',
+    // The TypeScript track card offers to continue a practised skill.
+    const track = page.locator('[data-track="typescript"]');
+    await expect(track).toContainText('skills mastered');
+    await expect(track.getByRole('link', { name: 'Continue' })).toHaveAttribute(
+      'href',
+      /^\/skills\/typescript\/[\w-]+$/,
     );
+    await expect(
+      page.getByRole('progressbar', { name: 'TypeScript skills mastered' }),
+    ).toBeVisible();
   });
 
   test('hints are tracked, and wrong answers reveal the correct one', async ({ page }) => {

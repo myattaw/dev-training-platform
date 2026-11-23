@@ -1,124 +1,179 @@
-<app-page-header
-  heading="Dashboard"
-  description="Pick up where you left off, or start something new."
-/>
-
-@let state = catalog.summaries();
-@if (state.status === 'loading') {
-  <app-loading-state label="Loading challenges…" />
-} @else if (state.status === 'error') {
-  <app-alert type="error" heading="Challenges could not be loaded">
-    {{ state.error }}
-    <button alertAction type="button" class="btn btn--sm" (click)="catalog.reload()">
-      Try again
-    </button>
-  </app-alert>
+@if (auth.status() === 'signed-out') {
+  <app-landing />
 } @else {
-  <div class="grid">
-    <app-panel
-      class="continue"
-      heading="Continue"
-      headingId="continue-heading"
-      description="Challenges you have started in this browser."
-    >
-      @if (continueRows().length > 0) {
-        <ul class="divided-list" aria-labelledby="continue-heading">
-          @for (row of continueRows(); track row.challenge.id) {
-            <li class="row">
-              <a [routerLink]="['/challenges', row.challenge.id, 'workspace']">{{
-                row.challenge.title
-              }}</a>
-              <span class="meta">
-                @if (row.record.lastRun; as run) {
-                  <span class="text-secondary">{{ run.passed }}/{{ run.total }} visible tests</span>
-                }
-                <span class="text-secondary">{{ row.lastActivity }}</span>
-              </span>
-            </li>
-          }
-        </ul>
-      } @else {
-        <app-empty-state
-          heading="Nothing in progress"
-          message="Challenges you start will appear here."
-        >
-          <a class="btn" routerLink="/challenges">Browse challenges</a>
-        </app-empty-state>
+  <section class="welcome" aria-labelledby="welcome-heading">
+    <div>
+      <h1 id="welcome-heading">{{ greeting() }}</h1>
+      <p class="text-secondary">Pick up where you left off, or start something new.</p>
+    </div>
+    <dl class="stats">
+      @for (stat of stats(); track stat.label) {
+        <div class="stat">
+          <dt>{{ stat.label }}</dt>
+          <dd>
+            {{ stat.value ?? '–' }}
+            @if (stat.of && stat.value !== null) {
+              <span class="of">/ {{ stat.of }}</span>
+            }
+          </dd>
+        </div>
       }
-    </app-panel>
+    </dl>
+  </section>
 
-    <div class="side">
-      <app-panel heading="Skill Mastery" headingId="skills-heading">
-        @let skills = recentSkills.state();
-        @if (skills.status === 'loading') {
-          <app-loading-state label="Loading skills…" />
-        } @else if (skills.status === 'error') {
-          <app-alert type="warning"> Skill progress is unavailable. {{ skills.error }} </app-alert>
-        } @else if (skills.value.length === 0) {
-          <app-empty-state heading="No skills practiced yet">
-            <a class="btn" routerLink="/skills">Browse skills</a>
-          </app-empty-state>
+  <section aria-labelledby="tracks-heading">
+    <div class="section-head">
+      <h2 id="tracks-heading">Your tracks</h2>
+      <a routerLink="/skills">All skills</a>
+    </div>
+    @let tracksState = tracks.state();
+    @if (tracksState.status === 'error') {
+      <app-alert type="warning">Skill progress is unavailable. {{ tracksState.error }}</app-alert>
+    }
+    <ul class="tracks">
+      <li class="track">
+        @let ct = challengeTrack();
+        <div class="track-head">
+          <app-track-mark trackId="challenges" [large]="true" />
+          <div>
+            <h3>Coding Challenges</h3>
+            <p class="text-secondary">TypeScript and Java, graded against hidden tests</p>
+          </div>
+        </div>
+        <div
+          class="bar"
+          role="progressbar"
+          aria-label="Coding Challenges solved"
+          [attr.aria-valuenow]="ct.solved"
+          aria-valuemin="0"
+          [attr.aria-valuemax]="ct.total"
+          [style.--accent]="accent('challenges')"
+        >
+          <span [style.width.%]="percent(ct.solved, ct.total)"></span>
+        </div>
+        <p class="track-meta">
+          <span>{{ ct.solved }} of {{ ct.total }} solved</span>
+          @if (ct.started > 0) {
+            <span class="text-secondary">{{ ct.started }} started</span>
+          }
+        </p>
+        @if (ct.next; as next) {
+          <a class="btn" [routerLink]="['/challenges', next.id, 'workspace']">
+            {{ ct.started > 0 ? 'Continue' : 'Start' }}: {{ next.title }}
+          </a>
         } @else {
-          <ul class="divided-list skills" aria-labelledby="skills-heading">
-            @for (s of skills.value; track s.skillId) {
-              <li>
-                <a [routerLink]="['/skills', s.technologyId, s.skillId]">{{ s.name }}</a>
-                <app-mastery-meter [score]="s.score" [label]="s.name + ' mastery'" />
+          <a class="btn" routerLink="/challenges">Browse challenges</a>
+        }
+      </li>
+
+      @if (tracksState.status === 'loading') {
+        <li class="track track--loading"><app-loading-state label="Loading your tracks…" /></li>
+      } @else if (tracksState.status === 'ready') {
+        @for (t of tracksState.value; track t.id) {
+          <li class="track" [attr.data-track]="t.id">
+            <div class="track-head">
+              <app-track-mark [trackId]="t.id" [large]="true" />
+              <div>
+                <h3>{{ t.name }}</h3>
+                <p class="text-secondary description">{{ t.description }}</p>
+              </div>
+            </div>
+            <div
+              class="bar"
+              role="progressbar"
+              [attr.aria-label]="t.name + ' skills mastered'"
+              [attr.aria-valuenow]="t.mastered"
+              aria-valuemin="0"
+              [attr.aria-valuemax]="t.skillCount"
+              [style.--accent]="accent(t.id)"
+            >
+              <span [style.width.%]="percent(t.mastered, t.skillCount)"></span>
+            </div>
+            <p class="track-meta">
+              <span>{{ t.mastered }} of {{ t.skillCount }} skills mastered</span>
+              @if (t.lastPracticedAt) {
+                <span class="text-secondary">{{ relative(t.lastPracticedAt) }}</span>
+              }
+            </p>
+            @if (t.lastSkillId) {
+              <a class="btn" [routerLink]="['/skills', t.id, t.lastSkillId]">Continue</a>
+            } @else {
+              <a class="btn" [routerLink]="['/skills', t.id]">Start</a>
+            }
+          </li>
+        }
+      }
+    </ul>
+  </section>
+
+  @let state = catalog.summaries();
+  @if (state.status === 'loading') {
+    <app-loading-state label="Loading challenges…" />
+  } @else if (state.status === 'error') {
+    <app-alert type="error" heading="Challenges could not be loaded">
+      {{ state.error }}
+      <button alertAction type="button" class="btn btn--sm" (click)="catalog.reload()">
+        Try again
+      </button>
+    </app-alert>
+  } @else {
+    <div class="grid">
+      <app-panel
+        class="continue"
+        heading="Continue"
+        headingId="continue-heading"
+        description="Challenges you have started in this browser."
+      >
+        @if (continueRows().length > 0) {
+          <ul class="divided-list" aria-labelledby="continue-heading">
+            @for (row of continueRows(); track row.challenge.id) {
+              <li class="row">
+                <a [routerLink]="['/challenges', row.challenge.id, 'workspace']">{{
+                  row.challenge.title
+                }}</a>
+                <span class="meta">
+                  @if (row.record.lastRun; as run) {
+                    <span class="text-secondary"
+                      >{{ run.passed }}/{{ run.total }} visible tests</span
+                    >
+                  }
+                  <span class="text-secondary">{{ row.lastActivity }}</span>
+                </span>
               </li>
             }
           </ul>
+        } @else {
+          <app-empty-state
+            heading="Nothing in progress"
+            message="Challenges you start will appear here."
+          >
+            <a class="btn" routerLink="/challenges">Browse challenges</a>
+          </app-empty-state>
         }
-        <a panelFooter routerLink="/skills">All skills</a>
       </app-panel>
 
-      <app-panel heading="Coding Challenges" headingId="summary-heading">
-        <dl class="summary">
-          <div>
-            <dt>Available</dt>
-            <dd>{{ summary().total }}</dd>
-          </div>
-          <div>
-            <dt>Solved</dt>
-            <dd>{{ summary().solved }}</dd>
-          </div>
-          <div>
-            <dt>Visible tests passed</dt>
-            <dd>{{ summary().passed }}</dd>
-          </div>
-          <div>
-            <dt>In progress</dt>
-            <dd>{{ summary().inProgress }}</dd>
-          </div>
-          <div>
-            <dt>Not started</dt>
-            <dd>{{ summary().notStarted }}</dd>
-          </div>
-        </dl>
-        <a panelFooter routerLink="/challenges">View all challenges</a>
+      <app-panel
+        class="up-next"
+        heading="Up next"
+        headingId="up-next-heading"
+        description="Challenges you have not tried yet, easiest first."
+      >
+        @if (upNext().length > 0) {
+          <ul class="divided-list" aria-labelledby="up-next-heading">
+            @for (row of upNext(); track row.challenge.id) {
+              <li class="row">
+                <span class="title">
+                  <a [routerLink]="['/challenges', row.challenge.id]">{{ row.challenge.title }}</a>
+                  <span class="summary-text text-secondary">{{ row.challenge.summary }}</span>
+                </span>
+                <app-difficulty-badge [difficulty]="row.challenge.difficulty" />
+              </li>
+            }
+          </ul>
+        } @else {
+          <app-empty-state heading="You have started every available challenge" />
+        }
       </app-panel>
     </div>
-
-    <app-panel
-      class="up-next"
-      heading="Up next"
-      headingId="up-next-heading"
-      description="Challenges you have not tried yet, easiest first."
-    >
-      @if (upNext().length > 0) {
-        <ul class="divided-list" aria-labelledby="up-next-heading">
-          @for (row of upNext(); track row.challenge.id) {
-            <li class="row">
-              <span class="title">
-                <a [routerLink]="['/challenges', row.challenge.id]">{{ row.challenge.title }}</a>
-                <span class="summary-text text-secondary">{{ row.challenge.summary }}</span>
-              </span>
-              <app-difficulty-badge [difficulty]="row.challenge.difficulty" />
-            </li>
-          }
-        </ul>
-      } @else {
-        <app-empty-state heading="You have started every available challenge" />
-      }
-    </app-panel>
-  </div>
+  }
 }

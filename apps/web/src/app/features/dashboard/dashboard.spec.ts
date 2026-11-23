@@ -1,23 +1,113 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import type { ProgressResponse } from '@pracstack/api-contracts';
 import { provideTestContent } from '../../../testing/content-fixtures';
-import { provideFakeApi } from '../../../testing/fake-api';
+import { FakeApiClient, provideFakeApi } from '../../../testing/fake-api';
+import { RuntimeConfigService } from '../../core/config/runtime-config';
 import { ChallengeProgressService } from '../challenges/data-access/challenge-progress.service';
 import { Dashboard } from './dashboard';
 
-describe('Dashboard', () => {
-  beforeEach(() => localStorage.clear());
+const progress: ProgressResponse = {
+  technologyId: 'typescript',
+  skills: [
+    {
+      skillId: 'primitives',
+      score: 100,
+      tier: 5,
+      mastered: true,
+      attempts: 20,
+      lastPracticedAt: '2026-01-01T10:00:00Z',
+    },
+    {
+      skillId: 'unions',
+      score: 42,
+      tier: 3,
+      mastered: false,
+      attempts: 6,
+      lastPracticedAt: '2026-01-02T10:00:00Z',
+    },
+  ],
+};
 
-  async function setup(arrange?: (progress: ChallengeProgressService) => void) {
+describe('Dashboard', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  async function setup(
+    options: {
+      api?: FakeApiClient;
+      signedOut?: boolean;
+      arrange?: (progress: ChallengeProgressService) => void;
+    } = {},
+  ) {
     await TestBed.configureTestingModule({
       imports: [Dashboard],
-      providers: [provideRouter([]), provideTestContent(), provideFakeApi()],
+      providers: [provideRouter([]), provideTestContent(), provideFakeApi(options.api)],
     }).compileComponents();
-    arrange?.(TestBed.inject(ChallengeProgressService));
+    if (options.signedOut) {
+      TestBed.inject(RuntimeConfigService).set({
+        auth: { mode: 'cognito', domain: 'https://auth.example.com', clientId: 'c' },
+      });
+    }
+    options.arrange?.(TestBed.inject(ChallengeProgressService));
     const fixture = TestBed.createComponent(Dashboard);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
   }
+
+  const statValues = (el: HTMLElement) =>
+    Object.fromEntries(
+      [...el.querySelectorAll('.stat')].map((d) => [
+        d.querySelector('dt')?.textContent?.trim(),
+        d.querySelector('dd')?.textContent?.replace(/\s+/g, ' ').trim(),
+      ]),
+    );
+
+  it('shows signed-out visitors the landing page, not the dashboard', async () => {
+    const el = await setup({ signedOut: true });
+    expect(el.querySelector('h1')?.textContent).toContain('Get interview-ready');
+    expect(el.textContent).toContain('Create a free account');
+    expect(el.querySelector('.welcome')).toBeNull();
+  });
+
+  it('welcomes the learner with totals across challenges and skills', async () => {
+    const el = await setup({
+      api: new FakeApiClient().on('GET /skill-mastery/progress', () => progress),
+    });
+    expect(el.querySelector('h1')?.textContent?.trim()).toBe('Welcome back');
+    expect(statValues(el)).toEqual({
+      'Challenges solved': '0 / 4',
+      'Skills mastered': '1 / 3',
+      'Skills practised': '2',
+      'Questions answered': '26',
+    });
+  });
+
+  it('shows each track with its progress and continues the last practised skill', async () => {
+    const el = await setup({
+      api: new FakeApiClient().on('GET /skill-mastery/progress', () => progress),
+    });
+    const tracks = [...el.querySelectorAll('.track h3')].map((h) => h.textContent?.trim());
+    expect(tracks).toEqual(['Coding Challenges', 'TypeScript']);
+    const ts = el.querySelector('[data-track="typescript"]')!;
+    expect(ts.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('1');
+    expect(ts.textContent).toContain('1 of 3 skills mastered');
+    expect(ts.querySelector('a.btn')?.getAttribute('href')).toBe('/skills/typescript/unions');
+  });
+
+  it('offers to start a track that has not been practised', async () => {
+    const el = await setup({
+      api: new FakeApiClient().on('GET /skill-mastery/progress', () => ({
+        technologyId: 'typescript',
+        skills: [],
+      })),
+    });
+    const ts = el.querySelector('[data-track="typescript"]')!;
+    expect(ts.textContent).toContain('0 of 3 skills mastered');
+    expect(ts.querySelector('a.btn')?.textContent?.trim()).toBe('Start');
+  });
 
   it('shows an empty Continue panel and easiest challenges first for a new visitor', async () => {
     const el = await setup();
@@ -26,10 +116,10 @@ describe('Dashboard', () => {
     expect(upNext).toEqual(['Pangram', 'Reverse String', 'Balanced Brackets']);
   });
 
-  it('lists challenges with a saved draft under Continue', async () => {
-    const el = await setup((progress) =>
-      progress.saveDraft('merge-intervals', 'typescript', 'edited', 'starter'),
-    );
+  it('lists challenges with a saved draft under Continue, and continues them from the track', async () => {
+    const el = await setup({
+      arrange: (p) => p.saveDraft('merge-intervals', 'typescript', 'edited', 'starter'),
+    });
     const continueLinks = [...el.querySelectorAll('.continue li a')].map((a) =>
       a.textContent?.trim(),
     );
@@ -37,29 +127,7 @@ describe('Dashboard', () => {
     expect(el.querySelector('.continue a')?.getAttribute('href')).toBe(
       '/challenges/merge-intervals/workspace',
     );
-  });
-
-  it('counts challenges by local status', async () => {
-    const el = await setup((progress) =>
-      progress.recordRun(
-        'pangram',
-        'typescript',
-        { status: 'passed', results: [], logs: [], durationMs: 1 },
-        10,
-      ),
-    );
-    const values = Object.fromEntries(
-      [...el.querySelectorAll('.summary > div')].map((d) => [
-        d.querySelector('dt')?.textContent?.trim(),
-        d.querySelector('dd')?.textContent?.trim(),
-      ]),
-    );
-    expect(values).toEqual({
-      Available: '4',
-      Solved: '0',
-      'Visible tests passed': '1',
-      'In progress': '0',
-      'Not started': '3',
-    });
+    const challengeTrack = el.querySelector('.track a.btn');
+    expect(challengeTrack?.textContent?.trim()).toBe('Continue: Merge Intervals');
   });
 });

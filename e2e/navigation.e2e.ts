@@ -8,7 +8,8 @@ test.describe('navigation and catalog', () => {
   test('dashboard links to the challenge catalog', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveTitle('Dashboard · PracStack');
-    await expect(page.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Welcome back' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Your tracks' })).toBeVisible();
 
     await page
       .getByRole('navigation', { name: 'Primary' })

@@ -42,6 +42,18 @@
   --color-info: #1769aa;
   --color-info-bg: #e8f1fa;
 
+  /* Track accents (dashboard and landing cards); each passes 4.5:1 on white */
+  --color-track-typescript: #2f6db5;
+  --color-track-angular: #b3132d;
+  --color-track-postgresql: #2f5d86;
+  --color-track-oracle-sql: #b13d22;
+  --color-track-challenges: #16794b;
+  --color-hero-bg: #0f3557;
+  --color-hero-text: #ffffff;
+  --color-hero-text-secondary: #c9dced;
+  --color-hero-surface: rgb(255 255 255 / 0.08);
+  --color-hero-surface-hover: rgb(255 255 255 / 0.14);
+
   /* Typography */
   --font-sans:
     system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif;
