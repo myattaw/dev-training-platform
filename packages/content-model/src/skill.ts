@@ -42,7 +42,7 @@ export type QuestionDifficulty = 1 | 2 | 3 | 4 | 5;
 
 export const QUESTION_DIFFICULTIES: readonly QuestionDifficulty[] = [1, 2, 3, 4, 5];
 
-export type CodeLanguage = 'typescript' | 'sql' | 'html';
+export type CodeLanguage = 'typescript' | 'sql' | 'html' | 'csharp';
 
 export interface CodeSnippet {
   readonly language: CodeLanguage;
@@ -183,6 +183,17 @@ export type TypeScriptKeyCheck =
   | { readonly kind: 'options-compile'; readonly prelude?: string }
   | { readonly kind: 'type-equals'; readonly prelude: string; readonly expression: string };
 
+/**
+ * Validation of a C# multiple-choice answer key with the real C# runner (.NET 10,
+ * C# 14, nullable enabled; content/src/checks/csharp-snippets.ts). Never published.
+ * - `compiles`: options start with Yes / No; the key must match whether `code` compiles.
+ * - `options-compile`: every option is code; the correct options must be exactly
+ *   those that compile (after `prelude`).
+ */
+export type CSharpKeyCheck =
+  | { readonly kind: 'compiles' }
+  | { readonly kind: 'options-compile'; readonly prelude?: string };
+
 /** SQL questions reference a shared practice database instead of repeating it. */
 export type SqlQuestionSource = Omit<
   SqlQueryQuestion,
@@ -198,6 +209,7 @@ export type SqlQuestionSource = Omit<
 export type QuestionSource =
   | (Authored<MultipleChoiceQuestion, Extract<QuestionAnswer, { format: 'multiple-choice' }>> & {
       readonly typeCheck?: TypeScriptKeyCheck;
+      readonly csharpCheck?: CSharpKeyCheck;
     })
   | Authored<PredictOutputQuestion, Extract<QuestionAnswer, { format: 'predict-output' }>>
   | Authored<FillInBlankQuestion, Extract<QuestionAnswer, { format: 'fill-in-blank' }>>

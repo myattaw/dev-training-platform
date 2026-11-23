@@ -6,6 +6,7 @@ const MONOGRAMS: Readonly<Record<string, string>> = {
   angular: 'NG',
   postgresql: 'PG',
   'oracle-sql': 'ORA',
+  csharp: 'C#',
   challenges: '</>',
 };
 

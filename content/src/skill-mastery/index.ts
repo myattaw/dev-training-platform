@@ -1,5 +1,6 @@
 import type { TrackSource } from '@pracstack/content-model';
 import { angularTrack } from './angular/track';
+import { csharpTrack } from './csharp/track';
 import { oracleTrack } from './oracle/track';
 import { postgresqlTrack } from './postgresql/track';
 import { typescriptTrack } from './typescript/track';
@@ -10,4 +11,5 @@ export const TRACKS: readonly TrackSource[] = [
   angularTrack,
   postgresqlTrack,
   oracleTrack,
+  csharpTrack,
 ];

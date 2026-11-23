@@ -6,4 +6,6 @@ export const text = (...paragraphs: string[]): InstructionBlock[] =>
 
 export const ts = (source: string): CodeSnippet => ({ language: 'typescript', source });
 
+export const cs = (source: string): CodeSnippet => ({ language: 'csharp', source });
+
 export const sql = (source: string): CodeSnippet => ({ language: 'sql', source });

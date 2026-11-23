@@ -15,5 +15,8 @@
     "@pracstack/content-model": "*",
     "@pracstack/challenge-runtime": "*",
     "@pracstack/sql-engine": "*"
+  },
+  "devDependencies": {
+    "@pracstack/code-runner": "*"
   }
 }

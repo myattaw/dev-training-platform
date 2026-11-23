@@ -61,6 +61,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'angular', skillCount: 2 }),
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
+      expect.objectContaining({ id: 'csharp', skillCount: 3 }),
     ]);
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
   });
@@ -101,10 +102,11 @@ describe('the real content', { timeout: 120_000 }, () => {
     }
   });
 
-  it('never publishes build-time answer checks (typeCheck)', () => {
+  it('never publishes build-time answer checks (typeCheck, csharpCheck)', () => {
     const files = JSON.stringify([...result.publicFiles.values(), ...result.privateFiles.values()]);
     expect(files).not.toContain('typeCheck');
     expect(files).not.toContain('options-compile');
+    expect(files).not.toContain('csharpCheck');
   });
 
   it('is deterministic: building twice gives the same content version', async () => {
