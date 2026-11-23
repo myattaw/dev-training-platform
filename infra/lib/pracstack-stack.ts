@@ -483,6 +483,8 @@ export class PracStackStack extends Stack {
         '/config.json',
         '/content/*',
         '/favicon.ico',
+        '/favicon.svg',
+        '/apple-touch-icon.png',
         '/monaco.css',
       ],
     });

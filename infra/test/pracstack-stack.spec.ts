@@ -382,7 +382,7 @@ describe('security', () => {
     expect(width / height).toBeLessThan(4);
     const viewBox = /^<svg [^>]*viewBox="([^"]+)"/.exec(svg)?.[1].split(' ').map(Number) ?? [];
     expect(viewBox[2]! / viewBox[3]!).toBeCloseTo(width / height, 2);
-    expect(svg).toContain('>PracStack</text>');
+    expect(svg).toContain('<title>PracStack</title>');
     // Cognito's limit for one asset (base64 bytes).
     expect(branding?.Properties.Assets[0].Bytes.length).toBeLessThan(1_000_000);
     // Every color is hex with an alpha byte, as Cognito requires.

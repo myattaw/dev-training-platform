@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Icon } from '../../../shared/ui/icon/icon';
+import { PracStackLogo } from '../../../shared/ui/logo/pracstack-logo';
 import { AuthService } from '../../auth/auth.service';
 import { SessionService } from '../../session/session.service';
 import { LayoutService } from '../layout.service';
 
 @Component({
   selector: 'app-top-nav',
-  imports: [RouterLink, Icon],
+  imports: [RouterLink, Icon, PracStackLogo],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header>
@@ -26,12 +27,7 @@ import { LayoutService } from '../layout.service';
       </button>
 
       <a routerLink="/" class="brand" aria-label="PracStack home">
-        <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-          <rect x="1" y="2.5" width="12" height="4" rx="1" class="layer-1" />
-          <rect x="4" y="8" width="12" height="4" rx="1" class="layer-2" />
-          <rect x="7" y="13.5" width="12" height="4" rx="1" class="layer-3" />
-        </svg>
-        <span>PracStack</span>
+        <app-pracstack-logo [size]="24" />
       </a>
 
       @if (auth.status() === 'signed-out') {
@@ -85,16 +81,6 @@ import { LayoutService } from '../layout.service';
     }
     .brand:hover {
       text-decoration: none;
-    }
-    .layer-1 {
-      fill: var(--color-primary);
-    }
-    .layer-2 {
-      fill: var(--color-primary);
-      opacity: 0.6;
-    }
-    .layer-3 {
-      fill: var(--color-text);
     }
     .user {
       display: inline-flex;
