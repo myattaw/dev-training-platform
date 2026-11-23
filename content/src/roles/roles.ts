@@ -131,7 +131,12 @@ export const ROLES: readonly JobRole[] = [
         id: 'testing',
         name: 'Automated testing',
         description: 'Unit and integration tests for .NET code, and designing code to be testable.',
-        activities: skills('eng-testing', 'aspnet-testing-architecture'),
+        activities: skills(
+          'cs-unit-testing',
+          'cs-solid-di',
+          'eng-testing',
+          'aspnet-testing-architecture',
+        ),
       },
       {
         id: 'security',
@@ -251,7 +256,7 @@ export const ROLES: readonly JobRole[] = [
         id: 'testing',
         name: 'Automated testing',
         description: 'Testing practices and testable API design.',
-        activities: skills('eng-testing', 'aspnet-testing-architecture'),
+        activities: skills('cs-unit-testing', 'eng-testing', 'aspnet-testing-architecture'),
       },
     ],
   },
@@ -323,8 +328,8 @@ export const ROLES: readonly JobRole[] = [
       {
         id: 'unit-testing',
         name: 'Unit testing',
-        description: 'Writing and maintaining tests for C# code.',
-        activities: skills('eng-testing'),
+        description: 'Writing and maintaining tests for C# code, and keeping it easy to change.',
+        activities: skills('cs-unit-testing', 'cs-solid-di', 'cs-refactoring', 'eng-testing'),
       },
     ],
   },

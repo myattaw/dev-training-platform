@@ -3,19 +3,22 @@ import { asyncFamilies, delegatesFamilies, genericsMethodsFamilies } from './asy
 import { collectionsFamilies, oopFamilies, recordsImmutabilityFamilies } from './collections-oop';
 import { nullableFamilies, patternMatchingFamilies, valueReferenceFamilies } from './fundamentals';
 import { exceptionsFamilies, linqBasicsFamilies, linqExecutionFamilies } from './linq-exceptions';
+import {
+  refactoringFamilies,
+  solidDiFamilies,
+  unitTestingFamilies,
+} from './testing-maintainability';
 
 /**
  * C#: modern C# 14 on .NET 10. Every code question is compiled (and run where it is a
  * program) by the real C# runner; see builders.ts and content/src/checks/csharp-snippets.ts.
- * Topics not yet written (testing and maintainability) are listed in
- * docs/skill-mastery-curriculum.md; they are not shown until they exist.
  */
 export const csharpTrack: TrackSource = {
   id: 'csharp',
   name: 'C#',
   category: 'languages',
   description:
-    'Modern C# on .NET 10: value and reference semantics, nullable types, pattern matching, collections, OOP, LINQ, exceptions, generics, delegates and async.',
+    'Modern C# on .NET 10: value and reference semantics, nullable types, pattern matching, collections, OOP, LINQ, exceptions, generics, delegates, async, testing and maintainability.',
   topics: [
     {
       id: 'cs-fundamentals',
@@ -152,6 +155,37 @@ export const csharpTrack: TrackSource = {
           description:
             '`Task`, `async`/`await`, `Task.WhenAll`/`WhenAny`, cancellation, exception propagation and blocking pitfalls.',
           questions: asyncFamilies,
+        },
+      ],
+    },
+    {
+      id: 'cs-testing-maintainability',
+      name: 'Testing and maintainability',
+      description: 'Test your code, design it to be testable, and change it safely.',
+      skills: [
+        {
+          id: 'cs-unit-testing',
+          prerequisites: ['cs-oop'],
+          name: 'Unit testing and TDD',
+          description:
+            'Arrange-Act-Assert, test isolation, stubs, fakes and spies, choosing test cases, red-green-refactor and what coverage does not prove.',
+          questions: unitTestingFamilies,
+        },
+        {
+          id: 'cs-solid-di',
+          prerequisites: ['cs-unit-testing'],
+          name: 'Dependency injection and SOLID',
+          description:
+            'Constructor injection, service lifetimes and captive dependencies, the SOLID principles, and when not to add an abstraction.',
+          questions: solidDiFamilies,
+        },
+        {
+          id: 'cs-refactoring',
+          prerequisites: ['cs-unit-testing'],
+          name: 'Refactoring and readable code',
+          description:
+            'Code smells, behaviour-preserving refactorings, refactorings that quietly change behaviour, naming, comments and a safe order of changes.',
+          questions: refactoringFamilies,
         },
       ],
     },

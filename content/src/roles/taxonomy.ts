@@ -267,7 +267,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     category: 'testing',
     aliases: ['unit tests', 'unit test'],
     variants: ['xUnit', 'NUnit', 'MSTest', 'Jest', 'JUnit'],
-    practice: [skill('eng-testing'), skill('aspnet-testing-architecture')],
+    practice: [
+      skill('cs-unit-testing'),
+      skill('eng-testing'),
+      skill('aspnet-testing-architecture'),
+    ],
     tracks: ['engineering-practices'],
   },
   {
@@ -275,7 +279,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     label: 'TDD',
     category: 'testing',
     aliases: ['test-driven development', 'test driven development'],
-    practice: [skill('eng-testing'), skill('aspnet-testing-architecture')],
+    practice: [
+      skill('cs-unit-testing'),
+      skill('eng-testing'),
+      skill('aspnet-testing-architecture'),
+    ],
     tracks: ['engineering-practices'],
   },
   {
@@ -289,7 +297,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'behaviour driven development',
     ],
     variants: ['SpecFlow', 'Cucumber', 'Gherkin'],
-    practice: [skill('eng-testing'), skill('aspnet-testing-architecture')],
+    practice: [
+      skill('cs-unit-testing'),
+      skill('eng-testing'),
+      skill('aspnet-testing-architecture'),
+    ],
     tracks: ['engineering-practices'],
   },
 
@@ -343,6 +355,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     practice: [
       skill('cs-oop'),
       skill('cs-records-immutability'),
+      skill('cs-solid-di'),
       challenge('lru-cache', 'csharp'),
       challenge('undo-redo-history', 'csharp'),
     ],

@@ -75,7 +75,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'angular', skillCount: 2 }),
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
-      expect.objectContaining({ id: 'csharp', skillCount: 12 }),
+      expect.objectContaining({ id: 'csharp', skillCount: 15 }),
       expect.objectContaining({ id: 'aspnet-core', skillCount: 8 }),
       expect.objectContaining({ id: 'sql-server', skillCount: 7 }),
       expect.objectContaining({ id: 'aws', skillCount: 5 }),
@@ -176,7 +176,7 @@ describe('the real content', { timeout: 120_000 }, () => {
     const csharpSkills = role.competencies
       .flatMap((c) => c.activities)
       .flatMap((a) => (a.kind === 'skill' && a.skillId.startsWith('cs-') ? [a.skillId] : []));
-    // The twelve C# skills, each once, in the role's learning order.
+    // C# skills, each once, in the role's learning order (testing comes with the testing step).
     expect(csharpSkills).toEqual([
       'cs-value-reference-types',
       'cs-nullable-types',
@@ -190,6 +190,8 @@ describe('the real content', { timeout: 120_000 }, () => {
       'cs-delegates-events',
       'cs-exceptions',
       'cs-async',
+      'cs-unit-testing',
+      'cs-solid-di',
     ]);
     // Every competency has real practice; the last step is the C# Enterprise Scenarios.
     expect(role.competencies.filter((c) => c.activities.length === 0)).toEqual([]);
