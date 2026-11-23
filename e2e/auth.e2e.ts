@@ -184,6 +184,12 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     await cognitoMode(page);
     await page.goto('/account/sign-in');
     await expect(page.getByRole('heading', { name: 'Have an account?' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Continue with/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
+    // Apple and GitHub are planned: visible, but disabled until configured.
+    for (const name of ['Apple', 'GitHub']) {
+      const button = page.getByRole('button', { name: new RegExp(`^Continue with ${name}`) });
+      await expect(button).toBeDisabled();
+      await expect(button).toHaveAccessibleDescription('Coming soon');
+    }
   });
 });

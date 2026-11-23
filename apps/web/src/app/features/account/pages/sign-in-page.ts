@@ -7,6 +7,8 @@ import { Alert } from '../../../shared/ui/alert/alert';
 import { PageHeader } from '../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../shared/ui/panel/panel';
 
+const PLANNED_PROVIDERS = ['Apple', 'GitHub'] as const;
+
 /**
  * Sign in or create an account. Both open PracStack's Amazon Cognito managed
  * login (authorization code + PKCE): passwords, email verification and
@@ -33,17 +35,29 @@ import { Panel } from '../../../shared/ui/panel/panel';
       }
       @default {
         <app-panel>
-          @if (providers().length > 0) {
-            <div class="social">
-              @for (provider of providers(); track provider) {
-                <button type="button" class="btn social-btn" (click)="continueWith(provider)">
-                  Continue with {{ provider }}
-                </button>
-              }
+          <div class="social">
+            @for (provider of providers(); track provider) {
+              <button type="button" class="btn social-btn" (click)="continueWith(provider)">
+                Continue with {{ provider }}
+              </button>
+            }
+            @if (providers().length > 0) {
               <p class="text-secondary small">New here? This creates your PracStack account too.</p>
-            </div>
-            <p class="divider text-secondary"><span>or use your email</span></p>
-          }
+            }
+            <!-- Planned providers: shown disabled until they are configured. -->
+            @for (provider of comingSoon(); track provider) {
+              <button
+                type="button"
+                class="btn social-btn"
+                disabled
+                [attr.aria-describedby]="'soon-' + provider"
+              >
+                Continue with {{ provider }}
+                <span class="soon" [id]="'soon-' + provider">Coming soon</span>
+              </button>
+            }
+          </div>
+          <p class="divider text-secondary"><span>or use your email</span></p>
           <div class="choices">
             <section>
               <h2>Have an account?</h2>
@@ -99,6 +113,15 @@ import { Panel } from '../../../shared/ui/panel/panel';
       justify-content: center;
       font-weight: var(--font-weight-bold);
     }
+    .social-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .soon {
+      margin-left: var(--space-2);
+      font-size: var(--font-size-sm);
+      font-weight: normal;
+    }
     .divider {
       display: flex;
       align-items: center;
@@ -128,6 +151,15 @@ export class SignInPage {
     const auth = this.runtime.config().auth;
     return auth.mode === 'cognito' ? (auth.providers ?? []) : [];
   });
+  /**
+   * Planned social sign-in, shown as disabled "Coming soon" buttons. Apple is a
+   * Cognito built-in provider; GitHub needs an OIDC bridge (docs/accounts-and-auth.md).
+   * To turn one on: add it to SOCIAL_PROVIDERS, configure it in Cognito, and list
+   * it in config.json; it then moves from here to the enabled buttons above.
+   */
+  protected readonly comingSoon = computed<readonly string[]>(() =>
+    PLANNED_PROVIDERS.filter((p) => !(this.providers() as readonly string[]).includes(p)),
+  );
 
   protected signIn(signUp: boolean): void {
     void this.auth.signIn(this.returnPath(), { signUp });

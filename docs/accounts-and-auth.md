@@ -60,7 +60,9 @@ providers directly.
 **Decision: defer (option 4) now, option 1 when GitHub sign-in is wanted.** It needs a GitHub OAuth
 App (client id and secret, stored in Secrets Manager, never in the browser) and a reviewed
 bridge. Only the `read:user` and `user:email` scopes are needed; no repository access. The UI
-says "Continue with GitHub is not available yet" and shows no GitHub button. No GitHub OIDC
+says "Continue with GitHub is not available yet", and the sign-in page shows disabled "Continue
+with Apple" and "Continue with GitHub" buttons marked "Coming soon" (`PLANNED_PROVIDERS` in
+`sign-in-page.ts`). No GitHub OIDC
 discovery URL is configured, because GitHub OAuth Apps do not have one.
 
 ## Setting up Cognito (when deploying)
