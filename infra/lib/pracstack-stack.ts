@@ -30,6 +30,7 @@ import {
   HttpStage,
   LogGroupLogDestination,
 } from 'aws-cdk-lib/aws-apigatewayv2';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import { HttpJwtAuthorizer } from 'aws-cdk-lib/aws-apigatewayv2-authorizers';
 import { HttpLambdaIntegration } from 'aws-cdk-lib/aws-apigatewayv2-integrations';
 import { AccessLogFormat } from 'aws-cdk-lib/aws-apigateway';
@@ -124,6 +125,26 @@ export interface PracStackProps extends StackProps {
     readonly clientSecretName: string;
     readonly signingKeyParameter: string;
   };
+  /**
+   * The stage's own domain instead of *.cloudfront.net (see infra/lib/certificate-stack.ts).
+   * DNS is hosted elsewhere (Cloudflare): the stack outputs the targets for the records.
+   */
+  readonly customDomain?: CustomDomain;
+}
+
+export interface CustomDomain {
+  /** The canonical site name, e.g. `pracstack.com`. */
+  readonly domainName: string;
+  /** Names that redirect (301) to the canonical one, e.g. `www.pracstack.com`. */
+  readonly redirectNames: readonly string[];
+  /** ACM certificate in us-east-1 covering every name above (and `authDomainName`). */
+  readonly certificateArn: string;
+  /**
+   * Sign-in pages on this name (e.g. `auth.pracstack.com`) instead of the Cognito
+   * address. Cognito requires the parent domain to resolve before it can be created,
+   * so add it once the site's DNS records exist.
+   */
+  readonly authDomainName?: string;
 }
 
 /** Overall request rate for the API (all users together). A cost ceiling, not a per-user limit. */
@@ -203,7 +224,25 @@ export class PracStackStack extends Stack {
       cognitoDomain: { domainPrefix },
       managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
     });
-    const cognitoOrigin = `https://${domainPrefix}.auth.${this.region}.amazoncognito.com`;
+    const prefixOrigin = `https://${domainPrefix}.auth.${this.region}.amazoncognito.com`;
+    const custom = props.customDomain;
+    const certificate = custom
+      ? acm.Certificate.fromCertificateArn(this, 'SiteCertificate', custom.certificateArn)
+      : undefined;
+    // Sign-in on the stage's own domain (the Cognito address keeps working too).
+    const authDomain =
+      custom?.authDomainName && certificate
+        ? userPool.addDomain('CustomDomain', {
+            customDomain: { domainName: custom.authDomainName, certificate },
+            managedLoginVersion: cognito.ManagedLoginVersion.NEWER_MANAGED_LOGIN,
+          })
+        : undefined;
+    const cognitoOrigin = authDomain ? `https://${custom?.authDomainName}` : prefixOrigin;
+    /** Cognito's redirect URIs for external providers, on every sign-in domain. */
+    const idpResponseUris = [
+      `${prefixOrigin}/oauth2/idpresponse`,
+      ...(authDomain ? [`${cognitoOrigin}/oauth2/idpresponse`] : []),
+    ];
 
     // ---------------------------------------------------------------- API function
     const functionLogs = new logs.LogGroup(this, 'ApiFunctionLogs', {
@@ -229,12 +268,15 @@ export class PracStackStack extends Stack {
     const spaRewrite = new cloudfront.Function(this, 'SpaRewrite', {
       runtime: cloudfront.FunctionRuntime.JS_2_0,
       comment: 'Serve index.html for client-side routes (paths without a file extension).',
-      code: cloudfront.FunctionCode.fromInline(SPA_REWRITE_SOURCE),
+      code: cloudfront.FunctionCode.fromInline(spaRewriteSource(custom?.domainName)),
     });
 
     const appHeaders = this.securityHeaders(
       'AppHeaders',
-      appContentSecurityPolicy({ connectOrigins: [cognitoOrigin], https: true }),
+      appContentSecurityPolicy({
+        connectOrigins: [...new Set([cognitoOrigin, prefixOrigin])],
+        https: true,
+      }),
     );
     const workerHeaders = this.securityHeaders('WorkerHeaders', workerContentSecurityPolicy());
 
@@ -274,6 +316,13 @@ export class PracStackStack extends Stack {
       logFilePrefix: 'cloudfront/',
       defaultRootObject: 'index.html',
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
+      ...(custom && certificate
+        ? {
+            domainNames: [custom.domainName, ...custom.redirectNames],
+            certificate,
+            minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+          }
+        : {}),
       // HTTP/2 only. With HTTP/3 offered, Chromium on a network that half-breaks QUIC
       // never finished loading the app's scripts (0.24 s with HTTP/3 off, no load in 20 s on).
       httpVersion: cloudfront.HttpVersion.HTTP2,
@@ -303,7 +352,9 @@ export class PracStackStack extends Stack {
         },
       },
     });
-    const siteUrl = `https://${distribution.distributionDomainName}`;
+    const siteUrl = custom
+      ? `https://${custom.domainName}`
+      : `https://${distribution.distributionDomainName}`;
 
     // Optional social sign-in. Google accounts become their own Cognito users (not merged
     // with an email account by address; the Account page links identities with proof from
@@ -326,7 +377,14 @@ export class PracStackStack extends Stack {
     // GitHub, nothing else), routed at /oidc/github/* without an authorizer.
     const githubBridgeIssuer = `https://${httpApi.apiId}.execute-api.${this.region}.amazonaws.com/oidc/github`;
     const github = props.github
-      ? this.githubSignIn(userPool, httpApi, domain, githubBridgeIssuer, props.github, props.assets)
+      ? this.githubSignIn(
+          userPool,
+          httpApi,
+          idpResponseUris,
+          githubBridgeIssuer,
+          props.github,
+          props.assets,
+        )
       : undefined;
     const signInProviders = [...(google ? ['Google'] : []), ...(github ? ['GitHub'] : [])];
 
@@ -357,6 +415,7 @@ export class PracStackStack extends Stack {
     // client's supported identity providers; the style needs nothing extra for it.
     const branding = addManagedLoginBranding(this, 'WebClientBranding', userPool, client);
     branding.node.addDependency(domain);
+    if (authDomain) branding.node.addDependency(authDomain);
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;
 
     // ---------------------------------------------------------------- runners (learner code + SQL)
@@ -649,6 +708,18 @@ export class PracStackStack extends Stack {
     // ---------------------------------------------------------------- outputs
     new CfnOutput(this, 'SiteUrl', { value: siteUrl });
     new CfnOutput(this, 'SignInDomain', { value: cognitoOrigin });
+    if (custom) {
+      // DNS records to create at the DNS host ("DNS only", not proxied).
+      new CfnOutput(this, 'SiteDnsTarget', {
+        value: distribution.distributionDomainName,
+        description: `CNAME (flattened at the apex) for ${[custom.domainName, ...custom.redirectNames].join(', ')}`,
+      });
+      if (authDomain)
+        new CfnOutput(this, 'AuthDnsTarget', {
+          value: authDomain.cloudFrontEndpoint,
+          description: `CNAME for ${custom.authDomainName}`,
+        });
+    }
     new CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });
     new CfnOutput(this, 'TableName', { value: table.tableName });
     new CfnOutput(this, 'UserPoolClientId', { value: client.userPoolClientId });
@@ -673,6 +744,7 @@ export class PracStackStack extends Stack {
       apiFunction,
       runners,
       signUpGate,
+      customDomain: custom !== undefined,
     });
   }
 
@@ -716,7 +788,7 @@ export class PracStackStack extends Stack {
   private githubSignIn(
     userPool: cognito.UserPool,
     httpApi: HttpApi,
-    domain: cognito.UserPoolDomain,
+    redirectUris: readonly string[],
     issuer: string,
     github: NonNullable<PracStackProps['github']>,
     assets: PracStackAssets,
@@ -747,7 +819,6 @@ export class PracStackStack extends Stack {
         conditions: { StringEquals: { 'kms:ViaService': `ssm.${this.region}.amazonaws.com` } },
       }),
     );
-    const cognitoRedirect = `${domain.baseUrl()}/oauth2/idpresponse`;
     const fn = new lambda.Function(this, 'GithubOidcFunction', {
       description: 'PracStack: GitHub sign-in as an OpenID Connect provider for Cognito.',
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -760,7 +831,7 @@ export class PracStackStack extends Stack {
       logGroup,
       environment: {
         OIDC_ISSUER: issuer,
-        OIDC_REDIRECT_URIS: JSON.stringify([cognitoRedirect]),
+        OIDC_REDIRECT_URIS: JSON.stringify(redirectUris),
         SIGNING_KEY_PARAMETER: github.signingKeyParameter,
         NODE_OPTIONS: '--enable-source-maps',
       },
@@ -855,6 +926,7 @@ export class PracStackStack extends Stack {
     apiFunction: lambda.Function;
     runners: Record<RunnerName, lambda.DockerImageFunction>;
     signUpGate: lambda.Function | undefined;
+    customDomain: boolean;
   }): void {
     const ack = (scope: Construct, findings: Record<string, string>) => {
       for (const [id, reason] of Object.entries(findings))
@@ -863,8 +935,11 @@ export class PracStackStack extends Stack {
     ack(r.distribution, {
       CFR1: 'A learning platform open to everyone: no geographic restriction is wanted.',
       CFR2: 'AWS WAF (about $8–10/month) was declined for now (Phase 9). API Gateway throttling, per-user and global rate limits, and the budget kill switch apply.',
-      CFR4: 'The default *.cloudfront.net certificate cannot enforce TLS 1.2; a custom domain with a TLS 1.2 policy was deferred until there is a domain (Phase 9).',
     });
+    if (!r.customDomain)
+      ack(r.distribution, {
+        CFR4: 'The default *.cloudfront.net certificate cannot enforce TLS 1.2; stages with a custom domain use a TLS 1.2 minimum.',
+      });
     ack(r.accessLogs, {
       S1: 'This is the access-log bucket; logging its own access would be circular.',
     });
@@ -986,9 +1061,34 @@ function stableSuffix(account: string, region: string): string {
  * CloudFront Function (cloudfront-js-2.0): client-side routes such as
  * /challenges/pangram get index.html; real files (with an extension) pass.
  */
-export const SPA_REWRITE_SOURCE = `function handler(event) {
-  var request = event.request;
+export const SPA_REWRITE_SOURCE = spaRewriteSource();
+
+/**
+ * With a canonical host, other names (e.g. www.) get a permanent redirect to it,
+ * keeping the path and query string.
+ */
+export function spaRewriteSource(canonicalHost?: string): string {
+  if (canonicalHost !== undefined && !/^[a-z0-9.-]+$/.test(canonicalHost))
+    throw new Error(`Invalid canonical host "${canonicalHost}"`);
+  const redirect = canonicalHost
+    ? `
+  var host = request.headers.host && request.headers.host.value;
+  if (host && host !== '${canonicalHost}') {
+    var qs = Object.keys(request.querystring).map(function (k) {
+      var v = request.querystring[k];
+      return v.value === '' ? k : k + '=' + v.value;
+    }).join('&');
+    return {
+      statusCode: 301,
+      statusDescription: 'Moved Permanently',
+      headers: { location: { value: 'https://${canonicalHost}' + request.uri + (qs ? '?' + qs : '') } },
+    };
+  }`
+    : '';
+  return `function handler(event) {
+  var request = event.request;${redirect}
   var last = request.uri.split('/').pop();
   if (last.indexOf('.') === -1) request.uri = '/index.html';
   return request;
 }`;
+}

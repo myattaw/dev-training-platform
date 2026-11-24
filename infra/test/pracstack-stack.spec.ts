@@ -13,8 +13,10 @@ import {
   type PracStackProps,
   SIGN_UP_GATE_SOURCE,
   SPA_REWRITE_SOURCE,
+  spaRewriteSource,
   webConfig,
 } from '../lib/pracstack-stack';
+import { CertificateStack } from '../lib/certificate-stack';
 import { BRANDING_SETTINGS, brandLogoBase64 } from '../lib/managed-login-branding';
 import { isImmutableAsset } from '../scripts/prepare-assets';
 
@@ -793,6 +795,124 @@ describe('private staging options', () => {
     it('passes the AWS Solutions checks with GitHub sign-in', () => {
       const { app } = synth(true, { github });
       expect(() => app.synth()).not.toThrow();
+    });
+  });
+
+  describe('custom domain', () => {
+    const CERT =
+      'arn:aws:acm:us-east-1:111111111111:certificate/11111111-2222-3333-4444-555555555555';
+    const customDomain = {
+      domainName: 'pracstack.com',
+      redirectNames: ['www.pracstack.com'],
+      certificateArn: CERT,
+    };
+    const github = {
+      clientId: 'Ov23liAbCdEfGhIjKlMn',
+      clientSecretName: 'pracstack/test/github-client-secret',
+      signingKeyParameter: '/pracstack/test/github-oidc-signing-key',
+    };
+    let site: ReturnType<typeof synth>;
+    let withAuth: ReturnType<typeof synth>;
+    beforeAll(() => {
+      site = synth(false, { customDomain });
+      withAuth = synth(false, {
+        customDomain: { ...customDomain, authDomainName: 'auth.pracstack.com' },
+        github,
+      });
+    });
+
+    it('serves the domain and www with the us-east-1 certificate and a TLS 1.2 minimum', () => {
+      site.template.hasResourceProperties('AWS::CloudFront::Distribution', {
+        DistributionConfig: Match.objectLike({
+          Aliases: ['pracstack.com', 'www.pracstack.com'],
+          ViewerCertificate: Match.objectLike({
+            AcmCertificateArn: CERT,
+            MinimumProtocolVersion: 'TLSv1.2_2021',
+            SslSupportMethod: 'sni-only',
+          }),
+        }),
+      });
+      site.template.hasOutput('SiteUrl', { Value: 'https://pracstack.com' });
+      site.template.hasOutput('SiteDnsTarget', {});
+    });
+
+    it('sends sign-in back to the canonical domain', () => {
+      site.template.hasResourceProperties('AWS::Cognito::UserPoolClient', {
+        CallbackURLs: ['https://pracstack.com/auth/callback'],
+        LogoutURLs: ['https://pracstack.com/'],
+      });
+    });
+
+    it('redirects other names (www) to the canonical domain, keeping path and query', () => {
+      const handler = new Function(`${spaRewriteSource('pracstack.com')}; return handler;`)() as (
+        e: unknown,
+      ) => {
+        statusCode?: number;
+        headers?: { location: { value: string } };
+        uri?: string;
+      };
+      const request = (host: string, uri: string, querystring = {}) => ({
+        request: { uri, headers: { host: { value: host } }, querystring },
+      });
+      expect(
+        handler(
+          request('www.pracstack.com', '/skills/csharp', { a: { value: '1' }, b: { value: '' } }),
+        ),
+      ).toEqual({
+        statusCode: 301,
+        statusDescription: 'Moved Permanently',
+        headers: { location: { value: 'https://pracstack.com/skills/csharp?a=1&b' } },
+      });
+      expect(handler(request('pracstack.com', '/skills')).uri).toBe('/index.html');
+      expect(handler(request('pracstack.com', '/main-ABCDEFGH.js')).uri).toBe('/main-ABCDEFGH.js');
+      expect(() => spaRewriteSource("evil.com'; alert(1)//")).toThrow();
+    });
+
+    it('adds sign-in at auth.<domain> when asked, and accepts both Cognito redirect URIs for GitHub', () => {
+      const t = withAuth.template;
+      t.hasResourceProperties('AWS::Cognito::UserPoolDomain', {
+        Domain: 'auth.pracstack.com',
+        CustomDomainConfig: { CertificateArn: CERT },
+        ManagedLoginVersion: 2,
+      });
+      t.hasOutput('SignInDomain', { Value: 'https://auth.pracstack.com' });
+      t.hasOutput('AuthDnsTarget', {});
+      const bridge = Object.values(t.findResources('AWS::Lambda::Function')).find((r) =>
+        JSON.stringify((r as Json).Properties.Environment ?? {}).includes('OIDC_REDIRECT_URIS'),
+      ) as Json;
+      const uris = JSON.stringify(bridge.Properties.Environment.Variables.OIDC_REDIRECT_URIS);
+      expect(uris).toContain('auth.pracstack.com/oauth2/idpresponse');
+      expect(uris).toContain('.amazoncognito.com/oauth2/idpresponse');
+      // The app's config and CSP use the new sign-in domain.
+      const dir = withAuth.app.synth().directory;
+      const configs = readdirSync(dir, { recursive: true })
+        .map(String)
+        .filter((f) => f.endsWith('config.json'))
+        .map((f) => readFileSync(join(dir, f), 'utf8'));
+      expect(configs.some((c) => c.includes('"domain":"https://auth.pracstack.com"'))).toBe(true);
+      const csp = JSON.stringify(t.findResources('AWS::CloudFront::ResponseHeadersPolicy'));
+      expect(csp).toContain('https://auth.pracstack.com');
+    });
+
+    it('passes the AWS Solutions checks, without the TLS acknowledgment', () => {
+      const { app } = synth(true, {
+        customDomain: { ...customDomain, authDomainName: 'auth.pracstack.com' },
+      });
+      expect(() => app.synth()).not.toThrow();
+    });
+  });
+
+  it('creates the certificate in us-east-1 for the domain, www and auth', () => {
+    const app = new App();
+    const stack = new CertificateStack(app, 'PracStack-test-certificate', {
+      env: { account: ACCOUNT, region: 'us-east-1' },
+      domainName: 'pracstack.com',
+      alternateNames: ['www.pracstack.com', 'auth.pracstack.com'],
+    });
+    Template.fromStack(stack).hasResourceProperties('AWS::CertificateManager::Certificate', {
+      DomainName: 'pracstack.com',
+      SubjectAlternativeNames: ['www.pracstack.com', 'auth.pracstack.com'],
+      ValidationMethod: 'DNS',
     });
   });
 
