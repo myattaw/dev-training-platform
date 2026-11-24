@@ -131,6 +131,9 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
     const fake = await cognitoMode(page);
     await page.goto('/skills/typescript');
     await page.goto('/skills/typescript/ts-primitive-types/practice');
+    // Signed out: PracStack's sign-in page first, then email sign-in through Cognito.
+    await expect(page).toHaveURL(/\/account\/sign-in\?returnTo=/);
+    await page.getByRole('button', { name: 'Sign in with email' }).click();
 
     // Back from the (fake) Cognito login, on the page that was asked for.
     await expect(page).toHaveURL(/\/skills\/typescript\/ts-primitive-types\/practice$/);
@@ -155,7 +158,8 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
   test('signing out clears the session and revokes the refresh token', async ({ page }) => {
     const fake = await cognitoMode(page);
     await page.goto('/challenges/pangram/workspace');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('banner').getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Sign in with email' }).click();
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible();
     await expect(page).toHaveURL(/\/challenges\/pangram\/workspace$/);
 
@@ -183,7 +187,8 @@ test.describe('sign-in with Cognito (fake identity provider)', () => {
   test('the sign-in page offers no social button unless configured', async ({ page }) => {
     await cognitoMode(page);
     await page.goto('/account/sign-in');
-    await expect(page.getByRole('heading', { name: 'Have an account?' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Sign in to PracStack' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sign in with email' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Continue with Google' })).toHaveCount(0);
     // Apple and GitHub are planned: visible, but disabled until configured.
     for (const name of ['Apple', 'GitHub']) {

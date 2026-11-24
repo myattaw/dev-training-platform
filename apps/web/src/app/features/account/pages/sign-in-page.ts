@@ -86,7 +86,7 @@ const PROVIDER_ICONS: Readonly<
             }}
           </p>
 
-          @if (providers().length > 0) {
+          @if (providers().length > 0 || comingSoon().length > 0) {
             <div class="providers">
               @for (provider of providers(); track provider) {
                 <button
