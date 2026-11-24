@@ -68,6 +68,24 @@ describe('post-deployment smoke checks', () => {
     expect(await failures(site)).toEqual([]);
   });
 
+  it("accept the site's own sign-in subdomain, but no other domain", async () => {
+    const withDomain = (domain: string) => {
+      const site = healthySite();
+      site[`${SITE}/config.json`] = () =>
+        new Response(JSON.stringify({ auth: { mode: 'cognito', domain, clientId: 'abc' } }), {
+          status: 200,
+          headers: { 'cache-control': 'no-cache' },
+        });
+      return site;
+    };
+    expect(await failures(withDomain('https://auth.d111111abcdef8.cloudfront.net'))).not.toContain(
+      'config.json: Cognito mode, public values only',
+    );
+    expect(await failures(withDomain('https://auth.evil.example'))).toContain(
+      'config.json: Cognito mode, public values only',
+    );
+  });
+
   it('catch a missing SPA fallback', async () => {
     const site = healthySite();
     delete site[`${SITE}/challenges/smoke-test-route/workspace`];

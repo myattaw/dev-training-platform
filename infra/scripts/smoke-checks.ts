@@ -91,7 +91,9 @@ export async function runSmokeChecks(
   check(
     'config.json: Cognito mode, public values only',
     auth?.['mode'] === 'cognito' &&
-      /^https:\/\/[a-z0-9-]+\.auth\.[a-z0-9-]+\.amazoncognito\.com$/.test(domain) &&
+      // A Cognito address, or the site's own sign-in subdomain (auth.<site>).
+      (/^https:\/\/[a-z0-9-]+\.auth\.[a-z0-9-]+\.amazoncognito\.com$/.test(domain) ||
+        domain === `https://auth.${site.hostname}`) &&
       clientId !== '' &&
       JSON.stringify(Object.keys(config as object)) === '["auth"]' &&
       Object.keys(auth).every((k) => ['mode', 'domain', 'clientId', 'providers'].includes(k)) &&
