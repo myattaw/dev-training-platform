@@ -348,7 +348,7 @@ export class JobAnalyzer {
   }
 
   protected signIn(): void {
-    void this.auth.signIn();
+    this.auth.openSignInPage();
   }
 
   private scenariosPart(): { scenarios?: ReadonlyMap<string, ScenarioProgress> } {

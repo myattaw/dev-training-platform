@@ -136,7 +136,7 @@ export class CompanyCatalog {
   }
 
   protected signIn(): void {
-    void this.auth.signIn();
+    this.auth.openSignInPage();
   }
 
   private navigate(params: Record<string, string | null>): void {

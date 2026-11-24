@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, InjectionToken, signal } from '@angular/core';
+import { Router } from '@angular/router';
 import {
   type AuthConfig,
   RuntimeConfigService,
@@ -78,6 +79,7 @@ const session = {
 export class AuthService {
   private readonly runtime = inject(RuntimeConfigService);
   private readonly navigate = inject(NAVIGATOR);
+  private readonly router = inject(Router);
   private readonly tokens = signal<StoredTokens | undefined>(session.read(TOKENS_KEY));
   private refreshing: Promise<StoredTokens | undefined> | undefined;
 
@@ -130,8 +132,23 @@ export class AuthService {
    */
   ensureSignedIn(returnPath?: string): boolean {
     if (this.canUseApi()) return true;
-    void this.signIn(returnPath);
+    this.openSignInPage(returnPath);
     return false;
+  }
+
+  /**
+   * Opens PracStack's own sign-in page (Google and GitHub buttons, then email),
+   * which returns to `returnPath` after signing in. Preferred over {@link signIn}
+   * for buttons: Cognito's hosted page cannot be styled as much.
+   */
+  openSignInPage(returnPath = currentPath(), mode: 'sign-in' | 'sign-up' = 'sign-in'): void {
+    const returnTo = safeReturnPath(returnPath);
+    void this.router.navigate(['/account/sign-in'], {
+      queryParams: {
+        ...(returnTo.startsWith('/account/sign-in') ? {} : { returnTo }),
+        ...(mode === 'sign-up' ? { mode: 'signup' } : {}),
+      },
+    });
   }
 
   /** Handles the redirect back from Cognito. Returns the path to continue at. */

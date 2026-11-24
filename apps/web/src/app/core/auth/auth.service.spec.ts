@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { Router } from '@angular/router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RuntimeConfigService } from '../config/runtime-config';
 import { AuthService, NAVIGATOR, SignInError } from './auth.service';
@@ -52,6 +53,21 @@ describe('AuthService', () => {
     const { auth, visited } = setup('local');
     expect(auth.status()).toBe('local');
     expect(auth.ensureSignedIn()).toBe(true);
+    expect(visited).toEqual([]);
+  });
+
+  it('sends signed-out users to the PracStack sign-in page, keeping a safe return path', () => {
+    const { auth, visited } = setup();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    expect(auth.ensureSignedIn('/companies/acme')).toBe(false);
+    expect(navigate).toHaveBeenCalledWith(['/account/sign-in'], {
+      queryParams: { returnTo: '/companies/acme' },
+    });
+    auth.openSignInPage('//evil.example/x', 'sign-up');
+    expect(navigate).toHaveBeenLastCalledWith(['/account/sign-in'], {
+      queryParams: { returnTo: '/', mode: 'signup' },
+    });
+    // Nothing leaves the app until the learner picks a sign-in method.
     expect(visited).toEqual([]);
   });
 

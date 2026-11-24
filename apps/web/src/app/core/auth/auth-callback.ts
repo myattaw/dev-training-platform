@@ -46,6 +46,6 @@ export class AuthCallback implements OnInit {
   }
 
   protected retry(): void {
-    void this.auth.signIn('/');
+    this.auth.openSignInPage('/');
   }
 }

@@ -126,9 +126,9 @@ export class TopNav {
   protected readonly session = inject(SessionService);
   protected readonly auth = inject(AuthService);
 
-  /** Sign in, or create an account (Cognito's sign-up page); both return to this page. */
+  /** PracStack's sign-in page (or its create-account view); both return to this page. */
   protected signIn(signUp = false): void {
-    void this.auth.signIn(undefined, { signUp });
+    this.auth.openSignInPage(undefined, signUp ? 'sign-up' : 'sign-in');
   }
   readonly toggleNav = output<void>();
 }

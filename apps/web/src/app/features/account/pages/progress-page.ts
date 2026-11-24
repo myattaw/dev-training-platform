@@ -23,7 +23,7 @@ import { AccountApi } from '../data-access/account-api';
     />
     @if (auth.status() === 'signed-out') {
       <app-alert type="info" heading="Sign in to see your progress">
-        <button alertAction type="button" class="btn btn--sm" (click)="auth.signIn()">
+        <button alertAction type="button" class="btn btn--sm" (click)="auth.openSignInPage()">
           Sign in
         </button>
       </app-alert>

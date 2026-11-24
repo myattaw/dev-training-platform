@@ -317,10 +317,10 @@ export class Landing {
   });
 
   protected createAccount(): void {
-    void this.auth.signIn('/', { signUp: true });
+    this.auth.openSignInPage('/', 'sign-up');
   }
 
   protected signIn(): void {
-    void this.auth.signIn('/');
+    this.auth.openSignInPage('/');
   }
 }
