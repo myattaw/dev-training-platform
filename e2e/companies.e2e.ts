@@ -183,9 +183,7 @@ test.describe('account', () => {
     await expect(page.getByRole('button', { name: /buy|upgrade|subscribe|purchase/i })).toHaveCount(
       0,
     );
-    await expect(
-      page.getByText('Continue with GitHub is not available yet', { exact: false }),
-    ).toBeVisible();
+    await expect(page.getByText(/Add another way to sign in and keep one account/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Import into my account' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Imported' })).toContainText(
