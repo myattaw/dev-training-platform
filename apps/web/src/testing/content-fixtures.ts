@@ -118,6 +118,11 @@ export const FIXTURE_TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: [],
     variants: ['T-SQL'],
     practice: [],
+    relatedPractice: [{ kind: 'skill', skillId: 'unions' }],
+    gap: {
+      notCovered: 'T-SQL is not practiced.',
+      resources: [{ label: 'SQL Server docs', url: 'https://learn.microsoft.com/en-us/sql/' }],
+    },
   },
   {
     id: 'azure-devops',
@@ -131,6 +136,7 @@ export const FIXTURE_TAXONOMY: readonly TaxonomyTerm[] = [
     },
     matchCase: ['ADO'],
     practice: [],
+    gap: { notCovered: 'Pipelines are not practiced.' },
   },
   {
     id: 'power-automate',
@@ -139,6 +145,7 @@ export const FIXTURE_TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: [],
     variants: ['Microsoft Flow'],
     practice: [],
+    gap: { notCovered: 'Flows are not practiced.' },
     note: 'Formerly Microsoft Flow.',
   },
 ];

@@ -1,41 +1,58 @@
 <app-page-header
-  heading="Job Description Analyzer"
-  description="Paste a job posting to see the technologies it asks for, the evidence for each, and a preparation path from PracStack's practice."
+  heading="Interview Study Planner"
+  description="Paste a job posting, say how much time you have, and get a study plan: what to practice, why, and where."
   [breadcrumbs]="[
     { label: 'Job Role Preparation', link: '/roles' },
-    { label: 'Analyze a job description' },
+    { label: 'Interview study planner' },
   ]"
 />
 
-<app-alert type="info" heading="Analyzed in your browser; the text is not sent to PracStack">
-  The posting is matched against a fixed list of technologies on this device. It is not uploaded,
-  logged or stored, not even in this browser. Saving a plan stores only the list of detected
-  technologies.
+<app-alert type="info" heading="Analyzed in your browser; the posting is not sent to PracStack">
+  The posting is matched against a fixed list of technologies and competencies on this device and
+  kept only while this page is open. Saving a plan stores the detected requirements, your interview
+  details and the schedule, never the posting text.
 </app-alert>
 
 <app-panel heading="Job posting">
-  <label class="field-label" for="posting">Paste the job description</label>
-  <textarea
-    id="posting"
-    class="input posting"
-    rows="12"
-    spellcheck="false"
-    autocomplete="off"
-    placeholder="Paste the job description here…"
-    [value]="draft()"
-    (input)="onInput($event)"
-    (keydown.control.enter)="analyze()"
-  ></textarea>
-  <div class="posting-actions">
-    <button type="button" class="btn btn--primary" (click)="analyze()">Analyze</button>
-    <button type="button" class="btn" (click)="useExample()">Try an example</button>
-    @if (draft() !== '') {
-      <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
-    }
-    <span class="count text-secondary" [class.over]="draft().length > maxChars" aria-live="polite">
-      {{ draft().length.toLocaleString('en') }} / {{ maxChars.toLocaleString('en') }} characters
-    </span>
-  </div>
+  @if (editing() || analysis() === undefined) {
+    <label class="field-label" for="posting">Paste the job description</label>
+    <textarea
+      id="posting"
+      class="input posting"
+      rows="12"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="Paste the job description here…"
+      [value]="draft()"
+      (input)="onInput($event)"
+      (keydown.control.enter)="analyze()"
+    ></textarea>
+    <div class="posting-actions">
+      <button type="button" class="btn btn--primary" (click)="analyze()">Analyze</button>
+      <button type="button" class="btn" (click)="useExample()">Try an example</button>
+      @if (analysis() !== undefined) {
+        <button type="button" class="btn btn--link" (click)="cancelEdit()">Cancel</button>
+      }
+      @if (draft() !== '') {
+        <button type="button" class="btn btn--link" (click)="clear()">Clear</button>
+      }
+      <span
+        class="count text-secondary"
+        [class.over]="draft().length > maxChars"
+        aria-live="polite"
+      >
+        {{ draft().length.toLocaleString('en') }} / {{ maxChars.toLocaleString('en') }} characters
+      </span>
+    </div>
+  } @else {
+    <div class="collapsed">
+      <p class="collapsed-text">
+        Job description analyzed ({{ draft().length.toLocaleString('en') }} characters). It stays in
+        this page only.
+      </p>
+      <button type="button" class="btn" (click)="edit()">Edit job description</button>
+    </div>
+  }
 </app-panel>
 
 @let s = data.state();
@@ -48,7 +65,11 @@
   </app-alert>
 }
 
-@if (analysis(); as a) {
+@if (stale()) {
+  <app-alert class="stale" type="warning" heading="The job description changed">
+    The results below no longer match it. Choose Analyze to update them.
+  </app-alert>
+} @else if (analysis(); as a) {
   @if (a.empty) {
     <app-panel>
       <app-empty-state
@@ -56,7 +77,7 @@
         message="Paste a job description above (the requirements section is enough), then choose Analyze. Or try the example posting."
       />
     </app-panel>
-  } @else {
+  } @else if (s.status === 'ready') {
     @if (a.truncated) {
       <app-alert
         type="warning"
@@ -67,143 +88,175 @@
       </app-alert>
     }
 
-    <app-panel heading="Summary">
-      <p class="summary" aria-live="polite">
-        {{ a.terms.length }}
-        {{ a.terms.length === 1 ? 'technology or practice' : 'technologies and practices' }}
-        detected: {{ covered().length }} with practice on PracStack, {{ uncovered().length }} not
-        covered yet.
-      </p>
+    <app-panel heading="Summary" headingId="summary-heading">
       @if (a.terms.length === 0) {
         <p class="text-secondary">
-          No known technologies were found. The analyzer recognizes a fixed list of names (for
-          example C#, SQL Server, Angular, Azure DevOps or Power Apps); see the documentation for
-          the full list.
+          No known technologies or competencies were found. The analyzer recognizes a fixed list of
+          names (for example C#, SQL Server, Angular, Azure DevOps, debugging or unit testing).
         </p>
+      } @else {
+        @let c = coverage();
+        <dl class="summary-grid" aria-labelledby="summary-heading">
+          @if (focus(); as f) {
+            <div class="stat wide">
+              <dt>Focus <span class="inferred">inferred</span></dt>
+              <dd>
+                @if (f.role.status === 'available') {
+                  <a [routerLink]="['/roles', f.role.id]">{{ f.role.title }}</a>
+                } @else {
+                  {{ f.role.title }}
+                }
+                <span class="text-secondary small">
+                  · planned as
+                  {{
+                    formatLabels[
+                      settings().format === 'unknown' ? f.format : settings().format
+                    ].toLowerCase()
+                  }}</span
+                >
+              </dd>
+            </div>
+          }
+          <div class="stat">
+            <dt>Requirements to prepare</dt>
+            <dd class="number">{{ c.total }}</dd>
+          </div>
+          <div class="stat">
+            <dt>Direct practice</dt>
+            <dd class="number">{{ c.direct }}</dd>
+          </div>
+          <div class="stat">
+            <dt>Partly or related</dt>
+            <dd class="number">{{ c.partial }}</dd>
+          </div>
+          <div class="stat">
+            <dt>Not covered</dt>
+            <dd class="number">{{ c.gaps }}</dd>
+          </div>
+          @if (next(); as n) {
+            <div class="stat wide">
+              <dt>Recommended next</dt>
+              <dd>
+                @if (n.link) {
+                  <a [routerLink]="n.link">{{ n.title }}</a>
+                } @else {
+                  {{ n.title }}
+                }
+                <span class="text-secondary small"> · {{ n.detail }}</span>
+              </dd>
+            </div>
+          }
+        </dl>
       }
     </app-panel>
 
     @if (a.terms.length > 0) {
-      <app-panel heading="Detected requirements" headingId="detected-heading" [flush]="true">
-        @for (g of groups(); track g.category) {
-          <section class="group" [attr.aria-labelledby]="'cat-' + g.category">
-            <h3 class="group-heading" [id]="'cat-' + g.category">{{ g.label }}</h3>
-            <ul class="terms">
-              @for (t of g.terms; track t.term.id) {
-                <li class="term" [attr.data-term]="t.term.id">
-                  <div class="term-head">
-                    <span class="term-label">{{ t.term.label }}</span>
-                    <app-badge [color]="confidenceColors[t.confidence]">
-                      {{ confidenceLabels[t.confidence] }} confidence
-                    </app-badge>
-                    @if (t.covered) {
-                      <app-status-indicator type="success">Practice available</app-status-indicator>
-                    } @else {
-                      <app-status-indicator type="neutral">Not covered yet</app-status-indicator>
-                    }
-                  </div>
-                  <ul class="evidence" aria-label="Evidence from the posting">
-                    @for (e of t.evidence; track e.text) {
-                      <li>
-                        <q>{{ e.text }}</q>
-                      </li>
-                    }
-                  </ul>
-                  @if (t.mentions > t.evidence.length) {
-                    <p class="term-note text-secondary">Mentioned {{ t.mentions }} times.</p>
-                  }
-                  @if (t.confidence === 'low' && t.term.ambiguity) {
-                    <p class="term-note text-secondary">{{ t.term.ambiguity.note }}</p>
-                  }
-                  @if (t.term.note) {
-                    <p class="term-note text-secondary">{{ t.term.note }}</p>
-                  }
-                </li>
-              }
-            </ul>
-          </section>
+      <app-panel heading="Interview details" headingId="details-heading">
+        <app-interview-settings-form
+          [(settings)]="settings"
+          [today]="today"
+          [inferredFormat]="focus()?.format"
+        />
+        @if (settings().company; as company) {
+          <div class="company">
+            <app-company-match [company]="company" />
+          </div>
         }
       </app-panel>
-    }
 
-    @if (uncovered().length > 0) {
-      <app-panel heading="Not covered by PracStack yet" headingId="uncovered-heading">
-        <p class="text-secondary small">
-          The posting asks for these, but PracStack has no practice for them yet. Prepare for them
-          elsewhere.
-        </p>
-        <ul class="uncovered" aria-labelledby="uncovered-heading">
-          @for (t of uncovered(); track t.term.id) {
-            <li>{{ t.term.label }}</li>
-          }
-        </ul>
-      </app-panel>
-    }
-
-    @if (a.experience.length > 0) {
-      <app-panel heading="Experience requirements" headingId="experience-heading">
-        <ul class="experience" aria-labelledby="experience-heading">
-          @for (x of a.experience; track x.text) {
-            <li>
-              <q>{{ x.text }}</q>
-              <span class="text-secondary">
-                ({{ x.maxYears ? x.minYears + '–' + x.maxYears : x.minYears + '+' }} years)
-              </span>
-            </li>
-          }
-        </ul>
-        <p class="text-secondary small">
-          For information only. PracStack cannot satisfy years-of-experience requirements: practice
-          here is not professional experience.
-        </p>
-      </app-panel>
-    }
-
-    @if (steps().length > 0) {
-      <app-panel heading="Suggested preparation path" headingId="path-heading">
-        <p class="text-secondary small">
-          PracStack practice for the covered requirements, in a sensible order: languages first,
-          ways of working last.
-        </p>
-        <app-term-path [steps]="steps()" [statusOf]="statusOf" />
-
-        <div class="save">
-          @if (auth.status() === 'signed-out') {
-            <button type="button" class="btn" (click)="signIn()">Sign in to save this plan</button>
-          } @else if (savedPlan(); as p) {
-            <app-alert type="success" heading="Plan saved">
-              <a [routerLink]="['/roles/plans', p.id]">{{ p.title }}</a> is in your saved plans.
-            </app-alert>
-          } @else {
-            <label class="field-label" for="plan-title">Plan title</label>
-            <div class="save-row">
-              <input
-                id="plan-title"
-                class="input"
-                type="text"
-                maxlength="80"
-                [value]="planTitle()"
-                (input)="onTitle($event)"
+      <app-tabs
+        idPrefix="results"
+        label="Results"
+        [tabs]="tabs()"
+        [selected]="tab()"
+        (selectedChange)="selectTab($event)"
+      />
+      @switch (tab()) {
+        @case ('plan') {
+          <div role="tabpanel" id="results-panel-plan" aria-labelledby="results-tab-plan">
+            <app-panel>
+              @if (plan(); as p) {
+                <app-study-plan-view
+                  [plan]="p"
+                  [index]="s.value.index"
+                  [today]="today"
+                  [editable]="true"
+                  [tracked]="tracked()"
+                  (toggleDone)="toggleDone($event)"
+                  (toggleSkip)="toggleSkip($event)"
+                />
+              }
+              <div class="save">
+                @if (auth.status() === 'signed-out') {
+                  <button type="button" class="btn" (click)="signIn()">
+                    Sign in to save this plan
+                  </button>
+                } @else if (savedPlan(); as saved) {
+                  <app-alert type="success" heading="Plan saved">
+                    <a [routerLink]="['/roles/plans', saved.id]">{{ saved.title }}</a> is in your
+                    saved plans. Open it to track progress and reschedule.
+                  </app-alert>
+                } @else {
+                  <label class="field-label" for="plan-title">Plan title</label>
+                  <div class="save-row">
+                    <input
+                      id="plan-title"
+                      class="input"
+                      type="text"
+                      maxlength="80"
+                      [placeholder]="defaultTitle()"
+                      [value]="planTitle()"
+                      (input)="onTitle($event)"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn--primary"
+                      [disabled]="saving()"
+                      (click)="save()"
+                    >
+                      Save plan
+                    </button>
+                  </div>
+                  <p class="text-secondary small">
+                    Saves the requirements, your interview details, the schedule and your marks,
+                    never the posting.
+                  </p>
+                  @if (saveError(); as err) {
+                    <app-alert type="error">{{ err }}</app-alert>
+                  }
+                }
+              </div>
+            </app-panel>
+          </div>
+        }
+        @case ('requirements') {
+          <div
+            role="tabpanel"
+            id="results-panel-requirements"
+            aria-labelledby="results-tab-requirements"
+          >
+            <app-panel>
+              <app-requirements-table
+                [analysis]="a"
+                [requirements]="requirements()"
+                [chosen]="chosen()"
+                (choose)="chooseAlternative($event)"
               />
-              <button
-                type="button"
-                class="btn btn--primary"
-                [disabled]="saving() || planTitle().trim() === ''"
-                (click)="save()"
-              >
-                Save plan
-              </button>
-            </div>
-            <p class="text-secondary small">
-              Saves the title and the {{ termIds().length }} detected technologies only, never the
-              posting.
-            </p>
-            @if (saveError(); as err) {
-              <app-alert type="error">{{ err }}</app-alert>
-            }
-          }
-        </div>
-      </app-panel>
+            </app-panel>
+          </div>
+        }
+        @case ('gaps') {
+          <div role="tabpanel" id="results-panel-gaps" aria-labelledby="results-tab-gaps">
+            <app-panel>
+              <app-coverage-gaps
+                [terms]="a.terms"
+                [requirements]="requirements()"
+                [index]="s.value.index"
+              />
+            </app-panel>
+          </div>
+        }
+      }
     }
 
     <app-experience-note />

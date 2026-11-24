@@ -1,4 +1,4 @@
-# Job Role Preparation and the Job Description Analyzer
+# Job Role Preparation, the Job Description Analyzer and the Interview Study Planner
 
 Learners pick a target job role and follow a preparation path built **only from real PracStack
 content**, or paste a job posting and get the same kind of path for the technologies it asks for.
@@ -134,12 +134,83 @@ notice. Analysis of 20,000 characters takes a few milliseconds (a unit test asse
 first, ways of working last) and then by first mention; activities shared by several terms appear
 once. Uncovered terms are listed separately under "Not covered by PracStack yet".
 
+### Requirement levels, alternatives and qualifications
+
+Detection confidence (how sure a name match is) is kept separate from how the posting asks for
+something, which drives preparation priority:
+
+| Requirement level | From | Priority |
+| --- | --- | --- |
+| Required | Requirements / Minimum qualifications / What we're looking for…, or "required", "must have", "strong", "proficiency" | High |
+| Core responsibility | Responsibilities / What will you do? / In this role…, or a line starting with a work verb ("Write", "Maintain", "Debug") | High |
+| Preferred | Preferred qualifications / Nice to have, or "preferred", "is a plus", "an advantage" | Medium |
+| General familiarity | "familiarity with", "exposure to", "basic knowledge of" | Low |
+| One of several options | "X or Y", or examples ("such as", "e.g.") | The group's level, for the chosen option only |
+| Mentioned | About us, Benefits… | Low |
+| Uncertain | No headings and no wording | Medium |
+
+The wording nearest a mention wins over its section, so "Nice to have: Docker" inside a
+Requirements list is preferred. Alternative groups record their kind (`or` or `examples`), level
+and the broader requirement they illustrate ("cloud platforms (e.g., Azure, AWS)" → parent
+`cloud`); the learner chooses which option to prepare (default: their preferred language, else
+the best-covered option). Degrees, work eligibility and communication are listed separately as
+qualifications that PracStack cannot practice or verify.
+
+### Coverage
+
+`TaxonomyTerm.coverage` (derived when not set): **executable** (code or SQL that runs and is
+graded), **conceptual** (knowledge questions), **partial** (direct practice for part of the term),
+**related** (only `relatedPractice`: transferable, never counted as coverage) and **none**. Every
+term that is not directly covered must have a `gap` that says what is not covered, with optional
+official documentation links (https on an allowed documentation host; each URL was checked when
+added). Examples: modern C# is *related* practice for .NET Framework; ASP.NET Core is *related* for
+classic ASP.NET MVC; "ASP.NET" alone is *partial*; SSIS and SSRS are *conceptual*, with a gap
+saying packages and reports are not built or deployed.
+
+### Study planner
+
+`packages/content-model/src/study-planner.ts`, pure and deterministic like the analyzer, in the
+browser. Inputs: the requirements (term, level, priority), interview settings (date, daily
+minutes, format, preferred language), today's date, content metadata (from the public catalogs;
+missing content is never linked) and server-graded progress.
+
+- **Without a date**: a prioritized path. **With a date**: days from today to the day before the
+  interview; the total never exceeds days × daily minutes (one hour a day is assumed, and said,
+  when no daily time is given). What does not fit is listed, most important first.
+- **Ranking**: priority, then weighted breadth first (each requirement's first activity before
+  any second; core technologies for the interview format get about three activities for every one
+  of a peripheral requirement), then job-aware order inside a requirement by interview format:
+  enterprise exercises first for enterprise interviews, algorithm challenges first for live
+  coding. General algorithm challenges drop one priority for enterprise, backend, database and
+  knowledge interviews. When the format is "Not sure yet", the format of the inferred role is used.
+- **Durations**: skills 25 min (developing 35, strong 15, mastered 10 as an optional final
+  review), challenges 20/40/60 min by difficulty, scenarios their estimate, external study
+  30/20/15 min by priority, a 20-minute review every third day and a 45-minute mock interview on
+  the last day.
+- **Progress**: solved challenges and completed scenarios are not scheduled again (listed as done,
+  verified). Skills: not assessed (never answered: not a weakness), practiced (fewer than 3
+  answers), developing, strong (score ≥ 70) or mastered. Manual marks (external study, reviews,
+  mock interviews) and skips are stored separately from server-graded progress.
+- **Not covered**: important requirements PracStack does not fully cover stay in the plan as
+  external study items, with what is not covered and documentation links.
+- **Inferred focus**: the job role with the most high-priority overlap, shown as "inferred".
+
 ### Saved plans and privacy
 
-Signed-in users can save the path: `POST /api/me/preparation/plans { title, termIds }`. The API
-accepts exactly those two fields (any other field is a 400), validates term ids against the
-taxonomy, sanitizes the title like display names (1–80 characters) and keeps at most 10 plans
-(409 beyond). A plan's path is rebuilt from its term ids, so the posting is never needed again.
+Signed-in users can save a plan: `POST /api/me/preparation/plans` with `title`, `termIds`,
+`settings`, `requirements` (term, level, priority), `schedule` (days of activity keys and
+minutes) and `done` / `skipped` keys. Every object is validated field by field and any unknown
+field is a 400, so posting text and evidence excerpts cannot be stored even by a modified
+client. `PATCH /api/me/preparation/plans/:id` renames, changes settings, replaces or removes the
+schedule (`schedule: null`) and records marks; plans are stored per user, so another user's plan
+id is not found (404). At most 10 plans (409 beyond); the `advanced-preparation-plans` feature
+flag is reserved for future premium plan features, and nothing is gated today.
+
+A saved schedule is shown exactly as saved, with today's statuses. It changes only when the
+learner reschedules ("Reschedule unfinished work", or "Recalculate the remaining days") or saves a
+new date or daily time: days before today and completed work keep their place, and everything
+else is planned again from today. The posting itself stays in the page's memory while it is open
+and is never stored, not even in the browser.
 The e2e test asserts that no request body or URL contains the posting.
 
 ## API
@@ -148,7 +219,8 @@ The e2e test asserts that no request body or URL contains the posting.
 | --- | --- | --- | --- |
 | GET | `/api/me/preparation` | | `{ targetRoleId, plans }` |
 | PUT | `/api/me/preparation/target-role` | `{ roleId }` (null clears) | same; 404 unknown role, 409 coming-soon role |
-| POST | `/api/me/preparation/plans` | `{ title, termIds }` | the plan (UUID id) |
+| POST | `/api/me/preparation/plans` | `{ title, termIds, settings?, requirements?, schedule?, done?, skipped? }` | the plan (UUID id) |
+| PATCH | `/api/me/preparation/plans/:id` | any of `title, settings, requirements, schedule` (null removes), `done, skipped` | the plan; 404 if not yours |
 | DELETE | `/api/me/preparation/plans/:id` | | `{ deleted: true }`; 404 if not yours |
 
 Storage (`AccountStore`): one record per user. DynamoDB item `USER#<user> / PREP` with top-level
@@ -159,8 +231,11 @@ Storage (`AccountStore`): one record per user. DynamoDB item `USER#<user> / PREP
 
 - Keyword matching cannot understand negation ("Java not required" still detects Java) or
   seniority; it only recognizes names in the taxonomy.
-- Coverage means PracStack has *some* practice for a term, not that the practice covers
-  everything a job means by it.
+- Coverage levels are curated per term; even direct practice does not cover everything a job
+  means by a technology, and practice is not professional experience.
+- Requirement levels come from headings and nearby wording; unusual postings (one long paragraph,
+  tables, other languages) are classified as uncertain or mentioned.
+- Durations are estimates; the planner does not adapt to how fast the learner actually works.
 - Enterprise Scenarios are not registered yet; the scenario step of the .NET path uses the
   `employee-api` enterprise challenge until they are.
 
@@ -176,5 +251,6 @@ technologies. Run `npm run content:build` and update `content/src/content.spec.t
 plans store it), the canonical `label`, unambiguous `aliases`, `variants` for abbreviations and
 historical names, `matchCase` for names that are also English words or acronyms, and `ambiguity`
 (with `context`) for names that can mean something else. Point `practice` at real activities, or
-leave it empty when PracStack does not cover the term. Add a test to
+leave it empty when PracStack does not cover the term (then add a `gap`, and
+`relatedPractice` where something transfers). Add a test to
 `packages/content-model/src/job-analysis.spec.ts` for any new matching subtlety.

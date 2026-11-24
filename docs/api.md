@@ -40,7 +40,7 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 | PUT    | `/api/me/companies/:slug/questions/:questionId` | `{ status }`            | the learner's own mark |
 | GET    | `/api/me/preparation`                        |                            | target job role and saved plans |
 | PUT    | `/api/me/preparation/target-role`            | `{ roleId }` (null clears) | target role (available roles only) |
-| POST / DELETE | `/api/me/preparation/plans`, `/plans/:id` | `{ title, termIds }`  | save (max 10, term ids only) / delete a plan |
+| POST / PATCH / DELETE | `/api/me/preparation/plans`, `/plans/:id` | `{ title, termIds, settings?, requirements?, schedule?, done?, skipped? }` | save (max 10, never posting text) / update / delete a plan |
 | GET    | `/api/scenarios/progress`                    |                            | Enterprise Scenarios the learner has started, with per-task status |
 | GET    | `/api/scenarios/:id/progress`                 |                            | one scenario's task statuses |
 | POST   | `/api/scenarios/:id/answer`                   | `{ taskId, answer }`       | grades a question task against the private key; returns the result, the correct answer, the explanation and progress. Challenge tasks are done only through an accepted challenge submission |

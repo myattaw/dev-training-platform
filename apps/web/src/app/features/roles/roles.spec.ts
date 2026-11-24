@@ -5,12 +5,15 @@ import type {
   ChallengeProgressResponse,
   PreparationResponse,
   ProgressResponse,
+  SavedPlan,
 } from '@pracstack/api-contracts';
-import type { ActivityRef } from '@pracstack/content-model';
+import { type ActivityRef, addDays } from '@pracstack/content-model';
 import { provideTestContent } from '../../../testing/content-fixtures';
 import { FakeApiClient, provideFakeApi } from '../../../testing/fake-api';
 import { activityStatus, pathProgress, type ProgressData } from './data-access/role-progress';
+import { localToday } from './data-access/study-plan';
 import { JobAnalyzer } from './pages/analyze/job-analyzer';
+import { SavedPlanPage } from './pages/plan/saved-plan';
 import { RoleCatalog } from './pages/catalog/role-catalog';
 import { RoleDetail } from './pages/detail/role-detail';
 
@@ -222,89 +225,175 @@ describe('RoleDetail', () => {
 describe('JobAnalyzer', () => {
   const POSTING = [
     'Platform engineer',
+    '',
+    'Requirements:',
     '- 4+ years of experience with C# and TypeScript.',
     '- SQL Server (T-SQL) and ADO pipelines.',
-    '- Power Automate (formerly Microsoft Flow).',
+    '- Power Automate (formerly Microsoft Flow) is a plus.',
   ].join('\n');
 
-  async function analyze(fake = api()) {
+  const click = (el: HTMLElement, label: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => text(b) === label)?.click();
+
+  async function analyze(fake = api(), posting = POSTING) {
     const result = await render(JobAnalyzer, fake);
     const textarea = result.el.querySelector<HTMLTextAreaElement>('textarea');
     if (!textarea) throw new Error('no textarea');
-    textarea.value = POSTING;
+    textarea.value = posting;
     textarea.dispatchEvent(new Event('input'));
-    [...result.el.querySelectorAll<HTMLButtonElement>('button')]
-      .find((b) => text(b) === 'Analyze')
-      ?.click();
+    click(result.el, 'Analyze');
     await result.fixture.whenStable();
     await settle();
     await result.fixture.whenStable();
     return { ...result, fake };
   }
 
+  async function openTab(el: HTMLElement, fixture: { whenStable(): Promise<unknown> }, id: string) {
+    el.querySelector<HTMLButtonElement>(`#results-tab-${id}`)?.click();
+    await fixture.whenStable();
+  }
+
   it('says the posting is analyzed in the browser and not sent', async () => {
     const { el } = await render(JobAnalyzer, api());
     expect(text(el.querySelector('app-alert'))).toContain(
-      'Analyzed in your browser; the text is not sent to PracStack',
+      'Analyzed in your browser; the posting is not sent to PracStack',
     );
     expect(el.querySelector('textarea')?.getAttribute('spellcheck')).toBe('false');
   });
 
-  it('shows detected technologies by category, with evidence and confidence', async () => {
+  it('collapses the posting after analysis, and editing it marks the results stale', async () => {
+    const { el, fixture } = await analyze();
+    expect(el.querySelector('textarea')).toBeNull();
+    expect(text(el)).toContain('Job description analyzed');
+    click(el, 'Edit job description');
+    await fixture.whenStable();
+    const textarea = el.querySelector<HTMLTextAreaElement>('textarea')!;
+    expect(textarea.value).toContain('Platform engineer');
+    textarea.value = `${textarea.value}\n- Kubernetes`;
+    textarea.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    expect(text(el)).toContain('The job description changed');
+    expect(el.querySelector('app-study-plan-view')).toBeNull();
+    click(el, 'Analyze');
+    await fixture.whenStable();
+    expect(el.querySelector('app-study-plan-view')).not.toBeNull();
+  });
+
+  it('shows the study plan first, with a summary of coverage', async () => {
     const { el } = await analyze();
-    const term = (id: string) => el.querySelector(`[data-term="${id}"]`);
-    expect(text(term('csharp'))).toContain('High confidence');
-    expect(text(term('csharp'))).toContain('Practice available');
-    expect(text(term('csharp')?.querySelector('.evidence'))).toBe(
+    expect(el.querySelector('#results-tab-plan')?.getAttribute('aria-selected')).toBe('true');
+    const stat = (label: string) =>
+      text(
+        [...el.querySelectorAll('.stat')]
+          .find((d) => text(d.querySelector('dt')) === label)
+          ?.querySelector('dd'),
+      );
+    expect(stat('Requirements to prepare')).toBe('5');
+    expect(stat('Direct practice')).toBe('2');
+    expect(stat('Partly or related')).toBe('1');
+    expect(stat('Not covered')).toBe('2');
+    // Without a date: a prioritized path, most important first.
+    expect(text(el.querySelector('.budget'))).toContain('Add an interview date');
+    // Progress counts: the solved challenge is done, the mastered skill becomes a final review.
+    const keys = [...el.querySelectorAll('.item')].map((i) => i.getAttribute('data-key'));
+    expect(keys).toEqual([
+      'external:sql-server',
+      'external:azure-devops',
+      'skill:unions',
+      'external:power-automate',
+      'skill:primitives',
+    ]);
+    expect(text(el.querySelector('details.extra'))).toContain('Already done (1)');
+    expect(text(el.querySelector('[data-key="skill:unions"]'))).toContain('Developing mastery');
+    // Not covered at all: kept as external study with its reason.
+    expect(text(el.querySelector('[data-key="external:azure-devops"]'))).toContain(
+      'Not covered by PracStack: Pipelines are not practiced.',
+    );
+  });
+
+  it('fits the schedule into the interview date and daily time', async () => {
+    const { el, fixture } = await analyze();
+    click(el, 'In 3 days');
+    click(el, '30 min');
+    await fixture.whenStable();
+    const days = [...el.querySelectorAll('.day')];
+    expect(days).toHaveLength(3);
+    expect(text(el.querySelector('.budget'))).toContain('available (3 days × 30 min)');
+    for (const day of days) {
+      const minutes = [...day.querySelectorAll('.item-meta')]
+        .map((m) => Number(/^(\d+) min/.exec(text(m) ?? '')?.[1] ?? 0))
+        .reduce((a, b) => a + b, 0);
+      expect(minutes).toBeLessThanOrEqual(30);
+    }
+  });
+
+  it('lists requirements with level, priority and coverage; evidence is collapsed', async () => {
+    const { el, fixture } = await analyze();
+    await openTab(el, fixture, 'requirements');
+    const row = (id: string) => el.querySelector(`tr[data-term="${id}"]`);
+    expect(text(row('csharp'))).toContain('Required');
+    expect(text(row('csharp'))).toContain('High priority');
+    expect(text(row('csharp'))).toContain('Hands-on practice');
+    expect(text(row('power-automate'))).toContain('Preferred');
+    expect(text(row('power-automate'))).toContain('Medium priority');
+    expect(text(row('azure-devops'))).toContain('Ambiguous');
+    expect(row('csharp')?.querySelector('details')?.hasAttribute('open')).toBe(false);
+    expect(text(row('csharp')?.querySelector('details'))).toContain(
       '4+ years of experience with C# and TypeScript.',
     );
-    expect(text(term('sql-server'))).toContain('Not covered yet');
-    expect(text(term('azure-devops'))).toContain('Low confidence');
-    expect(text(term('azure-devops'))).toContain('Only with pipeline words.');
-    expect(text(term('power-automate'))).toContain('Formerly Microsoft Flow.');
-    expect([...el.querySelectorAll('.group-heading')].map((h) => text(h))).toEqual([
-      'Languages',
-      'Databases and data',
-      'DevOps and tooling',
-      'Business applications',
-    ]);
+    expect(text(row('csharp')?.querySelector('details'))).toContain('high confidence');
+    expect(text(el)).toContain('PracStack cannot verify degrees, years of experience');
   });
 
-  it('lists uncovered requirements and experience requirements as information only', async () => {
-    const { el } = await analyze();
-    const uncovered = [...el.querySelectorAll('.uncovered li')].map((li) => text(li));
-    expect(uncovered).toEqual(['SQL Server', 'Azure DevOps', 'Power Automate']);
-    const experience = text(el.querySelector('.experience'));
-    expect(experience).toContain('4+ years of experience with C# and TypeScript.');
-    expect(text(el)).toContain('PracStack cannot satisfy years-of-experience requirements');
+  it('explains coverage gaps: why, related practice, what is not covered, where to study', async () => {
+    const { el, fixture } = await analyze();
+    await openTab(el, fixture, 'gaps');
+    const gap = el.querySelector('.gap[data-term="sql-server"]');
+    expect(text(gap)).toContain('Related practice only');
+    expect(text(gap)).toContain('Required in the posting');
+    expect(text(gap)).toContain('Union types');
+    expect(text(gap)).toContain('T-SQL is not practiced.');
+    const link = gap?.querySelector<HTMLAnchorElement>('a[href^="https://"]');
+    expect(link?.getAttribute('rel')).toBe('noopener noreferrer');
   });
 
-  it('builds a preparation path from covered terms only', async () => {
-    const { el } = await analyze();
-    const steps = [...el.querySelectorAll('app-term-path .step-name')].map((s) => text(s));
-    expect(steps).toEqual(['1C#', '2TypeScript']);
-    expect([...el.querySelectorAll('app-term-path a')].map((a) => text(a))).toEqual([
-      'Pangram',
-      'Primitive types',
-      'Union types',
-    ]);
+  it('lets the learner choose between alternatives', async () => {
+    const { el, fixture } = await analyze(api(), 'Requirements:\n- C# or TypeScript');
+    await openTab(el, fixture, 'requirements');
+    expect(text(el.querySelector('.alternatives'))).toContain('One of: C#, TypeScript');
+    const select = el.querySelector<HTMLSelectElement>('.alternatives select')!;
+    expect(select.value).toBe('csharp');
+    select.value = 'typescript';
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    expect(text(el.querySelector('tr[data-term="csharp"]'))).toContain('Not in the plan');
+    expect(text(el.querySelector('tr[data-term="typescript"]'))).toContain('High priority');
   });
 
-  it('never sends the posting: saving a plan posts only a title and term ids', async () => {
+  it('never sends the posting: a saved plan holds requirements, settings, keys and marks only', async () => {
     const fake = api().on('POST /me/preparation/plans', (body) => ({
       id: '6d1f5e9a-1c35-4a8b-9a51-1d8f0d5c3b11',
       createdAt: '2026-11-23T10:00:00.000Z',
       ...(body as object),
     }));
     const { el, fixture } = await analyze(fake);
-    [...el.querySelectorAll<HTMLButtonElement>('button')]
-      .find((b) => text(b) === 'Save plan')
-      ?.click();
+    click(el, 'In 1 week');
+    await fixture.whenStable();
+    click(el, 'Save plan');
     await settle();
     await fixture.whenStable();
     const save = fake.calls.find((c) => c.route === 'POST /me/preparation/plans');
-    expect(Object.keys(save?.input as object).sort()).toEqual(['termIds', 'title']);
-    expect((save?.input as { termIds: string[] }).termIds).toEqual([
+    const input = save?.input as Record<string, unknown>;
+    expect(Object.keys(input).sort()).toEqual([
+      'done',
+      'requirements',
+      'schedule',
+      'settings',
+      'skipped',
+      'termIds',
+      'title',
+    ]);
+    expect(input['termIds']).toEqual([
       'csharp',
       'typescript',
       'sql-server',
@@ -312,16 +401,16 @@ describe('JobAnalyzer', () => {
       'power-automate',
     ]);
     for (const call of fake.calls) {
-      expect(JSON.stringify(call.input ?? null)).not.toContain('years of experience');
+      const sent = JSON.stringify(call.input ?? null);
+      expect(sent).not.toContain('years of experience');
+      expect(sent).not.toContain('Platform engineer');
     }
     expect(text(el)).toContain('Plan saved');
   });
 
   it('explains empty input', async () => {
     const { el, fixture } = await render(JobAnalyzer, api());
-    [...el.querySelectorAll<HTMLButtonElement>('button')]
-      .find((b) => text(b) === 'Analyze')
-      ?.click();
+    click(el, 'Analyze');
     await fixture.whenStable();
     expect(text(el)).toContain('Nothing to analyze yet');
   });
@@ -394,5 +483,104 @@ describe('pathProgress', () => {
       skills: { total: 2, mastered: 0, practiced: 0, notAssessed: 2 },
       next: { groupIndex: 0, ref: skill('a') },
     });
+  });
+});
+
+describe('SavedPlanPage', () => {
+  const ID = '6d1f5e9a-1c35-4a8b-9a51-1d8f0d5c3b11';
+  const today = localToday();
+  const yesterday = addDays(today, -1);
+  const PLAN: SavedPlan = {
+    id: ID,
+    title: 'Contoso interview',
+    termIds: ['typescript', 'sql-server'],
+    createdAt: '2026-11-20T10:00:00.000Z',
+    settings: {
+      format: 'backend',
+      interviewDate: addDays(today, 3),
+      dailyMinutes: 60,
+      company: 'Contoso',
+    },
+    requirements: [
+      { termId: 'typescript', requirement: 'required', priority: 'high' },
+      { termId: 'sql-server', requirement: 'required', priority: 'high' },
+    ],
+    schedule: [
+      {
+        date: yesterday,
+        items: [
+          { key: 'external:sql-server', minutes: 30 },
+          { key: 'skill:unions', minutes: 35 },
+        ],
+      },
+      { date: today, items: [{ key: 'skill:primitives', minutes: 10 }] },
+    ],
+    done: ['external:sql-server'],
+    skipped: [],
+  };
+  const fake = () =>
+    api({ targetRoleId: null, plans: [PLAN] })
+      .on(`PATCH /me/preparation/plans/${ID}`, (body) => ({ ...PLAN, ...(body as object) }))
+      .on('GET /companies', () => ({
+        companies: [],
+        total: 0,
+        page: 1,
+        pageSize: 25,
+        letters: [],
+      }));
+  const click = (el: HTMLElement, label: string) =>
+    [...el.querySelectorAll<HTMLButtonElement>('button')].find((b) => text(b) === label)?.click();
+
+  it('shows the saved schedule as saved, with done work and a resume link', async () => {
+    const { el } = await render(SavedPlanPage, fake(), { planId: ID });
+    const days = [...el.querySelectorAll('.day')].map((d) =>
+      [...d.querySelectorAll('.item')].map((i) => i.getAttribute('data-key')),
+    );
+    expect(days).toEqual([['external:sql-server', 'skill:unions'], ['skill:primitives']]);
+    expect(text(el.querySelector('[data-key="external:sql-server"]'))).toContain('Marked done');
+    expect(text(el)).toContain('Resume your preparation');
+    expect(text(el)).toContain('Contoso is not in the company catalog');
+  });
+
+  it('offers to reschedule missed work, keeping completed work where it was', async () => {
+    const api = fake();
+    const { el, fixture } = await render(SavedPlanPage, api, { planId: ID });
+    expect(text(el)).toContain('1 activity was not finished on schedule');
+    click(el, 'Reschedule unfinished work');
+    await settle();
+    await fixture.whenStable();
+    const patch = api.calls.find((c) => c.route === `PATCH /me/preparation/plans/${ID}`);
+    const schedule = (patch?.input as { schedule: SavedPlan['schedule'] }).schedule!;
+    expect(schedule[0]).toEqual({
+      date: yesterday,
+      items: [{ key: 'external:sql-server', minutes: 30 }],
+    });
+    const later = schedule.filter((d) => d.date >= today).flatMap((d) => d.items.map((i) => i.key));
+    expect(later).toContain('skill:unions');
+    for (const d of schedule.filter((x) => x.date >= today))
+      expect(d.items.reduce((s, i) => s + i.minutes, 0)).toBeLessThanOrEqual(60);
+  });
+
+  it('records marks and renames through PATCH', async () => {
+    const api = fake();
+    const { el, fixture } = await render(SavedPlanPage, api, { planId: ID });
+    el.querySelector<HTMLButtonElement>('[data-key="skill:unions"] .btn--link')?.click();
+    await settle();
+    const title = el.querySelector<HTMLInputElement>('#plan-title')!;
+    title.value = 'Contoso round 2';
+    title.dispatchEvent(new Event('input'));
+    await fixture.whenStable();
+    click(el, 'Rename');
+    await settle();
+    const patches = api.calls.filter((c) => c.route === `PATCH /me/preparation/plans/${ID}`);
+    expect(patches.map((c) => c.input)).toEqual([
+      { skipped: ['skill:unions'] },
+      { title: 'Contoso round 2' },
+    ]);
+  });
+
+  it('shows not found for a plan that is not the learner’s', async () => {
+    const { el } = await render(SavedPlanPage, fake(), { planId: 'someone-else' });
+    expect(text(el)).toContain('Plan not found');
   });
 });

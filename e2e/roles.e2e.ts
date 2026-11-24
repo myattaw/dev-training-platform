@@ -92,20 +92,28 @@ test.describe('Job Role Preparation', () => {
   });
 });
 
-test.describe('Job Description Analyzer', () => {
+test.describe('Interview Study Planner', () => {
   /** A unique phrase, so we can prove the posting never reaches the API. */
   const MARKER = 'Zebra-Quokka claims platform';
   const POSTING = `${MARKER}
-Requirements:
-- 5+ years of experience with C# and .NET
-- SQL Server and T-SQL; generic SQL reporting
-- REST APIs on ASP.NET Core, unit testing
-- CI/CD with Azure DevOps (ADO pipelines) and Docker
-- Power Automate (formerly Microsoft Flow)`;
 
-  test('analyses in the browser, never sends the posting, and saves only term ids', async ({
+What will you do?
+- Write business applications using C#, MVC, SSIS and SSRS.
+- Test and debug programs; maintain existing systems.
+- Write technical documentation.
+
+Requirements:
+- 5+ years of experience with C# and the .NET Framework
+- Experience with SQL Server, SSIS and SSRS
+- Experience with microservices and APIs is a plus
+- Familiarity with cloud platforms (e.g., Azure, AWS)
+- Must be authorized to work in the United States`;
+
+  test('plans in the browser within the time budget, saves no posting text, and tracks the plan', async ({
     page,
   }) => {
+    // A long flow: analyze, plan, three tabs, save, reopen, mark, follow a link, delete.
+    test.setTimeout(120_000);
     const bodies: string[] = [];
     const urls: string[] = [];
     page.on('request', (request) => {
@@ -116,59 +124,122 @@ Requirements:
 
     await page.goto('/roles/analyze');
     await expect(
-      page.getByText('Analyzed in your browser; the text is not sent to PracStack'),
+      page.getByText('Analyzed in your browser; the posting is not sent to PracStack'),
     ).toBeVisible();
     await page.getByLabel('Paste the job description').fill(POSTING);
     await page.getByRole('button', { name: 'Analyze', exact: true }).click();
 
-    const term = (id: string) => page.locator(`[data-term="${id}"]`);
-    await expect(term('csharp')).toContainText('High confidence');
-    await expect(term('csharp')).toContainText('5+ years of experience with C# and .NET');
-    await expect(term('sql-server')).toContainText('Practice available');
-    await expect(term('sql')).toContainText('generic SQL reporting');
-    await expect(term('azure-devops')).toBeVisible();
-    await expect(term('power-automate')).toContainText('Formerly Microsoft Flow.');
-    await expect(term('docker')).toContainText('Not covered yet');
-    await expect(page.locator('.uncovered')).toContainText('Docker');
-    await expect(page.locator('.experience')).toContainText('5+ years of experience');
-    await expect(
-      page.getByText(/PracStack cannot satisfy years-of-experience requirements/),
-    ).toBeVisible();
-    await expect(page.getByRole('list', { name: 'Suggested preparation path' })).toContainText(
-      'Value and reference types',
+    // The posting collapses; the study plan is the default view.
+    await expect(page.getByText(/Job description analyzed/)).toBeVisible();
+    await expect(page.getByLabel('Paste the job description')).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: 'Study plan' })).toHaveAttribute(
+      'aria-selected',
+      'true',
     );
+    await expect(page.locator('.summary-grid')).toContainText('Requirements to prepare');
 
+    // One week at two hours a day: never more than 2 h on any day.
+    await page.getByRole('button', { name: 'In 1 week' }).click();
+    await page.getByRole('button', { name: '2 hours' }).click();
+    await page
+      .getByLabel('Interview format')
+      .selectOption({ label: 'Enterprise application development' });
+    await expect(page.locator('.budget')).toContainText('available (7 days × 2 h)');
+    await expect(page.locator('.day')).toHaveCount(7);
+    for (const total of await page.locator('.day-total').allTextContents()) {
+      expect(total.trim()).toMatch(/ of 2 h$/);
+      const [, h, m] = /^(?:(\d+) h)? ?(?:(\d+) min)?/.exec(total.trim()) ?? [];
+      expect(Number(h ?? 0) * 60 + Number(m ?? 0)).toBeLessThanOrEqual(120);
+    }
+    // Unsupported requirements stay in the plan as external study.
+    await expect(page.locator('[data-key="external:dotnet-framework"]')).toBeVisible();
+
+    // Requirements: level, priority and coverage; evidence collapsed until opened.
+    await page.getByRole('tab', { name: /Detected requirements/ }).click();
+    const row = (id: string) => page.locator(`tr[data-term="${id}"]`);
+    await expect(row('csharp')).toContainText('Required');
+    await expect(row('csharp')).toContainText('High priority');
+    await expect(row('microservices')).toContainText('Preferred');
+    await expect(row('aspnet-mvc')).toContainText('Ambiguous');
+    await expect(row('csharp').getByText('5+ years of experience with C#')).toBeHidden();
+    await row('csharp')
+      .getByText(/Evidence/)
+      .click();
+    await expect(row('csharp').getByText('5+ years of experience with C#')).toBeVisible();
+    await expect(page.locator('.alternatives')).toContainText('Azure, AWS');
+    await expect(page.getByText('Must be authorized to work in the United States')).toBeVisible();
+
+    // Coverage gaps: what is not covered and official documentation.
+    await page.getByRole('tab', { name: /Coverage gaps/ }).click();
+    const framework = page.locator('.gap[data-term="dotnet-framework"]');
+    await expect(framework).toContainText('Related practice only');
+    await expect(
+      framework.locator('a[href^="https://learn.microsoft.com/"]').first(),
+    ).toBeVisible();
+    await expect(page.locator('.gap[data-term="ssis"]')).toContainText('Knowledge questions only');
+
+    // Save: requirements, settings, schedule keys and marks; never the posting.
+    await page.getByRole('tab', { name: 'Study plan' }).click();
     const title = `E2E plan ${Date.now()}`;
     await page.getByLabel('Plan title').fill(title);
     await page.getByRole('button', { name: 'Save plan' }).click();
     await expect(page.getByText('Plan saved')).toBeVisible();
-
-    // Only the plan was posted, with a title and term ids, and never the posting.
     const posted = bodies.filter((b) => b.includes('/api/'));
     expect(posted).toHaveLength(1);
     expect(posted[0]).toContain('/api/me/preparation/plans');
     expect(
       Object.keys(JSON.parse(posted[0]?.split(' ').slice(2).join(' ') ?? '{}')).sort(),
-    ).toEqual(['termIds', 'title']);
-    // Nothing about the posting in URLs either.
+    ).toEqual(['done', 'requirements', 'schedule', 'settings', 'skipped', 'termIds', 'title']);
     expect(urls.filter((u) => u.includes('Zebra'))).toEqual([]);
     for (const body of bodies) {
       expect(body).not.toContain('Zebra');
       expect(body).not.toContain('years of experience');
+      expect(body).not.toContain('authorized to work');
     }
-    // Not kept in the browser either.
     const stored = await page.evaluate(() =>
       JSON.stringify({ ...localStorage, ...sessionStorage }),
     );
     expect(stored).not.toContain('Zebra');
 
-    // The saved plan rebuilds its path from term ids, and can be deleted.
+    // The saved plan: same schedule, marks persist, and it can be deleted.
     await page.getByRole('link', { name: title }).click();
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
-    await expect(page.getByText('Docker (not covered yet)')).toBeVisible();
-    await page.getByRole('button', { name: 'Delete plan' }).click();
+    await expect(page.getByText('Resume your preparation')).toBeVisible();
+    await expect(page.locator('.day')).toHaveCount(7);
+    const external = page.locator('[data-key="external:dotnet-framework"]');
+    await external.getByRole('button', { name: 'Mark done' }).click();
+    await expect(external).toContainText('Marked done');
+    await page.reload();
+    await expect(page.locator('[data-key="external:dotnet-framework"]')).toContainText(
+      'Marked done',
+    );
+    // A practice link opens real content.
+    const planUrl = page.url();
+    const href = await page.locator('.item[data-key^="skill:"] a').first().getAttribute('href');
+    expect(href).toMatch(/^\/skills\/[a-z0-9-]+\/[a-z0-9-]+$/);
+    await page.goto(href!);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByText(/not found/i)).toHaveCount(0);
+    await page.goto(planUrl);
+    await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
+    await page.getByRole('button', { name: 'Delete plan' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete plan' }).click();
     await expect(page).toHaveURL('/roles');
     await expect(page.getByRole('link', { name: title })).toHaveCount(0);
+  });
+
+  test('editing the posting invalidates the results until it is analyzed again', async ({
+    page,
+  }) => {
+    await page.goto('/roles/analyze');
+    await page.getByRole('button', { name: 'Try an example' }).click();
+    await expect(page.locator('app-study-plan-view')).toBeVisible();
+    await page.getByRole('button', { name: 'Edit job description' }).click();
+    await page.getByLabel('Paste the job description').fill('Requirements:\n- Java');
+    await expect(page.getByText('The job description changed')).toBeVisible();
+    await expect(page.locator('app-study-plan-view')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Analyze', exact: true }).click();
+    await expect(page.locator('app-study-plan-view')).toBeVisible();
   });
 
   test('explains empty input', async ({ page }) => {

@@ -25,7 +25,7 @@ export const ROLE_ROUTES: Routes = [
   },
   {
     path: 'analyze',
-    title: 'Job Description Analyzer',
+    title: 'Interview Study Planner',
     loadComponent: () => import('./pages/analyze/job-analyzer').then((m) => m.JobAnalyzer),
   },
   {
