@@ -153,7 +153,7 @@ export class SignInPage {
   });
   /**
    * Planned social sign-in, shown as disabled "Coming soon" buttons. Apple is a
-   * Cognito built-in provider; GitHub needs an OIDC bridge (docs/accounts-and-auth.md).
+   * Cognito built-in provider; GitHub goes through the OIDC bridge (docs/accounts-and-auth.md).
    * To turn one on: add it to SOCIAL_PROVIDERS, configure it in Cognito, and list
    * it in config.json; it then moves from here to the enabled buttons above.
    */

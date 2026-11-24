@@ -43,27 +43,72 @@ imports them (`POST /api/me/progress/import`):
   submissions count.
 - Local data is never deleted. Account drafts can be restored into another browser.
 
-## GitHub sign-in: evaluation
+## GitHub sign-in
 
 GitHub is **not** a built-in Cognito social provider (the built-ins are Facebook, Google, Login
-with Amazon and Sign in with Apple), and ordinary GitHub OAuth Apps are not OpenID Connect
-providers (no ID token, no discovery document), so they cannot be added as Cognito OIDC
-providers directly.
+with Amazon and Sign in with Apple), and GitHub OAuth Apps are not OpenID Connect providers (no
+ID token, no discovery document). Of the options considered (an OIDC bridge, a separate GitHub
+session system, a managed identity provider such as Auth0, or deferring), PracStack uses an
+**OIDC bridge**: Cognito stays the one identity system and linking works as for any provider.
 
-| Option                                                                                                          | Security                                                                  | Cost                       | Maintenance                                       | Fit with Cognito and linking                                                                                  |
-| --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 1. OIDC bridge for GitHub (small service that wraps GitHub OAuth as OIDC), added to Cognito as an OIDC provider | Good if built carefully; it signs tokens, so it is security-critical code | Lambda/API Gateway pennies | Moderate: you own the signing keys and the bridge | Best: Cognito stays the one identity system; linking via the identity map above or `AdminLinkProviderForUser` |
-| 2. Separate backend GitHub OAuth flow with its own sessions                                                     | Two auth systems to secure                                                | Low                        | High: duplicate session handling                  | Poor: two kinds of tokens for the API                                                                         |
-| 3. Managed identity provider with GitHub built in (e.g. Auth0)                                                  | Good                                                                      | Paid beyond free tiers     | Low                                               | Would replace Cognito or sit in front of it                                                                   |
-| 4. Defer                                                                                                        | No new risk                                                               | None                       | None                                              | Email sign-in already covers everything                                                                       |
+### How it works
 
-**Decision: defer (option 4) now, option 1 when GitHub sign-in is wanted.** It needs a GitHub OAuth
-App (client id and secret, stored in Secrets Manager, never in the browser) and a reviewed
-bridge. Only the `read:user` and `user:email` scopes are needed; no repository access. The UI
-says "Continue with GitHub is not available yet", and the sign-in page shows disabled "Continue
-with Apple" and "Continue with GitHub" buttons marked "Coming soon" (`PLANNED_PROVIDERS` in
-`sign-in-page.ts`). No GitHub OIDC
-discovery URL is configured, because GitHub OAuth Apps do not have one.
+`services/api/src/github-oidc/bridge.ts` is a minimal OpenID Connect provider in its own Lambda
+function (`GithubOidcFunction`), routed by API Gateway at `/oidc/github/*` without an authorizer.
+Cognito has it as the OIDC provider **GitHub**.
+
+1. "Continue with GitHub" sends the browser to Cognito with `identity_provider=GitHub`; Cognito
+   calls the bridge's `/authorize`, which redirects to GitHub with scopes `read:user user:email`
+   (no repository access).
+2. GitHub redirects back to Cognito's `/oauth2/idpresponse`. Cognito calls the bridge's `/token`
+   with the code and the GitHub app's client ID and secret; the bridge exchanges the code with
+   GitHub, reads the user and their email addresses, and returns an RS256-signed ID token.
+3. Cognito verifies the token against the bridge's `/jwks.json`, reads `/userinfo`, and creates
+   or signs in a Cognito user `GitHub_<github user id>`. The app receives Cognito tokens as with
+   any other sign-in.
+
+| Safeguard | How |
+| --- | --- |
+| No stored GitHub secret | Cognito sends the app's client secret to `/token` (as any OIDC client does); the bridge passes it to GitHub and keeps nothing |
+| Only verified email | The token's email is GitHub's **primary, verified** address; without one, sign-in is refused. Unverified addresses could otherwise sign someone into another person's account |
+| Stable identity | `sub` is GitHub's numeric user ID (logins can be renamed) |
+| No open redirect | `/authorize` and `/token` accept only Cognito's `/oauth2/idpresponse` as the redirect URI |
+| Signed, short-lived tokens | RS256 with a key in an SSM SecureString that only this function can read (`ssm:GetParameter` on that parameter, `kms:Decrypt` only via SSM); 5-minute lifetime; audience = the client ID |
+| Isolation | Its own function, role and bundle: no table access, no content, no API code |
+| Invite-only staging | The sign-up allowlist trigger applies to GitHub users too |
+
+Tests: `bridge.spec.ts` (discovery, open redirects, token signing and claims, unverified and
+non-primary emails, bad grants, userinfo), `infra/test/pracstack-stack.spec.ts` (provider,
+function permissions, unauthenticated routes, cdk-nag), and the web sign-in and linking specs.
+
+### Linking GitHub to an existing account
+
+A GitHub sign-in is its own Cognito user. To use it with an existing account, the Account page
+offers **Add GitHub to this account**: it creates a link token while signed in to the account,
+keeps it in this tab's `sessionStorage` (never in a URL), signs in with GitHub, and redeems the
+token (see "Stable user ids and account linking" above). Linked identities are listed by how they
+sign in (`identities` claim: "GitHub", "Google"; "Email and password" otherwise). A GitHub
+account that already has progress of its own is not linked automatically.
+
+### Setting it up for a stage
+
+1. **GitHub OAuth App** (GitHub → Settings → Developer settings → OAuth Apps → New OAuth App):
+   - Homepage URL: the site URL.
+   - Authorization callback URL: `https://<Cognito sign-in domain>/oauth2/idpresponse` (the
+     `SignInDomain` stack output).
+   - Then generate a client secret.
+2. **Client secret** in Secrets Manager (plain text), named `pracstack/<stage>/github-client-secret`
+   (or `-c githubClientSecretName=…`).
+3. **Signing key** in SSM Parameter Store as a SecureString named
+   `/pracstack/<stage>/github-oidc-signing-key` (or `-c githubSigningKeyParameter=…`): an RSA
+   2048 private key in PEM. Rotating it: write a new key; tokens issued with the old one live 5
+   minutes.
+4. Deploy with `-c githubClientId=<client ID>`. The stack adds the provider and the bridge, and
+   `config.json` lists GitHub, which turns the disabled "Coming soon" button into "Continue with
+   GitHub".
+
+Cost: the bridge runs only during GitHub sign-ins (Lambda and API Gateway, fractions of a cent);
+the Secrets Manager secret is $0.40 a month; the SSM parameter is free.
 
 ## Setting up Cognito (when deploying)
 

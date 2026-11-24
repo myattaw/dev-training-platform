@@ -14,6 +14,8 @@
  *   signUpAllowlist    comma-separated emails or @domains allowed to sign up (default: anyone)
  *   runnerConcurrency  reserved concurrency per runner (default none; needs a raised quota)
  *   googleClientId     enables "Continue with Google" (OAuth client ID from Google Cloud)
+ *   githubClientId     enables "Continue with GitHub" (GitHub OAuth App client ID; its secret is in
+ *                      Secrets Manager, the bridge's signing key in SSM; see docs/accounts-and-auth.md)
  *   googleClientSecretName  Secrets Manager secret holding its client secret
  *                      (default pracstack/<stage>/google-client-secret)
  *
@@ -71,6 +73,9 @@ if (githubRepo) {
   )
     throw new Error('runnerConcurrency must be a whole number from 1 to 50.');
 
+  const githubClientId = context('githubClientId');
+  if (githubClientId && !/^[A-Za-z0-9._-]{10,40}$/.test(githubClientId))
+    throw new Error('githubClientId must be a GitHub OAuth App client ID (e.g. Ov23li…).');
   const googleClientId = context('googleClientId');
   if (googleClientId && !/^[0-9]+-[a-z0-9]+.apps.googleusercontent.com$/.test(googleClientId))
     throw new Error('googleClientId must look like 1234-abc.apps.googleusercontent.com.');
@@ -92,10 +97,22 @@ if (githubRepo) {
           },
         }
       : {}),
+    ...(githubClientId
+      ? {
+          github: {
+            clientId: githubClientId,
+            clientSecretName:
+              context('githubClientSecretName') ?? `pracstack/${stage}/github-client-secret`,
+            signingKeyParameter:
+              context('githubSigningKeyParameter') ?? `/pracstack/${stage}/github-oidc-signing-key`,
+          },
+        }
+      : {}),
     assets: {
       webImmutable: join(BUILD_DIR, 'web-immutable'),
       webRevalidate: join(BUILD_DIR, 'web-revalidate'),
       lambda: join(BUILD_DIR, 'lambda'),
+      githubOidc: join(BUILD_DIR, 'github-oidc'),
       runners: {
         typescript: join(BUILD_DIR, 'runners', 'typescript'),
         java: join(BUILD_DIR, 'runners', 'java'),

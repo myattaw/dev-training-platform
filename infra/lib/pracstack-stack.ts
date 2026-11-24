@@ -49,6 +49,8 @@ export interface PracStackAssets {
   readonly webRevalidate: string;
   /** The bundled API function (services/api/dist/lambda). */
   readonly lambda: string;
+  /** The GitHub sign-in bridge bundle (services/api/dist/github-oidc). */
+  readonly githubOidc?: string;
   /** Docker build contexts of the runner functions (services/runners/dist/*). */
   readonly runners: Readonly<Record<RunnerName, string>>;
 }
@@ -110,6 +112,18 @@ export interface PracStackProps extends StackProps {
    * and never appears in the repository or the template. Absent: email sign-in only.
    */
   readonly google?: { readonly clientId: string; readonly clientSecretName: string };
+  /**
+   * "Continue with GitHub", through a small OIDC bridge (services/api/src/github-oidc).
+   * The GitHub OAuth App's secret is read at deploy time from Secrets Manager
+   * (`clientSecretName`) and stored only in Cognito, which sends it to the bridge's
+   * token endpoint; the bridge signs ID tokens with the RSA key in the SSM
+   * SecureString parameter `signingKeyParameter`.
+   */
+  readonly github?: {
+    readonly clientId: string;
+    readonly clientSecretName: string;
+    readonly signingKeyParameter: string;
+  };
 }
 
 /** Overall request rate for the API (all users together). A cost ceiling, not a per-user limit. */
@@ -307,7 +321,14 @@ export class PracStackStack extends Stack {
           },
         })
       : undefined;
-    const signInProviders = google ? ['Google'] : [];
+
+    // GitHub through the OIDC bridge: a function of its own (internet access to
+    // GitHub, nothing else), routed at /oidc/github/* without an authorizer.
+    const githubBridgeIssuer = `https://${httpApi.apiId}.execute-api.${this.region}.amazonaws.com/oidc/github`;
+    const github = props.github
+      ? this.githubSignIn(userPool, httpApi, domain, githubBridgeIssuer, props.github, props.assets)
+      : undefined;
+    const signInProviders = [...(google ? ['Google'] : []), ...(github ? ['GitHub'] : [])];
 
     const client = userPool.addClient('WebClient', {
       // A browser app: public client, PKCE, no secret.
@@ -322,6 +343,7 @@ export class PracStackStack extends Stack {
       supportedIdentityProviders: [
         cognito.UserPoolClientIdentityProvider.COGNITO,
         ...(google ? [cognito.UserPoolClientIdentityProvider.GOOGLE] : []),
+        ...(github ? [cognito.UserPoolClientIdentityProvider.custom(github.providerName)] : []),
       ],
       preventUserExistenceErrors: true,
       idTokenValidity: Duration.hours(1),
@@ -330,6 +352,7 @@ export class PracStackStack extends Stack {
       enableTokenRevocation: true,
     });
     if (google) client.node.addDependency(google);
+    if (github) client.node.addDependency(github);
     // PracStack colors and logo on the managed login pages. The Google button comes from the
     // client's supported identity providers; the style needs nothing extra for it.
     const branding = addManagedLoginBranding(this, 'WebClientBranding', userPool, client);
@@ -687,6 +710,106 @@ export class PracStackStack extends Stack {
     });
     userPool.addTrigger(cognito.UserPoolOperation.PRE_SIGN_UP, fn);
     return fn;
+  }
+
+  /** The GitHub OIDC bridge function and route, and GitHub as a Cognito OIDC provider. */
+  private githubSignIn(
+    userPool: cognito.UserPool,
+    httpApi: HttpApi,
+    domain: cognito.UserPoolDomain,
+    issuer: string,
+    github: NonNullable<PracStackProps['github']>,
+    assets: PracStackAssets,
+  ): cognito.UserPoolIdentityProviderOidc {
+    if (!assets.githubOidc) throw new Error('GitHub sign-in needs the githubOidc asset.');
+    const logGroup = new logs.LogGroup(this, 'GithubOidcLogs', {
+      retention: logs.RetentionDays.ONE_MONTH,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const role = new iam.Role(this, 'GithubOidcRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      description: 'PracStack GitHub sign-in bridge: its log group and its signing key only.',
+    });
+    logGroup.grantWrite(role);
+    const keyParameterArn = this.formatArn({
+      service: 'ssm',
+      resource: 'parameter',
+      resourceName: github.signingKeyParameter.replace(/^\//, ''),
+    });
+    role.addToPolicy(
+      new iam.PolicyStatement({ actions: ['ssm:GetParameter'], resources: [keyParameterArn] }),
+    );
+    // SecureString with the AWS-managed key: decrypt only through SSM.
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['kms:Decrypt'],
+        resources: ['*'],
+        conditions: { StringEquals: { 'kms:ViaService': `ssm.${this.region}.amazonaws.com` } },
+      }),
+    );
+    const cognitoRedirect = `${domain.baseUrl()}/oauth2/idpresponse`;
+    const fn = new lambda.Function(this, 'GithubOidcFunction', {
+      description: 'PracStack: GitHub sign-in as an OpenID Connect provider for Cognito.',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'index.handler',
+      code: lambda.Code.fromAsset(assets.githubOidc),
+      memorySize: 256,
+      timeout: Duration.seconds(15),
+      role,
+      logGroup,
+      environment: {
+        OIDC_ISSUER: issuer,
+        OIDC_REDIRECT_URIS: JSON.stringify([cognitoRedirect]),
+        SIGNING_KEY_PARAMETER: github.signingKeyParameter,
+        NODE_OPTIONS: '--enable-source-maps',
+      },
+    });
+    const routes = httpApi.addRoutes({
+      path: '/oidc/github/{proxy+}',
+      methods: [HttpMethod.GET, HttpMethod.POST],
+      integration: new HttpLambdaIntegration('GithubOidcIntegration', fn),
+    });
+    const ack = (scope: Construct, id: string, reason: string) =>
+      Validations.of(scope).acknowledge({ id: `AwsSolutions::AwsSolutions-${id}`, reason });
+    for (const route of routes)
+      ack(
+        route,
+        'APIG4',
+        'Sign-in endpoints of an OpenID Connect provider: Cognito and the browser call them before anyone is signed in. /authorize redirects only to Cognito; /token needs the GitHub app credentials and a GitHub code.',
+      );
+    ack(
+      fn,
+      'L1',
+      'Node.js 22 (supported by Lambda until 2027), the same runtime as the API function.',
+    );
+    ack(
+      role,
+      'IAM5[Resource::*]',
+      'kms:Decrypt only through SSM (kms:ViaService) for the SecureString signing key, which uses the AWS-managed aws/ssm key; its ARN is not known in advance.',
+    );
+    return new cognito.UserPoolIdentityProviderOidc(this, 'GitHubSignIn', {
+      userPool,
+      name: 'GitHub',
+      clientId: github.clientId,
+      // A CloudFormation dynamic reference: resolved by CloudFormation, never in the template.
+      clientSecret: SecretValue.secretsManager(github.clientSecretName).unsafeUnwrap(),
+      issuerUrl: issuer,
+      endpoints: {
+        authorization: `${issuer}/authorize`,
+        token: `${issuer}/token`,
+        userInfo: `${issuer}/userinfo`,
+        jwksUri: `${issuer}/jwks.json`,
+      },
+      scopes: ['openid', 'email', 'profile'],
+      attributeRequestMethod: cognito.OidcAttributeRequestMethod.GET,
+      attributeMapping: {
+        email: cognito.ProviderAttribute.other('email'),
+        emailVerified: cognito.ProviderAttribute.other('email_verified'),
+        fullname: cognito.ProviderAttribute.other('name'),
+        preferredUsername: cognito.ProviderAttribute.other('preferred_username'),
+      },
+    });
   }
 
   private securityHeaders(id: string, csp: string): cloudfront.ResponseHeadersPolicy {

@@ -58,6 +58,18 @@ export class AccountApi {
     return this.api.get('/me/identities');
   }
 
+  /** Step 1 of linking, signed in to this account: a single-use token (10 minutes). */
+  createLinkIntent(): Promise<{ readonly token: string; readonly expiresAt: string }> {
+    return this.api.post('/me/identities/link-intents', {});
+  }
+
+  /** Step 2, signed in with the new sign-in method: joins it to the account. */
+  async completeLink(token: string): Promise<{ readonly userId: string }> {
+    const result = await this.api.post<{ userId: string }>('/me/identities/link', { token });
+    this.session.refresh();
+    return result;
+  }
+
   async updateDisplayName(displayName: string): Promise<MeResponse> {
     const me = await this.api.patch<MeResponse>('/me', { displayName });
     this.session.refresh();

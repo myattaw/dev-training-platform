@@ -11,6 +11,12 @@ export interface Caller extends UserInfo {
   readonly provider?: string;
   /** The provider's subject (user id). */
   readonly subject?: string;
+  /**
+   * How the person signed in to Cognito: a federated provider's name ("Google",
+   * "GitHub") from the token's `identities` claim; absent for email and password.
+   * A label only: identities are keyed by provider and subject.
+   */
+  readonly method?: string;
   /** Verified groups, e.g. Cognito groups (`admins`). */
   readonly groups?: readonly string[];
 }
@@ -92,6 +98,7 @@ export class VerifiedJwtAuthenticator implements Authenticator {
       mode: 'authenticated',
       provider: this.options.issuer,
       subject: sub,
+      ...signInMethod(claims['identities']),
       groups: parseGroups(claims['cognito:groups']),
     });
   }
@@ -109,4 +116,21 @@ export function parseGroups(value: unknown): readonly string[] {
     .replace(/^\[|\]$/g, '')
     .split(/[\s,]+/)
     .filter((g) => /^[\w.-]+$/.test(g));
+}
+
+/** The federated provider of a Cognito ID token (`identities` claim), when there is one. */
+export function signInMethod(identities: unknown): { method?: string } {
+  const list = typeof identities === 'string' ? safeJson(identities) : identities;
+  const name = Array.isArray(list)
+    ? (list[0] as { providerName?: unknown } | undefined)?.providerName
+    : undefined;
+  return typeof name === 'string' && /^[A-Za-z0-9 ._-]{1,32}$/.test(name) ? { method: name } : {};
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
 }

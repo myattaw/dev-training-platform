@@ -111,10 +111,27 @@
       }
     </ul>
   }
+  @if (linkMessage(); as m) {
+    <app-alert [type]="m.ok ? 'success' : 'error'">{{ m.text }}</app-alert>
+  }
+  @if (linkable().length > 0) {
+    <div class="link-actions">
+      @for (provider of linkable(); track provider) {
+        <button
+          type="button"
+          class="btn"
+          [disabled]="linking()"
+          (click)="addSignInMethod(provider)"
+        >
+          Add {{ provider }} to this account
+        </button>
+      }
+    </div>
+  }
   <p class="text-secondary small">
-    Continue with GitHub is not available yet. When it is, you will be able to add it here and keep
-    one account, with the same progress, whichever way you sign in. Accounts are never merged just
-    because they share an email address.
+    Add another way to sign in and keep one account, with the same progress, whichever way you sign
+    in. You confirm by signing in with the new method. Accounts are never merged just because they
+    share an email address, and a sign-in method that already has its own progress is not linked.
   </p>
 </app-panel>
 

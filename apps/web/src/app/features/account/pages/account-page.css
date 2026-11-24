@@ -92,3 +92,10 @@
 .import-result {
   margin-top: var(--space-3);
 }
+
+.link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+}

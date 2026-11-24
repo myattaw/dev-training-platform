@@ -32,6 +32,7 @@ function fakeAssets() {
     webImmutable: dir('web-immutable', 'main-ABCDEFGH.js'),
     webRevalidate: dir('web-revalidate', 'index.html'),
     lambda: dir('lambda', 'index.mjs'),
+    githubOidc: dir('github-oidc', 'index.mjs'),
     runners: {
       typescript: dir('runner-typescript', 'Dockerfile'),
       java: dir('runner-java', 'Dockerfile'),
@@ -700,6 +701,99 @@ describe('private staging options', () => {
       google: { clientId: '1-a.apps.googleusercontent.com', clientSecretName: 'x/y' },
     });
     expect(() => app.synth()).not.toThrow();
+  });
+
+  describe('GitHub sign-in (OIDC bridge)', () => {
+    const github = {
+      clientId: 'Ov23liAbCdEfGhIjKlMn',
+      clientSecretName: 'pracstack/test/github-client-secret',
+      signingKeyParameter: '/pracstack/test/github-oidc-signing-key',
+    };
+    let withGithub: ReturnType<typeof synth>;
+    beforeAll(() => {
+      withGithub = synth(false, { github });
+    });
+
+    it('adds GitHub as an OIDC provider pointing at the bridge, with the secret as a dynamic reference', () => {
+      const t = withGithub.template;
+      t.hasResourceProperties('AWS::Cognito::UserPoolIdentityProvider', {
+        ProviderName: 'GitHub',
+        ProviderType: 'OIDC',
+        ProviderDetails: Match.objectLike({
+          client_id: github.clientId,
+          authorize_scopes: 'openid email profile',
+          attributes_request_method: 'GET',
+        }),
+        AttributeMapping: Match.objectLike({
+          email: 'email',
+          email_verified: 'email_verified',
+          preferred_username: 'preferred_username',
+        }),
+      });
+      const details = JSON.stringify(
+        Object.values(t.findResources('AWS::Cognito::UserPoolIdentityProvider')).map(
+          (r) => (r as Json).Properties.ProviderDetails,
+        ),
+      );
+      expect(details).toContain('{{resolve:secretsmanager:pracstack/test/github-client-secret');
+      expect(details).toContain('/oidc/github/authorize');
+      expect(details).toContain('/oidc/github/jwks.json');
+      // The client lists GitHub by a reference to the provider's name.
+      const providers = JSON.stringify(
+        Object.values(t.findResources('AWS::Cognito::UserPoolClient')).map(
+          (r) => (r as Json).Properties.SupportedIdentityProviders,
+        ),
+      );
+      expect(providers).toContain('COGNITO');
+      expect(providers).toContain('GitHubSignIn');
+    });
+
+    it('runs the bridge in its own function that can read only its signing key', () => {
+      const t = withGithub.template;
+      const fns = Object.values(t.findResources('AWS::Lambda::Function')).filter((r) =>
+        JSON.stringify((r as Json).Properties.Environment ?? {}).includes('SIGNING_KEY_PARAMETER'),
+      ) as Json[];
+      expect(fns).toHaveLength(1);
+      const env = fns[0]!.Properties.Environment.Variables;
+      expect(env.SIGNING_KEY_PARAMETER).toBe(github.signingKeyParameter);
+      expect(JSON.stringify(env.OIDC_REDIRECT_URIS)).toContain('/oauth2/idpresponse');
+      // Not the API's role, and no table access.
+      const roleId = fns[0]!.Properties.Role['Fn::GetAtt'][0];
+      const policies = Object.values(t.findResources('AWS::IAM::Policy')).filter((p) =>
+        JSON.stringify((p as Json).Properties.Roles).includes(roleId),
+      );
+      const statements = JSON.stringify(policies.map((p) => (p as Json).Properties.PolicyDocument));
+      expect(statements).toContain('ssm:GetParameter');
+      expect(statements).toContain('parameter/pracstack/test/github-oidc-signing-key');
+      expect(statements).toContain('kms:ViaService');
+      expect(statements).not.toContain('dynamodb:');
+    });
+
+    it('routes /oidc/github/* to the bridge without an authorizer', () => {
+      const t = withGithub.template;
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+        RouteKey: 'GET /oidc/github/{proxy+}',
+        AuthorizationType: 'NONE',
+      });
+      t.hasResourceProperties('AWS::ApiGatewayV2::Route', {
+        RouteKey: 'POST /oidc/github/{proxy+}',
+        AuthorizationType: 'NONE',
+      });
+    });
+
+    it('tells the app to offer GitHub', () => {
+      const dir = withGithub.app.synth().directory;
+      const configs = readdirSync(dir, { recursive: true })
+        .map(String)
+        .filter((f) => f.endsWith('config.json'))
+        .map((f) => readFileSync(join(dir, f), 'utf8'));
+      expect(configs.some((c) => c.includes('"providers":["GitHub"]'))).toBe(true);
+    });
+
+    it('passes the AWS Solutions checks with GitHub sign-in', () => {
+      const { app } = synth(true, { github });
+      expect(() => app.synth()).not.toThrow();
+    });
   });
 
   it('outputs what the manual kill switch and smoke tests need', () => {

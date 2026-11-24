@@ -20,7 +20,7 @@ export type AuthConfig =
     };
 
 /** Social identity providers the app knows how to offer. */
-export const SOCIAL_PROVIDERS = ['Google'] as const;
+export const SOCIAL_PROVIDERS = ['Google', 'GitHub'] as const;
 export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 
 export interface RuntimeConfig {

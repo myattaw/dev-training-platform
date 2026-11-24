@@ -54,6 +54,7 @@ export class IdentityService {
           subject: caller.subject,
           userId: caller.subject,
           linkedAt: this.now().toISOString(),
+          ...(caller.method ? { method: caller.method } : {}),
         }));
       userId = record.userId;
       if (this.cache.size >= CACHE_LIMIT) this.cache.clear();
@@ -95,6 +96,7 @@ export class IdentityService {
       subject: raw.subject,
       userId: intent.userId,
       linkedAt: this.now().toISOString(),
+      ...(raw.method ? { method: raw.method } : {}),
     };
     const existing = await this.store.getIdentity(raw.provider, raw.subject);
     if (existing?.userId === intent.userId) return { userId: intent.userId };
@@ -121,6 +123,7 @@ export class IdentityService {
 
 function describeProvider(identity: IdentityRecord): string {
   if (identity.provider === 'local-dev') return 'Local development';
+  if (identity.method) return identity.method;
   if (/cognito-idp\./.test(identity.provider)) return 'Email and password';
   return identity.provider;
 }

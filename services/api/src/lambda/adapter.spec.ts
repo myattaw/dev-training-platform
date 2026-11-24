@@ -1,7 +1,7 @@
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
 import { describe, expect, it } from 'vitest';
 import type { ApiRequest } from '../http';
-import { VerifiedJwtAuthenticator } from '../auth';
+import { signInMethod, VerifiedJwtAuthenticator } from '../auth';
 import { createApi } from '../app';
 import { InMemoryProgressStore } from '../store/memory-store';
 import { SlidingWindowRateLimiter } from '../rate-limit';
@@ -146,5 +146,18 @@ describe('Lambda adapter + verified JWT authenticator', () => {
       }),
     );
     expect(res.statusCode).not.toBe(413);
+  });
+});
+
+describe('signInMethod', () => {
+  it('reads the federated provider from the Cognito identities claim', () => {
+    expect(signInMethod([{ providerName: 'GitHub', providerType: 'OIDC', userId: '42' }])).toEqual({
+      method: 'GitHub',
+    });
+    expect(signInMethod(JSON.stringify([{ providerName: 'Google' }]))).toEqual({
+      method: 'Google',
+    });
+    for (const value of [undefined, [], 'not json', [{ providerName: '<script>' }], [{}]])
+      expect(signInMethod(value), JSON.stringify(value)).toEqual({});
   });
 });

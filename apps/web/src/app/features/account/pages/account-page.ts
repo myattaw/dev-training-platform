@@ -10,6 +10,7 @@ import { RouterLink } from '@angular/router';
 import { PROFILE_LIMITS, type DraftImportConflict } from '@pracstack/api-contracts';
 import { LANGUAGE_LABELS, type LanguageId } from '@pracstack/content-model';
 import { AuthService } from '../../../core/auth/auth.service';
+import { RuntimeConfigService, type SocialProvider } from '../../../core/config/runtime-config';
 import { SessionService } from '../../../core/session/session.service';
 import { asyncResource, errorMessage } from '../../../shared/async/async-state';
 import { Alert } from '../../../shared/ui/alert/alert';
@@ -20,6 +21,15 @@ import { PageHeader } from '../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../shared/ui/panel/panel';
 import { ChallengeProgressService } from '../../challenges/data-access/challenge-progress.service';
 import { AccountApi } from '../data-access/account-api';
+
+/** A link waiting for the sign-in with the new method (sessionStorage; never the token in a URL). */
+const PENDING_LINK_KEY = 'pracstack.pendingLink';
+
+interface PendingLink {
+  readonly token: string;
+  readonly provider: SocialProvider;
+  readonly expiresAt: string;
+}
 
 const FEATURE_LABELS: Readonly<Record<string, string>> = {
   'premium-recommendations': 'Premium recommended challenges',
@@ -44,6 +54,7 @@ export class AccountPage {
   protected readonly session = inject(SessionService);
   private readonly api = inject(AccountApi);
   private readonly local = inject(ChallengeProgressService);
+  private readonly runtime = inject(RuntimeConfigService);
 
   protected readonly entitlements = asyncResource(
     () => this.session.me(),
@@ -53,6 +64,74 @@ export class AccountPage {
     () => this.session.me(),
     () => this.api.identities(),
   );
+  // ---- sign-in methods ----
+  /** Social providers this deployment offers that the account has not linked yet. */
+  protected readonly linkable = computed<readonly SocialProvider[]>(() => {
+    const auth = this.runtime.config().auth;
+    const ids = this.identities.state();
+    if (auth.mode !== 'cognito' || ids.status !== 'ready') return [];
+    const linked = new Set(ids.value.identities.map((i) => i.provider));
+    return (auth.providers ?? []).filter((p) => !linked.has(p));
+  });
+  protected readonly linking = signal(false);
+  protected readonly linkMessage = signal<{ ok: boolean; text: string } | null>(null);
+
+  constructor() {
+    void this.finishPendingLink();
+  }
+
+  /**
+   * Links another sign-in method with proof from both: a link token created
+   * now (signed in to this account), redeemed after signing in with the new
+   * method. Accounts are never joined because they share an email address.
+   */
+  protected async addSignInMethod(provider: SocialProvider): Promise<void> {
+    this.linking.set(true);
+    this.linkMessage.set(null);
+    try {
+      const intent = await this.api.createLinkIntent();
+      const pending: PendingLink = { token: intent.token, provider, expiresAt: intent.expiresAt };
+      sessionStorage.setItem(PENDING_LINK_KEY, JSON.stringify(pending));
+      await this.auth.signIn('/account', { provider });
+    } catch (err) {
+      this.linkMessage.set({ ok: false, text: errorMessage(err) });
+      this.linking.set(false);
+    }
+  }
+
+  /** Back from signing in with the new method: redeem the link token once. */
+  private async finishPendingLink(): Promise<void> {
+    const raw = sessionStorage.getItem(PENDING_LINK_KEY);
+    if (!raw || this.auth.status() !== 'signed-in') return;
+    sessionStorage.removeItem(PENDING_LINK_KEY);
+    let pending: PendingLink;
+    try {
+      pending = JSON.parse(raw) as PendingLink;
+    } catch {
+      return;
+    }
+    if (Date.parse(pending.expiresAt) < Date.now()) {
+      this.linkMessage.set({
+        ok: false,
+        text: 'The link request expired. Add the sign-in method again.',
+      });
+      return;
+    }
+    this.linking.set(true);
+    try {
+      await this.api.completeLink(pending.token);
+      this.linkMessage.set({
+        ok: true,
+        text: `${pending.provider} is now linked: signing in with it opens this account.`,
+      });
+      this.identities.reload();
+    } catch (err) {
+      this.linkMessage.set({ ok: false, text: errorMessage(err) });
+    } finally {
+      this.linking.set(false);
+    }
+  }
+
   private readonly reloadProgress = signal(0);
   protected readonly progress = asyncResource(
     () => this.reloadProgress(),

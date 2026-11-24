@@ -70,7 +70,47 @@ export async function buildLambda(
 
   // Public and private content (hidden tests, answers): only ever inside the function.
   cpSync(contentDist, join(outDir, 'content'), { recursive: true });
+  await buildGithubBridge(resolve(outDir, '../github-oidc'));
   return { outDir, bundleBytes: statSync(join(outDir, 'index.mjs')).size };
+}
+
+/**
+ * The GitHub sign-in bridge (src/lambda/github-oidc.ts): its own function with
+ * internet access, so it gets its own bundle without any content and without
+ * the API's code.
+ */
+export async function buildGithubBridge(outDir: string): Promise<void> {
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
+  const result = await build({
+    entryPoints: [resolve(here, '../src/lambda/github-oidc.ts')],
+    outfile: join(outDir, 'index.mjs'),
+    bundle: true,
+    platform: 'node',
+    target: 'node22',
+    format: 'esm',
+    minify: true,
+    sourcemap: 'linked',
+    metafile: true,
+    legalComments: 'none',
+    banner: {
+      js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
+    },
+    logLevel: 'warning',
+  });
+  const inputs = Object.values(result.metafile.outputs).flatMap((output) =>
+    Object.entries(output.inputs)
+      .filter(([, info]) => info.bytesInOutput > 0)
+      .map(([file]) => file),
+  );
+  const unexpected = inputs.filter(
+    (file) => /services[\\/]api[\\/]src[\\/]/.test(file) && !/github-oidc/.test(file),
+  );
+  if (unexpected.length > 0) {
+    throw new Error(
+      `The GitHub bridge bundle must contain only the bridge, but includes:\n  ${unexpected.join('\n  ')}`,
+    );
+  }
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {

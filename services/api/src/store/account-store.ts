@@ -45,6 +45,8 @@ export interface IdentityRecord {
   readonly subject: string;
   readonly userId: string;
   readonly linkedAt: string;
+  /** How this identity signs in ("Google", "GitHub"); absent for email and password. */
+  readonly method?: string;
 }
 
 /** Proof, issued to a signed-in user, that lets another identity join their account. */

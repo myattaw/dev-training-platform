@@ -570,12 +570,14 @@ describe('identities and account linking', () => {
     authenticate: (req) => {
       const subject = req.headers['x-test-user'] ?? 'alice';
       const provider = req.headers['x-test-provider'] ?? 'https://cognito-idp.test/pool';
+      const method = req.headers['x-test-method'];
       return Promise.resolve({
         id: subject,
         displayName: subject,
         mode: 'authenticated',
         provider,
         subject,
+        ...(method ? { method } : {}),
       } satisfies Caller);
     },
   };
@@ -638,6 +640,23 @@ describe('identities and account linking', () => {
       'github',
     );
     expect(reused.status).toBe(400);
+  });
+
+  it('lists linked sign-in methods by how they sign in (GitHub, email and password)', async () => {
+    const { api, as } = linkingApi();
+    const intent = (await as('POST', '/api/me/identities/link-intents', undefined, 'alice'))
+      .body as { token: string };
+    const linked = await api.callWithHeaders(
+      'POST',
+      '/api/me/identities/link',
+      { token: intent.token },
+      { 'x-test-user': 'gh-sub-9', 'x-test-method': 'GitHub' },
+    );
+    expect(linked.body).toEqual({ userId: 'alice' });
+    const list = (await as('GET', '/api/me/identities', undefined, 'alice')).body as {
+      identities: { provider: string }[];
+    };
+    expect(list.identities.map((i) => i.provider).sort()).toEqual(['Email and password', 'GitHub']);
   });
 
   it('refuses to link an identity that already has its own progress', async () => {

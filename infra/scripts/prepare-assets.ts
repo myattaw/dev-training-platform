@@ -4,6 +4,7 @@
  *   web-immutable/   content-hashed files (cached for a year)
  *   web-revalidate/  everything else: index.html, content/, … (revalidated)
  *   lambda/          the bundled API function
+ *   github-oidc/     the GitHub sign-in bridge (no content)
  *   runners/         Docker build contexts of the runner functions
  *
  * Run by `npm run deploy:prepare` after the web and Lambda builds. Refuses
@@ -59,6 +60,14 @@ export function prepareAssets(
     cpSync(file, target);
   }
   cpSync(lambdaDir, join(out, 'lambda'), { recursive: true });
+  const bridgeDir = join(lambdaDir, '..', 'github-oidc');
+  if (!existsSync(join(bridgeDir, 'index.mjs')))
+    throw new Error(
+      `No GitHub bridge bundle in ${bridgeDir}. Run "npm run build:lambda -w @pracstack/api".`,
+    );
+  if (existsSync(join(bridgeDir, 'content')))
+    throw new Error('The GitHub bridge bundle contains content; refusing to stage it.');
+  cpSync(bridgeDir, join(out, 'github-oidc'), { recursive: true });
   if (!existsSync(join(runnersDir, 'typescript', 'Dockerfile')))
     throw new Error(
       `No runner build contexts in ${runnersDir}. Run "npm run build -w @pracstack/runners".`,
