@@ -160,6 +160,16 @@ export const RESOURCE_HOSTS: readonly string[] = [
   'owasp.org',
 ];
 
+/** The host of an https URL, or '' when it is not one. */
+function resourceHost(value: string): string {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.hostname : '';
+  } catch {
+    return '';
+  }
+}
+
 /** The coverage level of a term (explicit, or derived from its practice). */
 export function coverageOf(
   term: Pick<TaxonomyTerm, 'practice' | 'coverage' | 'relatedPractice'>,
@@ -290,13 +300,7 @@ export function validateTaxonomy(
     if (term.gap) {
       if (term.gap.notCovered.trim() === '') error(`${path}/gap`, 'notCovered is required');
       for (const r of term.gap.resources ?? []) {
-        let host = '';
-        try {
-          const url = new URL(r.url);
-          host = url.protocol === 'https:' ? url.hostname : '';
-        } catch {
-          host = '';
-        }
+        const host = resourceHost(r.url);
         if (!RESOURCE_HOSTS.includes(host)) {
           error(
             `${path}/gap`,
