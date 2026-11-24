@@ -56,10 +56,16 @@ import { LayoutService } from '../layout.service';
     </header>
   `,
   styles: `
-    header {
+    /* The host is what sticks: a sticky element cannot leave its parent, and this
+       host is only as tall as the header, so a sticky <header> inside it scrolled
+       away while the side nav stayed pinned below where the header had been. */
+    :host {
       position: sticky;
       top: 0;
       z-index: var(--z-header);
+      display: block;
+    }
+    header {
       display: flex;
       align-items: center;
       gap: var(--space-2);

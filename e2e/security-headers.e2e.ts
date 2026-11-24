@@ -33,7 +33,7 @@ test.describe('security headers', () => {
     const violations = collectViolations(page);
     await page.goto('/');
     // Styles from the external stylesheet are applied (no inline onload loader).
-    await expect(page.locator('app-top-nav header')).toHaveCSS('position', 'sticky');
+    await expect(page.locator('app-top-nav')).toHaveCSS('position', 'sticky');
 
     await page.goto('/challenges/pangram/workspace');
     await waitForEditor(page);
