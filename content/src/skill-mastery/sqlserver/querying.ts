@@ -3,7 +3,7 @@ import { tsqlBlankFamily, tsqlChoiceFamily, tsqlMultiFamily } from './builders';
 
 /*
  * SQL Server querying: filtering, ordering, TOP and OFFSET/FETCH, NULL logic,
- * CASE; then joins, aggregation and APPLY. Reviewed by hand (no engine yet).
+ * CASE; then joins, aggregation and APPLY. Reviewed by hand.
  */
 
 const scores = `Scores

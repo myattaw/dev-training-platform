@@ -3,7 +3,7 @@ import { tsqlChoiceFamily } from './builders';
 
 /*
  * SQL Server data modeling: keys (IDENTITY, SEQUENCE, GUIDs), foreign keys and
- * cascades, constraints, normalization and data types. Reviewed by hand (no engine yet).
+ * cascades, constraints, normalization and data types. Reviewed by hand.
  */
 
 export const dataModelingFamilies: readonly QuestionSource[] = [

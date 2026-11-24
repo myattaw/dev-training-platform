@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.17",
-    "oracledb": "26.0.0"
+    "oracledb": "26.0.0",
+    "tedious": "20.4.3"
   },
   "devDependencies": {
     "@types/oracledb": "^26.0.1"

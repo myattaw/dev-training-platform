@@ -3,7 +3,7 @@ import { tsqlBlankFamily, tsqlChoiceFamily } from './builders';
 
 /*
  * T-SQL programming: variables and control flow, stored procedures, functions,
- * error handling, temporary tables and dynamic SQL. Reviewed by hand (no engine yet).
+ * error handling, temporary tables and dynamic SQL. Reviewed by hand.
  */
 
 export const programmingFamilies: readonly QuestionSource[] = [

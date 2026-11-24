@@ -29,13 +29,16 @@
     "format": "prettier --write \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"services/*/{src,scripts}/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\" \"infra/{bin,lib,scripts,test}/**/*.ts\"",
     "format:check": "prettier --check \"apps/web/src/**/*.{ts,html,css}\" \"packages/*/src/**/*.ts\" \"services/*/{src,scripts}/**/*.ts\" \"content/{src,scripts}/**/*.ts\" \"e2e/**/*.ts\" \"infra/{bin,lib,scripts,test}/**/*.ts\"",
     "e2e": "playwright test",
-    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run check:dev-server && npm run oracle:start && npm run e2e",
+    "verify": "npm run lint && npm run format:check && npm run typecheck && npm test && npm run build && npm run check:dev-server && npm run oracle:start && npm run sqlserver:start && npm run e2e",
     "runners:build": "npm run build-images -w @pracstack/code-runner",
     "deploy:prepare": "npm run build && npm run build:lambda -w @pracstack/api && npm run build -w @pracstack/runners && npm run prepare-assets -w @pracstack/infra",
     "check:dev-server": "node scripts/check-dev-server.mjs",
     "oracle:start": "tsx scripts/oracle.mts start",
     "oracle:stop": "tsx scripts/oracle.mts stop",
-    "oracle:remove": "tsx scripts/oracle.mts remove"
+    "oracle:remove": "tsx scripts/oracle.mts remove",
+    "sqlserver:start": "tsx scripts/sqlserver.mts start",
+    "sqlserver:stop": "tsx scripts/sqlserver.mts stop",
+    "sqlserver:remove": "tsx scripts/sqlserver.mts remove"
   },
   "dependencies": {
     "@angular/common": "^22.3.0",

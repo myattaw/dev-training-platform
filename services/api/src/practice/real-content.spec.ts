@@ -1,11 +1,19 @@
 import type { AnswerPayload } from '@pracstack/api-contracts';
 import { buildContent, TRACKS } from '@pracstack/content';
-import { type QuestionAnswer, type SplitQuestion, splitTrack } from '@pracstack/content-model';
+import {
+  type QuestionAnswer,
+  type SplitQuestion,
+  type SqlDialect,
+  splitTrack,
+} from '@pracstack/content-model';
 import {
   ChildProcessSqlEngine,
   type OracleContainer,
   OracleSqlEngine,
   oracleForTests,
+  type SqlServerContainer,
+  SqlServerSqlEngine,
+  sqlServerForTests,
 } from '@pracstack/sql-engine';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { gradeAnswer } from './grading';
@@ -31,11 +39,12 @@ function answerFromKey(key: QuestionAnswer): AnswerPayload {
 }
 
 const engine = new ChildProcessSqlEngine();
-const graders: Partial<Record<'postgresql' | 'oracle', SqlGrader>> = {
+const graders: Partial<Record<SqlDialect, SqlGrader>> = {
   postgresql: new SqlGrader(engine),
 };
 const questionsByFile = new Map<string, SplitQuestion[]>();
 let oracle: OracleContainer | undefined;
+let sqlServer: SqlServerContainer | undefined;
 const skipDocker = process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1';
 
 beforeAll(async () => {
@@ -43,12 +52,15 @@ beforeAll(async () => {
   if (!skipDocker) {
     oracle = await oracleForTests();
     graders.oracle = new SqlGrader(new OracleSqlEngine({ connection: oracle }));
+    sqlServer = await sqlServerForTests();
+    graders.sqlserver = new SqlGrader(new SqlServerSqlEngine({ connection: sqlServer }));
   }
   const build = await buildContent({
     sqlEngine: engine,
-    ...(graders.oracle && oracle
-      ? { sqlEngines: { oracle: new OracleSqlEngine({ connection: oracle }) } }
-      : {}),
+    sqlEngines: {
+      ...(oracle ? { oracle: new OracleSqlEngine({ connection: oracle }) } : {}),
+      ...(sqlServer ? { sqlserver: new SqlServerSqlEngine({ connection: sqlServer }) } : {}),
+    },
   });
   for (const [path, value] of build.privateFiles)
     if (path.endsWith('.questions.json')) questionsByFile.set(path, value as SplitQuestion[]);

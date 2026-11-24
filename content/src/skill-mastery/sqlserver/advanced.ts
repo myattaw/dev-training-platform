@@ -3,7 +3,7 @@ import { tsqlChoiceFamily } from './builders';
 
 /*
  * SQL Server advanced queries: subqueries, EXISTS, CTEs (including recursive),
- * window functions, frames and top-N per group. Reviewed by hand (no engine yet).
+ * window functions, frames and top-N per group. Reviewed by hand.
  */
 
 const ranked = `Results

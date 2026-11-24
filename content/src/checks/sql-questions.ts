@@ -69,7 +69,9 @@ export async function checkSqlQuestions(
         `${count} ${label} reference queries were NOT run (no ${label} engine). ` +
         (dialect === 'oracle'
           ? 'Start Oracle with "npm run oracle:start", or run the content tests, which do.'
-          : ''),
+          : dialect === 'sqlserver'
+            ? 'Start SQL Server with "npm run sqlserver:start", or run the content tests, which do.'
+            : ''),
     });
   }
   return issues;

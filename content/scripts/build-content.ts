@@ -9,7 +9,12 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { localOracle, OracleSqlEngine } from '@pracstack/sql-engine';
+import {
+  localOracle,
+  localSqlServer,
+  OracleSqlEngine,
+  SqlServerSqlEngine,
+} from '@pracstack/sql-engine';
 import { buildContent, type FileSet } from '../src';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -19,8 +24,16 @@ const root = resolve(here, '..', 'dist');
 const oracle = await localOracle(resolve(here, '..', '..', '.local', 'oracle.json'), false).catch(
   () => undefined,
 );
+// T-SQL reference queries are checked when the local SQL Server is running (npm run sqlserver:start).
+const sqlServer = await localSqlServer(
+  resolve(here, '..', '..', '.local', 'sqlserver.json'),
+  false,
+).catch(() => undefined);
 const build = await buildContent({
-  ...(oracle ? { sqlEngines: { oracle: new OracleSqlEngine({ connection: oracle }) } } : {}),
+  sqlEngines: {
+    ...(oracle ? { oracle: new OracleSqlEngine({ connection: oracle }) } : {}),
+    ...(sqlServer ? { sqlserver: new SqlServerSqlEngine({ connection: sqlServer }) } : {}),
+  },
 });
 const errors = build.issues.filter((i) => i.severity === 'error');
 const warnings = build.issues.filter((i) => i.severity === 'warning');

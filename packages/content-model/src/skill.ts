@@ -131,11 +131,12 @@ export interface FillInBlankQuestion extends QuestionBase {
 }
 
 /** SQL dialects with a practice engine. */
-export type SqlDialect = 'postgresql' | 'oracle';
-export const SQL_DIALECTS: readonly SqlDialect[] = ['postgresql', 'oracle'];
+export type SqlDialect = 'postgresql' | 'oracle' | 'sqlserver';
+export const SQL_DIALECTS: readonly SqlDialect[] = ['postgresql', 'oracle', 'sqlserver'];
 export const SQL_DIALECT_LABELS: Readonly<Record<SqlDialect, string>> = {
   postgresql: 'PostgreSQL',
   oracle: 'Oracle',
+  sqlserver: 'SQL Server',
 };
 
 export interface SqlQueryQuestion extends QuestionBase {

@@ -4,15 +4,14 @@
  * and kept in .local/oracle.json (git-ignored); it is used only to set up
  * practice datasets, never for learner SQL (see oracle-engine.ts).
  */
-import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { containerLogs, docker, hostPort, running, stopContainer } from './docker';
 import type { OracleConnectionInfo } from './oracle-engine';
 
-const exec = promisify(execFile);
+export { stopContainer };
 
 /** Oracle Database 23ai Free, slim build (community image by Oracle's Gerald Venzl), pinned. */
 export const ORACLE_IMAGE =
@@ -33,35 +32,15 @@ interface StartOptions {
   readonly ephemeral: boolean;
 }
 
-async function docker(args: string[]): Promise<string> {
-  return (await exec('docker', args, { maxBuffer: 10 * 1024 * 1024 })).stdout.trim();
-}
-
-async function running(name: string): Promise<boolean> {
-  try {
-    return (await docker(['inspect', '-f', '{{.State.Running}}', name])) === 'true';
-  } catch {
-    return false;
-  }
-}
-
 async function waitUntilReady(name: string, timeoutMs = 240_000): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const logs = await exec('docker', ['logs', name], { maxBuffer: 10 * 1024 * 1024 }).catch(
-      () => ({ stdout: '', stderr: '' }),
-    );
-    if (`${logs.stdout}${logs.stderr}`.includes('DATABASE IS READY TO USE')) return;
+    if ((await containerLogs(name)).includes('DATABASE IS READY TO USE')) return;
     if (!(await running(name)))
       throw new Error(`The Oracle container "${name}" stopped while starting.`);
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error(`Oracle did not become ready within ${timeoutMs / 1000} s.`);
-}
-
-async function hostPort(name: string): Promise<number> {
-  const mapping = await docker(['port', name, '1521/tcp']);
-  return Number(mapping.split('\n')[0]?.split(':').pop());
 }
 
 export async function startContainer(options: StartOptions): Promise<OracleContainer> {
@@ -90,7 +69,7 @@ export async function startContainer(options: StartOptions): Promise<OracleConta
     );
   }
   await waitUntilReady(options.name);
-  const port = await hostPort(options.name);
+  const port = await hostPort(options.name, '1521/tcp');
   return {
     name: options.name,
     port,
@@ -101,10 +80,6 @@ export async function startContainer(options: StartOptions): Promise<OracleConta
 
 /** A strong random password Oracle accepts (letters and digits, starting with a letter). */
 export const randomOraclePassword = (): string => `P${randomBytes(18).toString('hex')}`;
-
-export async function stopContainer(name: string): Promise<void> {
-  await docker(['rm', '-f', name]).catch(() => undefined);
-}
 
 /** The repository's local Oracle settings (git-ignored). */
 export const LOCAL_STATE_FILE = fileURLToPath(

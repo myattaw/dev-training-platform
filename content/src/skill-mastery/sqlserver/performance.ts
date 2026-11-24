@@ -5,7 +5,7 @@ import { tsqlChoiceFamily, tsqlMultiFamily } from './builders';
 /*
  * SQL Server query performance: indexes, covering and key lookups, SARGability,
  * implicit conversions, statistics and parameter sniffing. Execution plans are
- * described in text. Reviewed by hand (no engine yet).
+ * described in text. Reviewed by hand.
  */
 
 export const performanceFamilies: readonly QuestionSource[] = [

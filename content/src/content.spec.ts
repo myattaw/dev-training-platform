@@ -103,7 +103,10 @@ describe('the real content', { timeout: 120_000 }, () => {
 
   it('has no warnings for TypeScript or PostgreSQL: every reference query ran, and the hidden data differs', () => {
     const warnings = result.issues
-      .filter((i) => i.severity === 'warning' && !i.path.includes('oracle'))
+      .filter(
+        (i) =>
+          i.severity === 'warning' && !i.path.includes('oracle') && !i.path.includes('sqlserver'),
+      )
       .map((i) => `${i.path}: ${i.message}`);
     expect(warnings).toEqual([]);
   });

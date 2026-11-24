@@ -17,3 +17,18 @@ export {
   stopContainer,
 } from './oracle-container';
 export type { OracleContainer } from './oracle-container';
+export {
+  SqlServerSqlEngine,
+  classifySqlServerError,
+  pingSqlServer,
+  sqlServerValue,
+} from './sqlserver-engine';
+export type { SqlServerConnectionInfo, SqlServerEngineOptions } from './sqlserver-engine';
+export {
+  LOCAL_SQLSERVER_STATE_FILE,
+  localSqlServer,
+  SQLSERVER_CONTAINER,
+  SQLSERVER_IMAGE,
+  sqlServerForTests,
+} from './sqlserver-container';
+export type { SqlServerContainer } from './sqlserver-container';

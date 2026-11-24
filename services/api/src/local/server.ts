@@ -19,7 +19,13 @@ import { loadContentSource } from '../content/content-source';
 import { type ApiResponse, MAX_REQUEST_BODY_BYTES } from '../http';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { FileProgressStore } from '../store/file-store';
-import { ChildProcessSqlEngine, localOracle, OracleSqlEngine } from '@pracstack/sql-engine';
+import {
+  ChildProcessSqlEngine,
+  localOracle,
+  localSqlServer,
+  OracleSqlEngine,
+  SqlServerSqlEngine,
+} from '@pracstack/sql-engine';
 import { DockerCodeRunner } from '@pracstack/code-runner';
 import { securityHeadersFor } from '@pracstack/web-security';
 
@@ -54,6 +60,16 @@ if (!oracleEngine) {
     'Oracle is not running: Oracle SQL questions that need a database are skipped. Start it with "npm run oracle:start".',
   );
 }
+// T-SQL runs on SQL Server Developer edition in Docker, if it was started (npm run sqlserver:start).
+const sqlServer = await localSqlServer(join(repoRoot, '.local', 'sqlserver.json'), false).catch(
+  () => undefined,
+);
+const sqlServerEngine = sqlServer ? new SqlServerSqlEngine({ connection: sqlServer }) : undefined;
+if (!sqlServerEngine) {
+  console.warn(
+    'SQL Server is not running: T-SQL questions that need a database are skipped. Start it with "npm run sqlserver:start".',
+  );
+}
 const stop = () => {
   void sqlEngine.close().finally(() => process.exit(0));
 };
@@ -84,7 +100,10 @@ if (
 
 const api = createApi({
   sqlEngine,
-  ...(oracleEngine ? { sqlEngines: { oracle: oracleEngine } } : {}),
+  sqlEngines: {
+    ...(oracleEngine ? { oracle: oracleEngine } : {}),
+    ...(sqlServerEngine ? { sqlserver: sqlServerEngine } : {}),
+  },
   codeRunner,
   auth: new LocalDevAuthenticator(),
   allowLocalDevUser: true,

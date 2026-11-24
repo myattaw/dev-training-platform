@@ -1,6 +1,6 @@
-# SQL practice (PostgreSQL and Oracle)
+# SQL practice (PostgreSQL, Oracle and SQL Server)
 
-Two dialects, each on its real engine: PostgreSQL (below) and Oracle (see "Oracle" further down).
+Three dialects, each on its real engine: PostgreSQL (below), Oracle and SQL Server (further down).
 Grading is the same for both: results are compared on the sample and the hidden datasets.
 
 Learners write real SQL against a real PostgreSQL engine:
@@ -75,7 +75,7 @@ used as a general-purpose database.
 ## Authoring
 
 See `content/src/skill-mastery/postgresql/` and `oracle/`; each question has a `dialect`
-(`postgresql` or `oracle`) and is checked and graded by that dialect's engine. A practice database has a schema (SQL DDL), sample
+(`postgresql`, `oracle` or `sqlserver`) and is checked and graded by that dialect's engine. A practice database has a schema (SQL DDL), sample
 data and at least one hidden dataset, written as structured tables (converted to quoted
 `INSERT`s by `tablesToSql`). Questions reference the database and give a reference query:
 
@@ -151,3 +151,56 @@ by a fresh database per run as with PGlite); a query can list other datasets' *s
 - `e2e/oracle.e2e.ts`: practicing in the browser against the local Oracle.
 
 All start Oracle in Docker (about 20 s); `PRACSTACK_SKIP_DOCKER_TESTS=1` skips them.
+
+## SQL Server (T-SQL)
+
+The SQL Server track's querying skills include runnable T-SQL questions
+(`content/src/skill-mastery/sqlserver/runnable.ts`, 20 questions on a small shop database).
+Locally they run on **SQL Server 2022 Developer edition** (Microsoft's
+`mcr.microsoft.com/mssql/server` image, pinned by digest) in Docker. Developer edition is free
+for development and testing only, not for serving a public site; starting it accepts
+Microsoft's SQL Server license terms (`ACCEPT_EULA=Y`), which the project owner has accepted.
+There is no SQL Server on AWS yet, so **on AWS the track serves only its hand-reviewed
+questions** (see [enterprise-prep.md](enterprise-prep.md) for the hosting options).
+
+```bash
+npm run sqlserver:start   # once per boot: starts or reuses "pracstack-sqlserver" on 127.0.0.1:1433 (≈ 1.6 GB download once)
+npm start                 # the local API uses it automatically when it is running
+npm run sqlserver:stop    # or sqlserver:remove to delete it and its settings
+```
+
+Without it, the runnable T-SQL questions are skipped and the content build warns that their
+reference queries were not run.
+
+### Security boundaries (`packages/sql-engine/src/sqlserver-engine.ts`)
+
+| Boundary | How |
+| --- | --- |
+| **Datasets are separate databases** | Each dataset (sample and each hidden one) is its own database, built by `sa` and then set `READ_ONLY`, so nothing can change it and readers take no locks (one learner cannot block another) |
+| **Learner SQL runs as a per-dataset login** | Its only permission is `SELECT` on that database's `dbo` schema. `guest` is disabled, so other datasets (hidden data included) cannot be opened (Msg 916), and `VIEW ANY DATABASE` is revoked from `public`, so they are not even listed |
+| **Fresh session per run** | Every run opens a new connection, so temp tables and `SET` options never carry over |
+| **One result set** | A batch that returns a second result set is cancelled and refused; statements that write fail on permissions and the read-only database |
+| **Limits** | A 3 s request timeout (the batch is cancelled), a 1 s lock timeout, rows fetched (cancelled after one extra row), 4 runs at a time |
+| **No shell, files or network** | `xp_cmdshell`, OLE automation, ad hoc `OPENROWSET`, CLR and external scripts are kept off; `xp_dirtree`, `xp_fileexist`, `xp_subdirs`, `xp_regread` and similar are revoked from `public`; bulk `OPENROWSET` needs a permission learners do not have |
+| **Admin credentials** | The `sa` password is random, kept in `.local/sqlserver.json` (git-ignored), used only to create datasets, and never reaches learner sessions |
+| **Local only** | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB (SQL Server itself to 2 GB) |
+
+Values: `date` prints as `YYYY-MM-DD`, `datetime`/`datetime2` add the time when there is one
+(independent of this machine's time zone), `bit` is a boolean, `bigint` is a number when it is
+exact and text otherwise. Errors show as SQL Server reports them, e.g.
+`Msg 207, Level 16, Line 1: Invalid column name 'x'.`
+
+**Known limits.** Learners share one server (separated by logins, permissions and read-only
+databases); a batch can create `#temp` tables in `tempdb` for up to the 3 s timeout; dataset
+logins are visible by name in `sys.server_principals` (not their data).
+
+### Tests
+
+- `packages/sql-engine/src/sqlserver-engine.spec.ts`: values, T-SQL syntax, errors, isolation
+  between datasets, writes, shell/file procedures, runaway queries, sharing between processes.
+- `content/src/checks/sqlserver-questions.spec.ts`: every T-SQL reference query on every dataset.
+- `services/api/src/practice/real-content.spec.ts`: grades every reference answer through the
+  real grader.
+- `e2e/sqlserver.e2e.ts`: practicing in the browser against the local SQL Server.
+
+All start SQL Server in Docker (about 10 s); `PRACSTACK_SKIP_DOCKER_TESTS=1` skips them.

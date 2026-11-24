@@ -50,6 +50,27 @@ CREATE TABLE employees (
     ]);
   });
 
+  it('reads SQL Server types, explicit NULL and self references', () => {
+    const [t] = outlineSchema(`CREATE TABLE customers (
+  customer_id INT PRIMARY KEY,
+  name NVARCHAR(60) NOT NULL,
+  total DECIMAL(10, 2) NULL,
+  referred_by INT NULL REFERENCES customers (customer_id)
+);`);
+    expect(t?.columns).toEqual([
+      { name: 'customer_id', type: 'INT', primaryKey: true, notNull: true },
+      { name: 'name', type: 'NVARCHAR(60)', primaryKey: false, notNull: true },
+      { name: 'total', type: 'DECIMAL(10, 2)', primaryKey: false, notNull: false },
+      {
+        name: 'referred_by',
+        type: 'INT',
+        primaryKey: false,
+        notNull: false,
+        references: 'customers.customer_id',
+      },
+    ]);
+  });
+
   it('ignores text it does not understand instead of failing', () => {
     expect(outlineSchema('SELECT 1;')).toEqual([]);
     expect(outlineSchema('CREATE TABLE broken (id int')).toEqual([]);

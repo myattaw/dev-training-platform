@@ -4,7 +4,7 @@ import { tsqlBlankFamily, tsqlChoiceFamily } from './builders';
 /*
  * SQL Server transactions and concurrency: XACT_ABORT, @@TRANCOUNT, isolation
  * levels, row versioning (RCSI and SNAPSHOT), blocking, deadlocks and MERGE.
- * Reviewed by hand (no engine yet).
+ * Reviewed by hand.
  */
 
 const threeInserts = (prefix: string): string => `${prefix}BEGIN TRANSACTION;

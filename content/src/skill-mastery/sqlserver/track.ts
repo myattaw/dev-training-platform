@@ -5,20 +5,22 @@ import { dataModelingFamilies } from './modeling';
 import { performanceFamilies } from './performance';
 import { programmingFamilies } from './programming';
 import { joinsAggregationFamilies, queryingFamilies } from './querying';
+import { runnableAdvancedTasks, runnableJoinTasks, runnableQueryingTasks } from './runnable';
 import { transactionFamilies } from './transactions';
 
 /**
- * SQL Server (T-SQL). There is no SQL Server engine in PracStack yet (running one
- * needs Microsoft's license terms accepted), so this track uses multiple-choice and
- * fill-in-blank questions whose answer keys are reviewed by hand; nothing is executed.
- * See builders.ts.
+ * SQL Server (T-SQL). The querying skills include runnable questions (runnable.ts):
+ * the learner's T-SQL runs on a real SQL Server, and every reference query is
+ * executed in the content checks. They are served only where a SQL Server engine
+ * is available (locally: `npm run sqlserver:start`). The other questions are
+ * multiple choice and fill in the blank, reviewed by hand (builders.ts).
  */
 export const sqlServerTrack: TrackSource = {
   id: 'sql-server',
   name: 'SQL Server (T-SQL)',
   category: 'databases',
   description:
-    'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, table design, and SSIS and SSRS. Questions are reviewed by hand; running your own T-SQL needs a SQL Server engine, which is not set up yet.',
+    'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, table design, and SSIS and SSRS. Where a SQL Server engine is available, you also write T-SQL queries that run on a real SQL Server.',
   topics: [
     {
       id: 'mssql-querying-data',
@@ -31,7 +33,7 @@ export const sqlServerTrack: TrackSource = {
           name: 'Filtering, sorting and NULLs',
           description:
             '`SELECT`, `WHERE`, `ORDER BY`, `TOP` and `WITH TIES`, `OFFSET`/`FETCH`, three-valued logic, `ISNULL` versus `COALESCE`, string concatenation and `CASE`.',
-          questions: queryingFamilies,
+          questions: [...queryingFamilies, ...runnableQueryingTasks],
         },
         {
           id: 'mssql-joins-aggregation',
@@ -39,7 +41,7 @@ export const sqlServerTrack: TrackSource = {
           name: 'Joins and aggregation',
           description:
             'Inner, outer, full and self joins, `ON` versus `WHERE` filters, join fan-out, `GROUP BY`/`HAVING`, `COUNT` variants, `APPLY` and `STRING_AGG`.',
-          questions: joinsAggregationFamilies,
+          questions: [...joinsAggregationFamilies, ...runnableJoinTasks],
         },
         {
           id: 'mssql-advanced-queries',
@@ -47,7 +49,7 @@ export const sqlServerTrack: TrackSource = {
           name: 'Subqueries, CTEs and window functions',
           description:
             'Correlated subqueries and `EXISTS`, CTEs and recursive CTEs, ranking functions, `LAG`/`LEAD`, window frames and top-N per group.',
-          questions: advancedQueryFamilies,
+          questions: [...advancedQueryFamilies, ...runnableAdvancedTasks],
         },
       ],
     },
