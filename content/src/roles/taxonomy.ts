@@ -210,14 +210,14 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     label: 'SSIS',
     category: 'database',
     aliases: ['SQL Server Integration Services'],
-    practice: [],
+    practice: [skill('mssql-ssis')],
   },
   {
     id: 'ssrs',
     label: 'SSRS',
     category: 'database',
     aliases: ['SQL Server Reporting Services'],
-    practice: [],
+    practice: [skill('mssql-ssrs')],
   },
   {
     id: 'postgresql',

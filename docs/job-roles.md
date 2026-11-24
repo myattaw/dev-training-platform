@@ -35,7 +35,7 @@ contain no secrets: only names and ids that the catalogs already publish.
 | Full-Stack Angular + .NET Developer | Available |
 | C# / .NET Developer | Available |
 | ASP.NET Core Backend Developer | Available |
-| SQL Server Database Developer | Available (SSIS/SSRS: no practice yet) |
+| SQL Server Database Developer | Available |
 | Azure Developer | Available |
 | Power Platform Developer | Available |
 | Enterprise Application Developer | Coming soon |

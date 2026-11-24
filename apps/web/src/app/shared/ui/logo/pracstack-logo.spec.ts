@@ -18,7 +18,7 @@ describe('PracStackLogo', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows the mark and the two-colour wordmark by default, hidden from assistive tech', async () => {
+  it('shows the mark and the two-color wordmark by default, hidden from assistive tech', async () => {
     const full = (await render()).querySelector('#full')!;
     const [mark, wordmark] = [...full.querySelectorAll('svg')];
     expect(mark?.getAttribute('height')).toBe('24');

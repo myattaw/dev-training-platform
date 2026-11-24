@@ -464,7 +464,7 @@ export const ROLES: readonly JobRole[] = [
         id: 'etl-reporting',
         name: 'ETL and reporting (SSIS, SSRS)',
         description: 'Integration Services packages and Reporting Services reports.',
-        activities: [],
+        activities: skills('mssql-ssis', 'mssql-ssrs'),
       },
     ],
   },

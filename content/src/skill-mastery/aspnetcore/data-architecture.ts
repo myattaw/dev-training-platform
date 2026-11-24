@@ -920,7 +920,7 @@ public interface IRepository<T> where T : class
   ...choiceFamily(
     'aspnet-arch-boundaries',
     5,
-    'Dependencies point inwards, towards the domain. Distribution is a cost you pay for independent scaling and deployment, not a code-organisation tool.',
+    'Dependencies point inwards, towards the domain. Distribution is a cost you pay for independent scaling and deployment, not a code-organization tool.',
     [
       {
         key: 'dependency-rule',

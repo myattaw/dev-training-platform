@@ -1,5 +1,6 @@
 import type { TrackSource } from '@pracstack/content-model';
 import { advancedQueryFamilies } from './advanced';
+import { ssisFamilies, ssrsFamilies } from './integration-reporting';
 import { dataModelingFamilies } from './modeling';
 import { performanceFamilies } from './performance';
 import { programmingFamilies } from './programming';
@@ -17,7 +18,7 @@ export const sqlServerTrack: TrackSource = {
   name: 'SQL Server (T-SQL)',
   category: 'databases',
   description:
-    'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, and table design. Questions are reviewed by hand; running your own T-SQL needs a SQL Server engine, which is not set up yet.',
+    'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, table design, and SSIS and SSRS. Questions are reviewed by hand; running your own T-SQL needs a SQL Server engine, which is not set up yet.',
   topics: [
     {
       id: 'mssql-querying-data',
@@ -101,6 +102,30 @@ export const sqlServerTrack: TrackSource = {
           description:
             'Natural and surrogate keys, `IDENTITY`, `SEQUENCE` and GUIDs, foreign keys and cascades, `UNIQUE` and `CHECK` constraints, normalization and data type choice.',
           questions: dataModelingFamilies,
+        },
+      ],
+    },
+    {
+      id: 'mssql-integration-reporting',
+      name: 'Integration and reporting',
+      description:
+        'Move and transform data with SSIS packages and publish paginated reports with SSRS.',
+      skills: [
+        {
+          id: 'mssql-ssis',
+          prerequisites: ['mssql-programming'],
+          name: 'SSIS (Integration Services)',
+          description:
+            'Control and data flow, Lookups and error outputs, data conversion, incremental loads and slowly changing dimensions, parameters and environments, performance, and deploying and troubleshooting through the SSIS catalog.',
+          questions: ssisFamilies,
+        },
+        {
+          id: 'mssql-ssrs',
+          prerequisites: ['mssql-querying'],
+          name: 'SSRS (Reporting Services)',
+          description:
+            'Data sources and datasets, single, multi-value and cascading parameters, expressions and scopes, grouping and totals, performance, subscriptions, security, and paginated versus interactive reports.',
+          questions: ssrsFamilies,
         },
       ],
     },

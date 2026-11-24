@@ -77,7 +77,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
       expect.objectContaining({ id: 'csharp', skillCount: 15 }),
       expect.objectContaining({ id: 'aspnet-core', skillCount: 8 }),
-      expect.objectContaining({ id: 'sql-server', skillCount: 7 }),
+      expect.objectContaining({ id: 'sql-server', skillCount: 9 }),
       expect.objectContaining({ id: 'aws', skillCount: 5 }),
       expect.objectContaining({ id: 'azure', skillCount: 5 }),
       expect.objectContaining({ id: 'power-platform', skillCount: 6 }),

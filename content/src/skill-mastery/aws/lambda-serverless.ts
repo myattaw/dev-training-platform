@@ -165,7 +165,7 @@ REPORT RequestId: 9e41...  Duration: 4210.11 ms  Billed Duration: 4211 ms  Memor
           'Increase the function timeout so connections wait longer',
           'Give the function more memory so each environment opens fewer connections',
         ],
-        why: 'Every execution environment opens its own connections, so Lambda’s scaling can overwhelm a database. Reserved concurrency sets a hard ceiling (extra requests are throttled), and RDS Proxy shares a smaller pool of connections among many environments. Provisioned concurrency only pre-initialises environments; it is not a cap.',
+        why: 'Every execution environment opens its own connections, so Lambda’s scaling can overwhelm a database. Reserved concurrency sets a hard ceiling (extra requests are throttled), and RDS Proxy shares a smaller pool of connections among many environments. Provisioned concurrency only pre-initializes environments; it is not a cap.',
       },
       {
         key: 'async-throttled',
