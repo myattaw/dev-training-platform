@@ -10,8 +10,21 @@ import {
   PROFILE_LIMITS,
   type ProgressImportRequest,
   type ReportedQuestionStatus,
+  PLAN_KEY_PATTERN,
+  type PlanSettings,
+  type SavedRequirement,
+  type SavedScheduleDay,
+  type UpdatePlanRequest,
 } from '@pracstack/api-contracts';
-import { LANGUAGE_LABELS, type LanguageId } from '@pracstack/content-model';
+import {
+  INTERVIEW_FORMATS,
+  type InterviewFormat,
+  LANGUAGE_LABELS,
+  type LanguageId,
+  type PreparationPriority,
+  REQUIREMENT_LABELS,
+  type RequirementLevel,
+} from '@pracstack/content-model';
 import { badRequest } from './http';
 import { parseId } from './validation';
 import type { CompanyQuery } from './companies/company-service';
@@ -112,35 +125,234 @@ export function parseSetTargetRole(body: unknown): string | null {
   return roleId === null ? null : parseId(roleId, 'roleId');
 }
 
-const PLAN_FIELDS = new Set(['title', 'termIds']);
+const PLAN_FIELDS = new Set([
+  'title',
+  'termIds',
+  'settings',
+  'requirements',
+  'schedule',
+  'done',
+  'skipped',
+]);
+const UPDATE_FIELDS = new Set(['title', 'settings', 'requirements', 'schedule', 'done', 'skipped']);
+const SETTINGS_FIELDS = new Set([
+  'jobTitle',
+  'company',
+  'interviewDate',
+  'dailyMinutes',
+  'format',
+  'language',
+]);
+const REQUIREMENT_FIELDS = new Set(['termId', 'requirement', 'priority']);
+const REQUIREMENT_LEVELS = new Set<string>(Object.keys(REQUIREMENT_LABELS));
+const PRIORITIES = new Set<string>(['high', 'medium', 'low']);
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/**
- * `{ title, termIds }` and nothing else. Any other field is refused, so job
- * posting text cannot be stored even by a modified client.
- */
-export function parseCreatePlan(body: unknown): CreatePlanRequest {
-  const o = asObject(body);
-  if (Object.keys(o).some((k) => !PLAN_FIELDS.has(k))) {
-    throw badRequest('A plan has only "title" and "termIds"; other fields are not accepted.');
+function onlyFields(o: Record<string, unknown>, allowed: ReadonlySet<string>, what: string): void {
+  const extra = Object.keys(o).filter((k) => !allowed.has(k));
+  if (extra.length > 0) {
+    throw badRequest(`${what} does not accept "${extra[0]}". Plans never store job posting text.`);
   }
-  const rawTitle = o['title'];
-  if (typeof rawTitle !== 'string') throw badRequest('"title" must be a string.');
-  const title = cleanText(rawTitle);
+}
+
+function parseTitle(value: unknown): string {
+  if (typeof value !== 'string') throw badRequest('"title" must be a string.');
+  const title = cleanText(value);
   if (title.length < 1 || title.length > PREPARATION_LIMITS.maxPlanTitle) {
     throw badRequest(`"title" must be 1–${PREPARATION_LIMITS.maxPlanTitle} characters.`);
   }
-  const termIds = o['termIds'];
+  return title;
+}
+
+function parseDate(value: unknown, field: string): string {
   if (
-    !Array.isArray(termIds) ||
-    termIds.length < 1 ||
-    termIds.length > PREPARATION_LIMITS.maxPlanTerms
+    typeof value !== 'string' ||
+    !DATE.test(value) ||
+    Number.isNaN(Date.parse(`${value}T00:00:00Z`))
   ) {
+    throw badRequest(`"${field}" must be a date (YYYY-MM-DD).`);
+  }
+  return value;
+}
+
+function parseSettings(value: unknown): PlanSettings {
+  const o = asObject(value);
+  onlyFields(o, SETTINGS_FIELDS, '"settings"');
+  const format = o['format'];
+  if (typeof format !== 'string' || !(INTERVIEW_FORMATS as readonly string[]).includes(format)) {
+    throw badRequest('"settings.format" must be an interview format.');
+  }
+  const text = (field: 'jobTitle' | 'company'): string | undefined => {
+    const v = o[field];
+    if (v === undefined) return undefined;
+    if (typeof v !== 'string') throw badRequest(`"settings.${field}" must be a string.`);
+    const t = cleanText(v);
+    if (t.length > PREPARATION_LIMITS.maxSettingText) {
+      throw badRequest(
+        `"settings.${field}" must be at most ${PREPARATION_LIMITS.maxSettingText} characters.`,
+      );
+    }
+    return t === '' ? undefined : t;
+  };
+  const jobTitle = text('jobTitle');
+  const company = text('company');
+  const interviewDate =
+    o['interviewDate'] === undefined
+      ? undefined
+      : parseDate(o['interviewDate'], 'settings.interviewDate');
+  const minutes = o['dailyMinutes'];
+  if (
+    minutes !== undefined &&
+    (typeof minutes !== 'number' || !Number.isInteger(minutes) || minutes < 15 || minutes > 720)
+  ) {
+    throw badRequest('"settings.dailyMinutes" must be a whole number from 15 to 720.');
+  }
+  const language = o['language'] === undefined ? undefined : parseLanguage(o['language']);
+  return {
+    format: format as InterviewFormat,
+    ...(jobTitle ? { jobTitle } : {}),
+    ...(company ? { company } : {}),
+    ...(interviewDate ? { interviewDate } : {}),
+    ...(typeof minutes === 'number' ? { dailyMinutes: minutes } : {}),
+    ...(language ? { language } : {}),
+  };
+}
+
+function parseRequirements(value: unknown): SavedRequirement[] {
+  if (!Array.isArray(value) || value.length > PREPARATION_LIMITS.maxPlanTerms) {
+    throw badRequest(
+      `"requirements" must be a list of at most ${PREPARATION_LIMITS.maxPlanTerms}.`,
+    );
+  }
+  const seen = new Set<string>();
+  return value.map((item: unknown, i) => {
+    const o = asObject(item);
+    onlyFields(o, REQUIREMENT_FIELDS, `"requirements[${i}]"`);
+    const termId = parseId(o['termId'], `requirements[${i}].termId`);
+    if (seen.has(termId)) throw badRequest(`"requirements" lists "${termId}" twice.`);
+    seen.add(termId);
+    const requirement = o['requirement'];
+    const priority = o['priority'];
+    if (typeof requirement !== 'string' || !REQUIREMENT_LEVELS.has(requirement)) {
+      throw badRequest(`"requirements[${i}].requirement" is not a requirement level.`);
+    }
+    if (typeof priority !== 'string' || !PRIORITIES.has(priority)) {
+      throw badRequest(`"requirements[${i}].priority" must be high, medium or low.`);
+    }
+    return {
+      termId,
+      requirement: requirement as RequirementLevel,
+      priority: priority as PreparationPriority,
+    };
+  });
+}
+
+function parseKey(value: unknown, field: string): string {
+  if (
+    typeof value !== 'string' ||
+    value.length > PREPARATION_LIMITS.maxKeyLength ||
+    !PLAN_KEY_PATTERN.test(value)
+  ) {
+    throw badRequest(`"${field}" is not a plan activity key.`);
+  }
+  return value;
+}
+
+function parseKeys(value: unknown, field: string): string[] {
+  if (!Array.isArray(value) || value.length > PREPARATION_LIMITS.maxMarks) {
+    throw badRequest(`"${field}" must be a list of at most ${PREPARATION_LIMITS.maxMarks} keys.`);
+  }
+  return [...new Set(value.map((k: unknown, i) => parseKey(k, `${field}[${i}]`)))];
+}
+
+function parseSchedule(value: unknown): SavedScheduleDay[] {
+  if (!Array.isArray(value) || value.length > PREPARATION_LIMITS.maxScheduleDays) {
+    throw badRequest(
+      `"schedule" must be a list of at most ${PREPARATION_LIMITS.maxScheduleDays} days.`,
+    );
+  }
+  let previous = '';
+  return value.map((day: unknown, i) => {
+    const o = asObject(day);
+    onlyFields(o, new Set(['date', 'items']), `"schedule[${i}]"`);
+    const date = parseDate(o['date'], `schedule[${i}].date`);
+    if (date <= previous) throw badRequest('"schedule" days must be in date order, once each.');
+    previous = date;
+    const items = o['items'];
+    if (!Array.isArray(items) || items.length > PREPARATION_LIMITS.maxItemsPerDay) {
+      throw badRequest(
+        `"schedule[${i}].items" must be a list of at most ${PREPARATION_LIMITS.maxItemsPerDay}.`,
+      );
+    }
+    return {
+      date,
+      items: items.map((item: unknown, j) => {
+        const it = asObject(item);
+        onlyFields(it, new Set(['key', 'minutes']), `"schedule[${i}].items[${j}]"`);
+        const minutes = it['minutes'];
+        if (
+          typeof minutes !== 'number' ||
+          !Number.isInteger(minutes) ||
+          minutes < 0 ||
+          minutes > 720
+        ) {
+          throw badRequest(`"schedule[${i}].items[${j}].minutes" must be 0–720.`);
+        }
+        return { key: parseKey(it['key'], `schedule[${i}].items[${j}].key`), minutes };
+      }),
+    };
+  });
+}
+
+function parseTermIds(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length < 1 || value.length > PREPARATION_LIMITS.maxPlanTerms) {
     throw badRequest(
       `"termIds" must be a list of 1–${PREPARATION_LIMITS.maxPlanTerms} taxonomy term ids.`,
     );
   }
-  const ids = termIds.map((id: unknown, i) => parseId(id, `termIds[${i}]`));
-  return { title, termIds: [...new Set(ids)] };
+  return [...new Set(value.map((id: unknown, i) => parseId(id, `termIds[${i}]`)))];
+}
+
+/**
+ * A new plan: title and term ids, optionally settings, requirements, a
+ * schedule and marks. Any other field is refused, so job posting text cannot
+ * be stored even by a modified client.
+ */
+export function parseCreatePlan(body: unknown): CreatePlanRequest {
+  const o = asObject(body);
+  onlyFields(o, PLAN_FIELDS, 'A plan');
+  return {
+    title: parseTitle(o['title']),
+    termIds: parseTermIds(o['termIds']),
+    ...(o['settings'] !== undefined ? { settings: parseSettings(o['settings']) } : {}),
+    ...(o['requirements'] !== undefined
+      ? { requirements: parseRequirements(o['requirements']) }
+      : {}),
+    ...(o['schedule'] !== undefined ? { schedule: parseSchedule(o['schedule']) } : {}),
+    ...(o['done'] !== undefined ? { done: parseKeys(o['done'], 'done') } : {}),
+    ...(o['skipped'] !== undefined ? { skipped: parseKeys(o['skipped'], 'skipped') } : {}),
+  };
+}
+
+/** Changes to a plan; only the fields given change. `schedule: null` removes the schedule. */
+export function parseUpdatePlan(body: unknown): UpdatePlanRequest {
+  const o = asObject(body);
+  onlyFields(o, UPDATE_FIELDS, 'A plan update');
+  if (Object.keys(o).length === 0) throw badRequest('Nothing to update.');
+  return {
+    ...(o['title'] !== undefined ? { title: parseTitle(o['title']) } : {}),
+    ...(o['settings'] !== undefined ? { settings: parseSettings(o['settings']) } : {}),
+    ...(o['requirements'] !== undefined
+      ? { requirements: parseRequirements(o['requirements']) }
+      : {}),
+    ...(o['schedule'] === null
+      ? { schedule: null }
+      : o['schedule'] !== undefined
+        ? { schedule: parseSchedule(o['schedule']) }
+        : {}),
+    ...(o['done'] !== undefined ? { done: parseKeys(o['done'], 'done') } : {}),
+    ...(o['skipped'] !== undefined ? { skipped: parseKeys(o['skipped'], 'skipped') } : {}),
+  };
 }
 
 export function parseProgressImport(body: unknown): ProgressImportRequest {

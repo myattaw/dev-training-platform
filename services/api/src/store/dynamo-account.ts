@@ -346,6 +346,35 @@ export class DynamoAccountStore implements AccountStore {
     }
   }
 
+  async updatePreparationPlan(
+    userId: string,
+    plan: SavedPlanRecord,
+    updatedAt: string,
+  ): Promise<boolean> {
+    // The list can change between reading and writing; retry on a lost race.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await this.getPreparation(userId);
+      const index = current?.plans.findIndex((p) => p.id === plan.id) ?? -1;
+      if (index < 0) return false;
+      try {
+        await this.db.send(
+          new UpdateCommand({
+            TableName: this.table,
+            Key: { pk: user(userId), sk: 'PREP' },
+            UpdateExpression: `SET plans[${index}] = :plan, updatedAt = :at`,
+            ConditionExpression: `plans[${index}].#id = :id`,
+            ExpressionAttributeNames: { '#id': 'id' },
+            ExpressionAttributeValues: { ':plan': plan, ':id': plan.id, ':at': updatedAt },
+          }),
+        );
+        return true;
+      } catch (err) {
+        if (!(err instanceof ConditionalCheckFailedException)) throw err;
+      }
+    }
+    throw new Error('Could not update the plan: the list kept changing.');
+  }
+
   async deletePreparationPlan(userId: string, planId: string, updatedAt: string): Promise<boolean> {
     // The list can change between reading and writing; retry on a lost race.
     for (let attempt = 0; attempt < 3; attempt++) {

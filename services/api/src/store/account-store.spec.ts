@@ -236,6 +236,24 @@ function accountContract(name: string, create: () => Promise<AccountStore>): voi
       expect(await store.addPreparationPlan('alice', plan('p6'), 3, 't')).toBe(true);
     });
 
+    it('updates only the owner plan with that id, keeping the others in place', async () => {
+      await store.addPreparationPlan('alice', plan('p1'), 10, 't');
+      await store.addPreparationPlan('alice', plan('p2'), 10, 't');
+      const changed = {
+        ...plan('p2'),
+        title: 'Renamed',
+        settings: { format: 'enterprise' as const, interviewDate: '2026-12-01', dailyMinutes: 90 },
+        schedule: [{ date: '2026-11-24', items: [{ key: 'skill:cs-oop', minutes: 25 }] }],
+        done: ['review:1'],
+      };
+      expect(await store.updatePreparationPlan('alice', changed, 't2')).toBe(true);
+      expect(await store.updatePreparationPlan('bob', changed, 't2')).toBe(false);
+      expect(await store.updatePreparationPlan('alice', { ...plan('p9') }, 't2')).toBe(false);
+      const prep = await store.getPreparation('alice');
+      expect(prep?.plans).toEqual([plan('p1'), changed]);
+      expect(prep?.updatedAt).toBe('t2');
+    });
+
     it('counts preparation choices as user data', async () => {
       expect(await store.hasUserData('dave')).toBe(false);
       await store.setTargetRole('dave', 'csharp-dotnet-developer', 't');

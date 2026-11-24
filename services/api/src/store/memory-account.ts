@@ -227,6 +227,22 @@ export class InMemoryAccountStore implements AccountStore {
     return true;
   }
 
+  async updatePreparationPlan(
+    userId: string,
+    plan: SavedPlanRecord,
+    updatedAt: string,
+  ): Promise<boolean> {
+    const current = this.data.preparation[userId];
+    if (!current?.plans.some((p) => p.id === plan.id)) return false;
+    this.data.preparation[userId] = {
+      ...current,
+      plans: current.plans.map((p) => (p.id === plan.id ? plan : p)),
+      updatedAt,
+    };
+    await this.persist();
+    return true;
+  }
+
   async deletePreparationPlan(userId: string, planId: string, updatedAt: string): Promise<boolean> {
     const current = this.data.preparation[userId];
     if (!current?.plans.some((p) => p.id === planId)) return false;

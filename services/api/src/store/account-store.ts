@@ -3,7 +3,10 @@ import type {
   InterviewDuration,
   InterviewResult,
   InterviewSessionStatus,
+  PlanSettings,
   ProgressImportResponse,
+  SavedRequirement,
+  SavedScheduleDay,
 } from '@pracstack/api-contracts';
 import type { LanguageId } from '@pracstack/content-model';
 
@@ -101,12 +104,22 @@ export interface ImportRecord {
   readonly importedAt: string;
 }
 
-/** A preparation plan: taxonomy term ids only (never job-posting text). */
+/**
+ * A preparation plan: taxonomy term ids, requirement levels, interview
+ * settings, a schedule of activity keys and the learner's marks. Never
+ * job-posting text or evidence excerpts.
+ */
 export interface SavedPlanRecord {
   readonly id: string;
   readonly title: string;
   readonly termIds: readonly string[];
   readonly createdAt: string;
+  readonly updatedAt?: string;
+  readonly settings?: PlanSettings;
+  readonly requirements?: readonly SavedRequirement[];
+  readonly schedule?: readonly SavedScheduleDay[];
+  readonly done?: readonly string[];
+  readonly skipped?: readonly string[];
 }
 
 /** Job Role Preparation choices: one record per user. */
@@ -172,6 +185,8 @@ export interface AccountStore {
     maxPlans: number,
     updatedAt: string,
   ): Promise<boolean>;
+  /** Replaces the user's plan with the same id; false when they have none (atomic). */
+  updatePreparationPlan(userId: string, plan: SavedPlanRecord, updatedAt: string): Promise<boolean>;
   /** False when the user has no plan with this id. */
   deletePreparationPlan(userId: string, planId: string, updatedAt: string): Promise<boolean>;
 

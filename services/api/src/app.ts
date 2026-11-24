@@ -34,6 +34,7 @@ import {
   parseQuestionId,
   parseQuestionStatus,
   parseSetTargetRole,
+  parseUpdatePlan,
   parseUuid,
 } from './prep-validation';
 
@@ -229,6 +230,15 @@ export function createApi(deps: ApiDeps): ApiHandler {
       return ok(await preparation.createPlan(user, parseCreatePlan(request.body)));
     }
     const plan = /^\/api\/me\/preparation\/plans\/([^/]+)$/.exec(path);
+    if (method === 'PATCH' && plan) {
+      return ok(
+        await preparation.updatePlan(
+          user,
+          parseUuid(decodeURIComponent(plan[1] ?? ''), 'planId'),
+          parseUpdatePlan(request.body),
+        ),
+      );
+    }
     if (method === 'DELETE' && plan) {
       return ok(
         await preparation.deletePlan(user, parseUuid(decodeURIComponent(plan[1] ?? ''), 'planId')),
