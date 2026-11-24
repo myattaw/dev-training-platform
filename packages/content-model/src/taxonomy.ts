@@ -18,6 +18,7 @@ export type TermCategory =
   | 'testing'
   | 'security'
   | 'business-apps'
+  | 'engineering'
   | 'practice'
   | 'architecture';
 
@@ -32,6 +33,7 @@ export const TERM_CATEGORIES: readonly TermCategory[] = [
   'devops',
   'cloud',
   'business-apps',
+  'engineering',
   'practice',
 ];
 
@@ -45,6 +47,7 @@ export const TERM_CATEGORY_LABELS: Readonly<Record<TermCategory, string>> = {
   devops: 'DevOps and tooling',
   cloud: 'Cloud',
   'business-apps': 'Business applications',
+  engineering: 'Engineering competencies',
   practice: 'Ways of working',
 };
 
@@ -87,7 +90,90 @@ export interface TaxonomyTerm {
   readonly tracks?: readonly string[];
   /** Shown with the term, e.g. "Formerly Microsoft Flow." */
   readonly note?: string;
+  /**
+   * How well `practice` covers the term. Defaults: `executable` when the practice
+   * includes a coding challenge or scenario, `conceptual` for skills only,
+   * `related` when only `relatedPractice` exists, `none` otherwise. Set it to
+   * say `partial` (or `executable` for skills whose questions run code or SQL).
+   */
+  readonly coverage?: CoverageLevel;
+  /**
+   * Practice that teaches something close but not the term itself, e.g. modern
+   * C# for .NET Framework, ASP.NET Core for classic ASP.NET MVC. Never counted
+   * as coverage.
+   */
+  readonly relatedPractice?: readonly ActivityRef[];
+  /** What PracStack does not cover, and where to study it instead. */
+  readonly gap?: TermGap;
 }
+
+/**
+ * How PracStack covers a term:
+ * - `executable`: you write code or SQL that is run and graded;
+ * - `conceptual`: knowledge questions (multiple choice, predict the output…);
+ * - `partial`: direct practice for part of the term only;
+ * - `related`: only related practice (transferable, but not the term itself);
+ * - `none`: not covered.
+ */
+export type CoverageLevel = 'executable' | 'conceptual' | 'partial' | 'related' | 'none';
+
+export const COVERAGE_LEVELS: readonly CoverageLevel[] = [
+  'executable',
+  'conceptual',
+  'partial',
+  'related',
+  'none',
+];
+
+export const COVERAGE_LABELS: Readonly<Record<CoverageLevel, string>> = {
+  executable: 'Hands-on practice',
+  conceptual: 'Knowledge practice',
+  partial: 'Partly covered',
+  related: 'Related practice only',
+  none: 'Not covered',
+};
+
+/** An official learning resource (documentation), for what PracStack does not cover. */
+export interface TermResource {
+  readonly label: string;
+  /** https only, on an allowed documentation host (see RESOURCE_HOSTS). */
+  readonly url: string;
+}
+
+export interface TermGap {
+  /** What is not covered, in one or two sentences. */
+  readonly notCovered: string;
+  readonly resources?: readonly TermResource[];
+}
+
+/** Documentation hosts resource links may point at (official vendor documentation). */
+export const RESOURCE_HOSTS: readonly string[] = [
+  'learn.microsoft.com',
+  'docs.aws.amazon.com',
+  'git-scm.com',
+  'docs.github.com',
+  'kubernetes.io',
+  'docs.docker.com',
+  'react.dev',
+  'docs.python.org',
+  'www.w3.org',
+  'owasp.org',
+];
+
+/** The coverage level of a term (explicit, or derived from its practice). */
+export function coverageOf(
+  term: Pick<TaxonomyTerm, 'practice' | 'coverage' | 'relatedPractice'>,
+): CoverageLevel {
+  if (term.coverage) return term.coverage;
+  if (term.practice.length > 0) {
+    return term.practice.some((r) => r.kind !== 'skill') ? 'executable' : 'conceptual';
+  }
+  return (term.relatedPractice?.length ?? 0) > 0 ? 'related' : 'none';
+}
+
+/** Direct practice exists (hands-on or knowledge questions), for all or part of the term. */
+export const isDirectCoverage = (level: CoverageLevel): boolean =>
+  level === 'executable' || level === 'conceptual';
 
 /** Public file with every term (referenced from the manifest). */
 export interface TaxonomyFile {
@@ -96,7 +182,7 @@ export interface TaxonomyFile {
 
 export const TAXONOMY_FILE = 'taxonomy.json';
 
-/** A term is covered when PracStack has practice for it. */
+/** A term is covered when PracStack has direct practice for it (all or part of it). */
 export const isCovered = (term: Pick<TaxonomyTerm, 'practice'>): boolean =>
   term.practice.length > 0;
 
@@ -174,6 +260,52 @@ export function validateTaxonomy(
       if (keys.has(key)) error(`${path}/practice[${i}]`, `"${key}" appears twice`);
       keys.add(key);
     });
+    term.relatedPractice?.forEach((ref, i) => {
+      const problem = checkActivityRef(ref, context);
+      if (problem) error(`${path}/relatedPractice[${i}]`, problem);
+      if (keys.has(activityKey(ref))) {
+        error(`${path}/relatedPractice[${i}]`, `"${activityKey(ref)}" is also direct practice`);
+      }
+    });
+    if (term.coverage !== undefined) {
+      if (!COVERAGE_LEVELS.includes(term.coverage)) {
+        error(path, `unknown coverage "${term.coverage}"`);
+      } else if (
+        term.practice.length > 0 &&
+        (term.coverage === 'none' || term.coverage === 'related')
+      ) {
+        error(path, `coverage "${term.coverage}" contradicts its direct practice`);
+      } else if (
+        term.practice.length === 0 &&
+        term.coverage !== 'none' &&
+        term.coverage !== 'related'
+      ) {
+        error(path, `coverage "${term.coverage}" needs direct practice`);
+      }
+    }
+    const level = coverageOf(term);
+    if (level !== 'executable' && level !== 'conceptual' && !term.gap) {
+      error(path, `a term with coverage "${level}" needs a gap explaining what is not covered`);
+    }
+    if (term.gap) {
+      if (term.gap.notCovered.trim() === '') error(`${path}/gap`, 'notCovered is required');
+      for (const r of term.gap.resources ?? []) {
+        let host = '';
+        try {
+          const url = new URL(r.url);
+          host = url.protocol === 'https:' ? url.hostname : '';
+        } catch {
+          host = '';
+        }
+        if (!RESOURCE_HOSTS.includes(host)) {
+          error(
+            `${path}/gap`,
+            `resource "${r.url}" must be https on an allowed documentation host`,
+          );
+        }
+        if (r.label.trim() === '') error(`${path}/gap`, 'resource label is required');
+      }
+    }
     for (const track of term.tracks ?? []) {
       if (!context.technologyIds.has(track)) error(`${path}/tracks`, `unknown track "${track}"`);
     }

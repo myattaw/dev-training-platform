@@ -1,5 +1,5 @@
 import type { TaxonomyTerm } from '@pracstack/content-model';
-import { challenge, skill, skills } from './activities';
+import { challenge, scenario, skill, skills } from './activities';
 
 /*
  * Technologies and practices that job postings ask for, with the PracStack
@@ -27,6 +27,8 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
         'cs-oop',
         'cs-exceptions',
       ),
+      challenge('transaction-batch', 'csharp'),
+      challenge('legacy-invoice-refactor', 'csharp'),
       challenge('reverse-string', 'csharp'),
       challenge('balanced-brackets', 'csharp'),
     ],
@@ -48,6 +50,27 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: ['Microsoft .NET Framework'],
     variants: ['.NET 4.8', '.NET Framework 4'],
     practice: [],
+    relatedPractice: skills(
+      'cs-value-reference-types',
+      'cs-oop',
+      'cs-collections',
+      'cs-linq',
+      'cs-exceptions',
+    ),
+    gap: {
+      notCovered:
+        'Modern C# carries over, but Framework-only parts (System.Web, Web Forms, WCF, web.config and app.config, the Global Assembly Cache) and how they differ from modern .NET are not practiced.',
+      resources: [
+        {
+          label: '.NET Framework documentation',
+          url: 'https://learn.microsoft.com/en-us/dotnet/framework/',
+        },
+        {
+          label: 'Porting from .NET Framework to .NET',
+          url: 'https://learn.microsoft.com/en-us/dotnet/core/porting/',
+        },
+      ],
+    },
     note: 'The legacy, Windows-only framework (4.x), distinct from modern .NET. PracStack covers modern C#; framework-only technologies such as Web Forms and WCF are not covered.',
   },
   {
@@ -69,6 +92,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     variants: ['JS', 'ES6'],
     matchCase: ['JS', 'ES6'],
     practice: [skill('ts-typeof-narrowing'), challenge('reverse-string', 'typescript')],
+    coverage: 'partial',
+    gap: {
+      notCovered:
+        'Practiced through TypeScript only: browser APIs (the DOM, events, fetch) and Node.js specifics are not covered.',
+    },
     tracks: ['typescript'],
     note: 'Practiced through TypeScript, a typed superset of JavaScript.',
   },
@@ -85,8 +113,31 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     ],
     note: 'Coding challenges can be solved in Java; there is no Java Skill Mastery track yet.',
   },
-  { id: 'python', label: 'Python', category: 'language', aliases: [], practice: [] },
-  { id: 'cpp', label: 'C++', category: 'language', aliases: ['CPP'], practice: [] },
+  {
+    id: 'python',
+    label: 'Python',
+    category: 'language',
+    aliases: [],
+    practice: [],
+    gap: {
+      notCovered:
+        'PracStack has no Python practice; coding challenges run in TypeScript, Java and C#.',
+      resources: [{ label: 'The Python Tutorial', url: 'https://docs.python.org/3/tutorial/' }],
+    },
+  },
+  {
+    id: 'cpp',
+    label: 'C++',
+    category: 'language',
+    aliases: ['CPP'],
+    practice: [],
+    gap: {
+      notCovered: 'PracStack has no C++ practice.',
+      resources: [
+        { label: 'C++ language documentation', url: 'https://learn.microsoft.com/en-us/cpp/cpp/' },
+      ],
+    },
+  },
   {
     id: 'sql',
     label: 'SQL',
@@ -100,8 +151,9 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'pg-joins-basics',
       'pg-subqueries-basics',
     ),
+    coverage: 'executable',
     tracks: ['postgresql'],
-    note: 'General SQL is practiced on PostgreSQL.',
+    note: 'General SQL is practiced on PostgreSQL: you write queries that run and are graded.',
   },
 
   /* ---------------- Frameworks and libraries ---------------- */
@@ -131,6 +183,25 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     },
     matchCase: ['MVC'],
     practice: [],
+    relatedPractice: [
+      skill('aspnet-http-rest'),
+      skill('aspnet-minimal-apis-routing'),
+      skill('aspnet-middleware-pipeline'),
+    ],
+    gap: {
+      notCovered:
+        'Classic MVC on .NET Framework (controllers and Razor views in System.Web.Mvc, Global.asax, filters, bundling) is not practiced. ASP.NET Core practice teaches related routing, HTTP and dependency-injection ideas, but its APIs differ.',
+      resources: [
+        {
+          label: 'ASP.NET MVC documentation',
+          url: 'https://learn.microsoft.com/en-us/aspnet/mvc/',
+        },
+        {
+          label: 'Migrating from ASP.NET to ASP.NET Core',
+          url: 'https://learn.microsoft.com/en-us/aspnet/core/migration/proper-to-2x/',
+        },
+      ],
+    },
     note: 'Classic ASP.NET MVC (on .NET Framework), distinct from ASP.NET Core.',
   },
   {
@@ -143,6 +214,17 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       note: '“ASP.NET” on its own can mean classic ASP.NET (MVC, Web Forms) or ASP.NET Core; the posting does not say which. PracStack covers ASP.NET Core only.',
     },
     practice: [skill('aspnet-minimal-apis-routing'), skill('aspnet-middleware-pipeline')],
+    coverage: 'partial',
+    gap: {
+      notCovered:
+        'Only ASP.NET Core is practiced. If the job means classic ASP.NET (MVC 5, Web Forms on .NET Framework), study it separately.',
+      resources: [
+        {
+          label: 'ASP.NET MVC documentation',
+          url: 'https://learn.microsoft.com/en-us/aspnet/mvc/',
+        },
+      ],
+    },
     tracks: ['aspnet-core'],
   },
   {
@@ -152,6 +234,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: ['Entity Framework Core', 'EF Core'],
     variants: ['EF6'],
     practice: [skill('aspnet-data-access-efcore'), skill('cs-linq-execution')],
+    coverage: 'partial',
+    gap: {
+      notCovered:
+        'EF Core is practiced; classic Entity Framework 6 (EDMX models, ObjectContext) is not.',
+    },
     tracks: ['aspnet-core'],
     note: 'Covered by EF Core practice in the ASP.NET Core track; classic Entity Framework 6 specifics are not.',
   },
@@ -169,6 +256,17 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     category: 'framework',
     aliases: [],
     practice: [],
+    relatedPractice: [skill('mssql-programming')],
+    gap: {
+      notCovered:
+        'Connections, commands, parameters and data readers in ADO.NET are not practiced; T-SQL programming practice covers the database side.',
+      resources: [
+        {
+          label: 'ADO.NET documentation',
+          url: 'https://learn.microsoft.com/en-us/dotnet/framework/data/adonet/',
+        },
+      ],
+    },
     note: 'The .NET data-access library; not to be confused with "ADO" for Azure DevOps.',
   },
   {
@@ -186,6 +284,37 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: ['React.js', 'ReactJS'],
     matchCase: ['React'],
     practice: [],
+    gap: {
+      notCovered: 'PracStack has no React practice; the front-end practice is Angular.',
+      resources: [{ label: 'Learn React', url: 'https://react.dev/learn' }],
+    },
+  },
+
+  {
+    id: 'nodejs',
+    label: 'Node.js',
+    category: 'framework',
+    aliases: ['NodeJS', 'Node'],
+    matchCase: ['Node'],
+    practice: [],
+    relatedPractice: [skill('ts-function-types'), challenge('pangram', 'typescript')],
+    gap: {
+      notCovered:
+        'TypeScript is practiced, but the Node.js runtime (modules, the event loop, streams, npm, Express) is not.',
+    },
+  },
+  {
+    id: 'spring',
+    label: 'Spring',
+    category: 'framework',
+    aliases: ['Spring Boot', 'Spring Framework'],
+    matchCase: ['Spring'],
+    practice: [],
+    relatedPractice: [challenge('lru-cache', 'java'), challenge('merge-intervals', 'java')],
+    gap: {
+      notCovered:
+        'Java coding challenges are practiced; the Spring framework (dependency injection, Spring Boot, Spring Data, Spring MVC) is not.',
+    },
   },
 
   /* ---------------- Databases and data ---------------- */
@@ -203,6 +332,16 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       skill('mssql-transactions'),
       skill('mssql-performance'),
     ],
+    relatedPractice: skills('pg-joins-basics', 'pg-group-by', 'pg-subqueries-basics'),
+    tracks: ['sql-server'],
+    note: 'T-SQL questions are knowledge questions; writing and running T-SQL is available only where a SQL Server engine is set up. General SQL query writing is practiced on PostgreSQL.',
+  },
+  {
+    id: 'stored-procedures',
+    label: 'stored procedures',
+    category: 'database',
+    aliases: ['stored procedure', 'stored procs'],
+    practice: [skill('mssql-programming'), skill('mssql-transactions')],
     tracks: ['sql-server'],
   },
   {
@@ -211,6 +350,17 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     category: 'database',
     aliases: ['SQL Server Integration Services'],
     practice: [skill('mssql-ssis')],
+    gap: {
+      notCovered:
+        'Knowledge questions only: building, deploying and running SSIS packages in Visual Studio and the SSIS catalog is not practiced.',
+      resources: [
+        {
+          label: 'SQL Server Integration Services documentation',
+          url: 'https://learn.microsoft.com/en-us/sql/integration-services/sql-server-integration-services',
+        },
+      ],
+    },
+    tracks: ['sql-server'],
   },
   {
     id: 'ssrs',
@@ -218,6 +368,17 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     category: 'database',
     aliases: ['SQL Server Reporting Services'],
     practice: [skill('mssql-ssrs')],
+    gap: {
+      notCovered:
+        'Knowledge questions only: designing reports in Report Builder or Visual Studio and deploying them to a report server is not practiced.',
+      resources: [
+        {
+          label: 'SQL Server Reporting Services documentation',
+          url: 'https://learn.microsoft.com/en-us/sql/reporting-services/create-deploy-and-manage-mobile-and-paginated-reports',
+        },
+      ],
+    },
+    tracks: ['sql-server'],
   },
   {
     id: 'postgresql',
@@ -233,6 +394,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'pg-joins-basics',
       'pg-subqueries-basics',
     ),
+    coverage: 'executable',
     tracks: ['postgresql'],
   },
   {
@@ -261,6 +423,15 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
   },
 
   /* ---------------- Testing ---------------- */
+  {
+    id: 'software-testing',
+    label: 'software testing',
+    category: 'testing',
+    aliases: ['testing', 'quality assurance', 'test plans', 'test cases'],
+    variants: ['test'],
+    practice: [skill('eng-testing'), skill('cs-unit-testing')],
+    tracks: ['engineering-practices'],
+  },
   {
     id: 'unit-testing',
     label: 'unit testing',
@@ -295,6 +466,9 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'behaviour-driven development',
       'behavior driven development',
       'behaviour driven development',
+      'behavior-driven design',
+      'behaviour-driven design',
+      'behavior driven design',
     ],
     variants: ['SpecFlow', 'Cucumber', 'Gherkin'],
     practice: [
@@ -302,6 +476,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       skill('eng-testing'),
       skill('aspnet-testing-architecture'),
     ],
+    coverage: 'partial',
+    gap: {
+      notCovered:
+        'Testing practice covers the ideas; writing Gherkin scenarios and SpecFlow or Cucumber step definitions is not practiced.',
+    },
     tracks: ['engineering-practices'],
   },
 
@@ -310,7 +489,15 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     id: 'security',
     label: 'cybersecurity',
     category: 'security',
-    aliases: ['cyber security', 'OWASP', 'OWASP Top 10', 'secure coding', 'application security'],
+    aliases: [
+      'cyber security',
+      'OWASP',
+      'OWASP Top 10',
+      'secure coding',
+      'application security',
+      'information security',
+      'security best practices',
+    ],
     practice: [
       skill('eng-secure-coding'),
       skill('aspnet-security'),
@@ -337,6 +524,15 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: ['SOAP web services'],
     matchCase: ['SOAP'],
     practice: [],
+    gap: {
+      notCovered: 'SOAP, WSDL and WCF services are not practiced; REST APIs are.',
+      resources: [
+        {
+          label: 'WCF documentation',
+          url: 'https://learn.microsoft.com/en-us/dotnet/framework/wcf/',
+        },
+      ],
+    },
   },
   {
     id: 'microservices',
@@ -344,6 +540,21 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     category: 'architecture',
     aliases: ['microservice', 'micro-services', 'microservice architecture'],
     practice: [],
+    relatedPractice: [
+      skill('az-service-bus'),
+      skill('aws-messaging-events'),
+      skill('aspnet-testing-architecture'),
+    ],
+    gap: {
+      notCovered:
+        'Designing and running a microservice system (service boundaries, data ownership, service-to-service communication, deployment) is not practiced. Messaging and API practice is related.',
+      resources: [
+        {
+          label: 'Microservices architecture (Azure Architecture Center)',
+          url: 'https://learn.microsoft.com/en-us/azure/architecture/microservices/',
+        },
+      ],
+    },
   },
   {
     id: 'oop',
@@ -382,6 +593,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     category: 'practice',
     aliases: ['system analysis and design', 'systems analysis', 'systems analyst'],
     practice: [],
+    relatedPractice: [skill('eng-agile-sdlc')],
+    gap: {
+      notCovered:
+        'Analyzing a business process and producing design specifications (use cases, data flows, interface designs) is not practiced. The SDLC skill covers where analysis fits.',
+    },
   },
 
   /* ---------------- DevOps and tooling ---------------- */
@@ -393,7 +609,18 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     variants: ['VSTS', 'TFS', 'Team Foundation Server'],
     ambiguity: {
       aliases: ['ADO'],
-      context: ['DevOps', 'pipeline', 'board', 'repo', 'sprint', 'work item', 'CI/CD', 'build'],
+      context: [
+        'DevOps',
+        'pipeline',
+        'board',
+        'repo',
+        'sprint',
+        'work item',
+        'CI/CD',
+        'build',
+        'source control',
+        'version control',
+      ],
       note: '“ADO” is counted as Azure DevOps only next to DevOps, pipeline, board or repo words (ADO.NET is a different technology).',
     },
     matchCase: ['ADO', 'VSTS', 'TFS'],
@@ -421,12 +648,22 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     id: 'git',
     label: 'Git',
     category: 'devops',
-    aliases: [],
+    aliases: ['source control', 'version control', 'source code control'],
     variants: ['GitHub', 'GitLab', 'Bitbucket'],
     practice: [skill('eng-git-workflow')],
     tracks: ['engineering-practices'],
   },
-  { id: 'docker', label: 'Docker', category: 'devops', aliases: [], practice: [] },
+  {
+    id: 'docker',
+    label: 'Docker',
+    category: 'devops',
+    aliases: [],
+    practice: [],
+    gap: {
+      notCovered: 'Containers and Dockerfiles are not practiced.',
+      resources: [{ label: 'Docker: get started', url: 'https://docs.docker.com/get-started/' }],
+    },
+  },
   {
     id: 'kubernetes',
     label: 'Kubernetes',
@@ -434,9 +671,35 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: [],
     variants: ['K8s'],
     practice: [],
+    gap: {
+      notCovered: 'Kubernetes is not practiced.',
+      resources: [
+        {
+          label: 'Kubernetes basics',
+          url: 'https://kubernetes.io/docs/tutorials/kubernetes-basics/',
+        },
+      ],
+    },
   },
 
   /* ---------------- Cloud ---------------- */
+  {
+    id: 'cloud',
+    label: 'cloud platforms',
+    category: 'cloud',
+    aliases: [
+      'cloud platform',
+      'cloud computing',
+      'cloud services',
+      'cloud technologies',
+      'cloud-based',
+      'cloud environments',
+      'cloud',
+    ],
+    practice: [skill('az-functions'), skill('aws-lambda-serverless')],
+    tracks: ['azure', 'aws'],
+    note: 'Cloud basics are practiced on Azure and AWS.',
+  },
   {
     id: 'azure',
     label: 'Azure',
@@ -566,7 +829,345 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     tracks: ['power-platform'],
   },
 
+  /* ---------------- Engineering competencies ---------------- */
+  {
+    id: 'debugging',
+    label: 'debugging',
+    category: 'engineering',
+    aliases: [
+      'debug',
+      'debugger',
+      'fix bugs',
+      'fixing bugs',
+      'bug fixing',
+      'bug fixes',
+      'correct errors',
+    ],
+    practice: [
+      skill('cs-exceptions'),
+      challenge('legacy-invoice-refactor', 'csharp'),
+      scenario('cicd-pipeline-failure'),
+    ],
+    coverage: 'partial',
+    gap: {
+      notCovered:
+        'You practice reading failures and exceptions and fixing code; stepping through code in a debugger (breakpoints, watches, call stacks) is not practiced.',
+      resources: [
+        {
+          label: 'Debugging in Visual Studio',
+          url: 'https://learn.microsoft.com/en-us/visualstudio/debugger/',
+        },
+      ],
+    },
+  },
+  {
+    id: 'troubleshooting',
+    label: 'troubleshooting',
+    category: 'engineering',
+    aliases: ['troubleshoot', 'root cause analysis', 'root-cause analysis'],
+    practice: [
+      scenario('sql-performance-investigation'),
+      scenario('cicd-pipeline-failure'),
+      skill('mssql-performance'),
+    ],
+    coverage: 'conceptual',
+  },
+  {
+    id: 'application-maintenance',
+    label: 'application maintenance',
+    category: 'engineering',
+    aliases: [
+      'software maintenance',
+      'maintain existing systems',
+      'maintaining existing systems',
+      'maintain existing applications',
+      'maintaining existing applications',
+      'maintenance of existing',
+    ],
+    variants: ['maintenance'],
+    practice: [
+      skill('cs-refactoring'),
+      challenge('legacy-invoice-refactor', 'csharp'),
+      scenario('legacy-modernization'),
+    ],
+  },
+  {
+    id: 'legacy-modernization',
+    label: 'legacy modernization',
+    category: 'engineering',
+    aliases: [
+      'application modernization',
+      'legacy systems',
+      'legacy applications',
+      'legacy code',
+      'modernization',
+    ],
+    practice: [
+      scenario('legacy-modernization'),
+      challenge('legacy-invoice-refactor', 'csharp'),
+      skill('cs-refactoring'),
+    ],
+  },
+  {
+    id: 'production-support',
+    label: 'production support',
+    category: 'engineering',
+    aliases: [
+      'on-call',
+      'on call support',
+      'incident response',
+      'incident management',
+      'application support',
+    ],
+    practice: [],
+    relatedPractice: [scenario('cicd-pipeline-failure'), scenario('sql-performance-investigation')],
+    gap: {
+      notCovered:
+        'Supporting a live system (incidents, on-call, communicating impact) is not practiced; the troubleshooting scenarios are related.',
+    },
+  },
+  {
+    id: 'monitoring',
+    label: 'monitoring',
+    category: 'engineering',
+    aliases: [
+      'observability',
+      'application monitoring',
+      'Application Insights',
+      'Azure Monitor',
+      'CloudWatch',
+    ],
+    practice: [],
+    gap: {
+      notCovered: 'Logging, metrics, alerts and dashboards are not practiced.',
+      resources: [
+        {
+          label: 'Azure Monitor overview',
+          url: 'https://learn.microsoft.com/en-us/azure/azure-monitor/overview',
+        },
+        {
+          label: 'What is Amazon CloudWatch?',
+          url: 'https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/WhatIsCloudWatch.html',
+        },
+      ],
+    },
+  },
+  {
+    id: 'software-design',
+    label: 'software design',
+    category: 'engineering',
+    aliases: [
+      'system design',
+      'systems design',
+      'technical design',
+      'design specifications',
+      'design specification',
+      'design documents',
+      'solution design',
+    ],
+    practice: [skill('cs-solid-di'), skill('aspnet-testing-architecture')],
+    coverage: 'partial',
+    gap: {
+      notCovered:
+        'Class-level design (SOLID, dependency injection, layering) is practiced; designing whole systems and writing design specifications is not.',
+      resources: [
+        {
+          label: 'Azure Architecture Center guide',
+          url: 'https://learn.microsoft.com/en-us/azure/architecture/guide/',
+        },
+      ],
+    },
+  },
+  {
+    id: 'code-review',
+    label: 'code reviews',
+    category: 'engineering',
+    aliases: [
+      'code review',
+      'peer review',
+      'peer reviews',
+      'pull request reviews',
+      'code walkthroughs',
+    ],
+    practice: [skill('eng-git-workflow')],
+    tracks: ['engineering-practices'],
+  },
+  {
+    id: 'design-walkthroughs',
+    label: 'design walkthroughs',
+    category: 'engineering',
+    aliases: [
+      'design walkthrough',
+      'walkthroughs',
+      'walkthrough',
+      'design reviews',
+      'design review',
+    ],
+    practice: [],
+    relatedPractice: [skill('eng-agile-sdlc')],
+    gap: {
+      notCovered:
+        'Presenting and reviewing designs, code and test plans with a team is not practiced. Be ready to explain a design decision out loud.',
+    },
+  },
+  {
+    id: 'integration-testing',
+    label: 'integration testing',
+    category: 'testing',
+    aliases: ['integration tests', 'integration test'],
+    practice: [skill('aspnet-testing-architecture'), skill('eng-testing')],
+    tracks: ['engineering-practices'],
+  },
+  {
+    id: 'regression-testing',
+    label: 'regression testing',
+    category: 'testing',
+    aliases: ['regression tests', 'regression test'],
+    practice: [skill('eng-testing'), skill('cs-unit-testing')],
+    tracks: ['engineering-practices'],
+  },
+  {
+    id: 'structured-programming',
+    label: 'structured programming',
+    category: 'engineering',
+    aliases: ['procedural programming'],
+    practice: [
+      challenge('reverse-string'),
+      challenge('apply-edit-commands'),
+      challenge('balanced-brackets'),
+    ],
+    note: 'Any coding challenge practices structured control flow: sequence, selection and loops.',
+  },
+  {
+    id: 'os-fundamentals',
+    label: 'operating system fundamentals',
+    category: 'engineering',
+    aliases: [
+      'operating system facilities',
+      'operating systems',
+      'operating system',
+      'OS fundamentals',
+      'OS concepts',
+    ],
+    practice: [],
+    gap: {
+      notCovered:
+        'Processes, threads, memory, permissions and the command line are not practiced (C# async practice touches threads and tasks).',
+    },
+  },
+  {
+    id: 'file-organization',
+    label: 'file organization and access',
+    category: 'engineering',
+    aliases: [
+      'file organization',
+      'file access',
+      'file handling',
+      'file I/O',
+      'file systems',
+      'file system',
+    ],
+    practice: [],
+    gap: {
+      notCovered: 'Reading and writing files, file formats and access methods are not practiced.',
+      resources: [
+        {
+          label: 'File and stream I/O in .NET',
+          url: 'https://learn.microsoft.com/en-us/dotnet/standard/io/',
+        },
+      ],
+    },
+  },
+  {
+    id: 'security-remediation',
+    label: 'security remediation',
+    category: 'security',
+    aliases: [
+      'vulnerability remediation',
+      'remediate vulnerabilities',
+      'security vulnerabilities',
+      'vulnerability management',
+      'remediation',
+    ],
+    practice: [skill('eng-secure-coding'), challenge('secure-customer-api', 'csharp')],
+    tracks: ['engineering-practices'],
+  },
+  {
+    id: 'data-validation',
+    label: 'data validation',
+    category: 'engineering',
+    aliases: [
+      'input validation',
+      'business data validation',
+      'validation rules',
+      'validate data',
+      'business rules',
+    ],
+    practice: [
+      skill('aspnet-validation-errors'),
+      challenge('employee-api', 'csharp'),
+      challenge('transaction-batch', 'csharp'),
+    ],
+  },
+  {
+    id: 'data-integration',
+    label: 'data integration',
+    category: 'database',
+    aliases: ['ETL', 'ELT', 'data pipelines', 'data pipeline', 'data migration', 'data loads'],
+    matchCase: ['ETL', 'ELT'],
+    practice: [
+      skill('mssql-ssis'),
+      scenario('transaction-processing'),
+      skill('az-logic-apps-integration'),
+    ],
+    coverage: 'conceptual',
+  },
+  {
+    id: 'azure-data-factory',
+    label: 'Azure Data Factory',
+    category: 'cloud',
+    aliases: ['ADF'],
+    matchCase: ['ADF'],
+    practice: [],
+    relatedPractice: [skill('mssql-ssis'), skill('az-logic-apps-integration')],
+    gap: {
+      notCovered:
+        'Azure Data Factory pipelines are not practiced; SSIS and Logic Apps practice cover related integration ideas.',
+      resources: [
+        {
+          label: 'Azure Data Factory documentation',
+          url: 'https://learn.microsoft.com/en-us/azure/data-factory/introduction',
+        },
+      ],
+    },
+  },
+  {
+    id: 'report-development',
+    label: 'report development',
+    category: 'database',
+    aliases: ['reporting solutions', 'business reports', 'paginated reports', 'reporting tools'],
+    practice: [skill('mssql-ssrs'), skill('pp-power-bi')],
+  },
+  {
+    id: 'apis',
+    label: 'APIs',
+    category: 'architecture',
+    aliases: ['API', 'web API', 'web APIs', 'API development', 'API design'],
+    matchCase: ['API', 'APIs'],
+    practice: [skill('aspnet-http-rest'), challenge('employee-api', 'csharp')],
+    tracks: ['aspnet-core'],
+  },
+
   /* ---------------- Ways of working ---------------- */
+  {
+    id: 'alm',
+    label: 'application lifecycle management',
+    category: 'practice',
+    aliases: ['ALM'],
+    matchCase: ['ALM'],
+    practice: [skill('pp-alm-governance'), skill('eng-ci-cd')],
+    tracks: ['power-platform'],
+  },
   {
     id: 'agile',
     label: 'Agile',
@@ -608,7 +1209,17 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     id: 'technical-documentation',
     label: 'technical documentation',
     category: 'practice',
-    aliases: ['technical writing', 'technical docs'],
+    aliases: ['technical writing', 'technical docs', 'documentation'],
     practice: [],
+    gap: {
+      notCovered:
+        'Writing documentation is not practiced or assessed on PracStack. Be ready to describe documents you have written: design specifications, runbooks, user guides.',
+      resources: [
+        {
+          label: 'Microsoft Writing Style Guide',
+          url: 'https://learn.microsoft.com/en-us/style-guide/welcome/',
+        },
+      ],
+    },
   },
 ];

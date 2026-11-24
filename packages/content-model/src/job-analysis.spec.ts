@@ -328,3 +328,153 @@ describe('suggestPath', () => {
     ]);
   });
 });
+
+describe('analyzeJobDescription: requirement levels', () => {
+  const levels = (text: string) =>
+    Object.fromEntries(
+      analyzeJobDescription(text, TAXONOMY).terms.map((t) => [t.term.id, t.requirement]),
+    );
+
+  it('reads sections: requirements, preferred qualifications, responsibilities, other', () => {
+    const posting = `Responsibilities:
+- Build services in Java.
+
+Requirements:
+- C#
+- SQL Server
+
+Preferred qualifications:
+- React
+
+About us
+We run on Azure.`;
+    expect(levels(posting)).toEqual({
+      java: 'responsibility',
+      csharp: 'required',
+      'sql-server': 'required',
+      react: 'preferred',
+      azure: 'mentioned',
+    });
+    expect(analyzeJobDescription(posting, TAXONOMY).structured).toBe(true);
+  });
+
+  it('recognizes common headings with and without colons, and "What will you do?"', () => {
+    expect(levels('What will you do?\n- Write C# code')).toEqual({ csharp: 'responsibility' });
+    expect(levels('Minimum Qualifications\n- Java')).toEqual({ java: 'required' });
+    expect(levels('Nice to have\n- React')).toEqual({ react: 'preferred' });
+    expect(levels("What we're looking for:\n- Java")).toEqual({ java: 'required' });
+    expect(levels('Requirements: C#, SQL Server')).toEqual({
+      csharp: 'required',
+      'sql-server': 'required',
+    });
+  });
+
+  it('lets sentence wording override the section: "is a plus" inside Requirements is preferred', () => {
+    const posting = `Requirements:
+- C# is required.
+- Experience with React is a plus.
+- Familiarity with Azure.
+- Exposure to Java.
+- Nice to have: Power Automate`;
+    expect(levels(posting)).toEqual({
+      csharp: 'required',
+      react: 'preferred',
+      azure: 'familiarity',
+      java: 'familiarity',
+      'power-automate': 'preferred',
+    });
+  });
+
+  it('uses the wording nearest each term in one sentence', () => {
+    expect(levels('We use C# (required) and React (a plus).')).toMatchObject({
+      csharp: 'required',
+      react: 'preferred',
+    });
+  });
+
+  it('marks text without structure or wording as uncertain, and responsibilities by their verbs', () => {
+    expect(levels('C# and SQL Server.')).toEqual({
+      csharp: 'uncertain',
+      'sql-server': 'uncertain',
+    });
+    expect(levels('You will maintain Java services.')).toEqual({ java: 'responsibility' });
+    expect(levels('Experience with C#.')).toEqual({ csharp: 'required' });
+  });
+
+  it('keeps the strongest level when a term is asked for in several ways', () => {
+    expect(levels('Requirements:\n- C#\nPreferred:\n- C# 12 features')).toEqual({
+      csharp: 'required',
+    });
+  });
+});
+
+describe('analyzeJobDescription: alternatives', () => {
+  it('groups "X or Y" lists; members only mentioned there are alternatives at the list level', () => {
+    const a = analyzeJobDescription('Requirements:\n- Java, C#, or JavaScript', TAXONOMY);
+    expect(a.alternatives).toEqual([
+      expect.objectContaining({
+        kind: 'or',
+        termIds: ['java', 'csharp', 'javascript'],
+        level: 'required',
+      }),
+    ]);
+    expect(a.terms.every((t) => t.requirement === 'alternative')).toBe(true);
+  });
+
+  it('treats "such as" and "e.g." lists as examples of a broader requirement', () => {
+    const a = analyzeJobDescription('- Familiarity with cloud platforms (e.g., Azure, AWS)', [
+      ...TAXONOMY,
+      { id: 'cloud', label: 'cloud platforms', category: 'cloud', aliases: [], practice: [] },
+      { id: 'aws', label: 'AWS', category: 'cloud', aliases: [], practice: [] },
+    ]);
+    expect(a.alternatives).toEqual([
+      expect.objectContaining({
+        kind: 'examples',
+        termIds: ['azure', 'aws'],
+        level: 'familiarity',
+        parentTermId: 'cloud',
+      }),
+    ]);
+    expect(a.terms.find((t) => t.term.id === 'cloud')?.requirement).toBe('familiarity');
+  });
+
+  it('does not group cumulative lists ("C# and SQL Server") or terms in different sentences', () => {
+    expect(
+      analyzeJobDescription('Requirements: C# and SQL Server.', TAXONOMY).alternatives,
+    ).toEqual([]);
+    expect(analyzeJobDescription('Java. Or C#.', TAXONOMY).alternatives).toEqual([]);
+  });
+
+  it('keeps a term required when it is also asked for on its own', () => {
+    const a = analyzeJobDescription('Requirements:\n- C#\n- Java or C#', TAXONOMY);
+    expect(a.terms.find((t) => t.term.id === 'csharp')?.requirement).toBe('required');
+    expect(a.terms.find((t) => t.term.id === 'java')?.requirement).toBe('alternative');
+  });
+});
+
+describe('analyzeJobDescription: coverage and qualifications', () => {
+  it('reports coverage separately from detection confidence, and ambiguity', () => {
+    const a = analyzeJobDescription('Requirements: C#, ASP.NET and .NET Framework', TAXONOMY);
+    const byId = Object.fromEntries(a.terms.map((t) => [t.term.id, t]));
+    expect(byId['csharp']).toMatchObject({ coverage: 'executable', ambiguous: false });
+    expect(byId['aspnet']).toMatchObject({ coverage: 'none', ambiguous: true, confidence: 'low' });
+    expect(byId['dotnet-framework']).toMatchObject({ coverage: 'none', requirement: 'required' });
+  });
+
+  it('lists degrees, eligibility and communication separately from technical terms', () => {
+    const a = analyzeJobDescription(
+      `Requirements:
+- Bachelor's degree in Computer Science.
+- Must be authorized to work in the United States.
+- Excellent written and verbal communication.
+- C#`,
+      TAXONOMY,
+    );
+    expect(a.qualifications.map((q) => q.kind)).toEqual([
+      'education',
+      'eligibility',
+      'communication',
+    ]);
+    expect(a.terms.map((t) => t.term.id)).toEqual(['csharp']);
+  });
+});

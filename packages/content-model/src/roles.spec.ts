@@ -7,7 +7,7 @@ import {
   type RoleValidationContext,
   validateRoles,
 } from './roles';
-import { type TaxonomyTerm, validateTaxonomy } from './taxonomy';
+import { coverageOf, type TaxonomyTerm, validateTaxonomy } from './taxonomy';
 
 const context = {
   skillIds: new Set(['s1', 's2', 's3', 's4']),
@@ -161,6 +161,42 @@ describe('validateTaxonomy', () => {
 
   it('accepts a valid term', () => {
     expect(check([term()])).toEqual([]);
+  });
+
+  it('derives coverage and requires a gap for anything not directly covered', () => {
+    expect(coverageOf(term())).toBe('conceptual');
+    expect(coverageOf(term({ practice: [{ kind: 'challenge', challengeId: 'pangram' }] }))).toBe(
+      'executable',
+    );
+    expect(
+      coverageOf(term({ practice: [], relatedPractice: [{ kind: 'skill', skillId: 's2' }] })),
+    ).toBe('related');
+    expect(coverageOf(term({ practice: [] }))).toBe('none');
+    expect(check([term({ practice: [] })])).toEqual([
+      'term:csharp: a term with coverage "none" needs a gap explaining what is not covered',
+    ]);
+    expect(check([term({ practice: [], gap: { notCovered: 'Not practiced.' } })])).toEqual([]);
+  });
+
+  it('rejects coverage that contradicts the practice, and related practice that is also direct', () => {
+    expect(check([term({ coverage: 'none', gap: { notCovered: 'x' } })])).toEqual([
+      'term:csharp: coverage "none" contradicts its direct practice',
+    ]);
+    expect(
+      check([term({ practice: [], coverage: 'executable', gap: { notCovered: 'x' } })]),
+    ).toEqual(['term:csharp: coverage "executable" needs direct practice']);
+    expect(check([term({ relatedPractice: [{ kind: 'skill', skillId: 's1' }] })])).toEqual([
+      'term:csharp/relatedPractice[0]: "skill:s1" is also direct practice',
+    ]);
+  });
+
+  it('accepts resource links only on https documentation hosts', () => {
+    const withUrl = (url: string) =>
+      term({ practice: [], gap: { notCovered: 'x', resources: [{ label: 'Docs', url }] } });
+    expect(check([withUrl('https://learn.microsoft.com/en-us/dotnet/')])).toEqual([]);
+    expect(check([withUrl('http://learn.microsoft.com/en-us/dotnet/')])).toHaveLength(1);
+    expect(check([withUrl('https://example.com/docs')])).toHaveLength(1);
+    expect(check([withUrl('not a url')])).toHaveLength(1);
   });
 
   it('rejects a name used by two terms (case-insensitively) and duplicate ids', () => {

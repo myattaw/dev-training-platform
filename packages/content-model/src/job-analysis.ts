@@ -1,5 +1,7 @@
 import { type ActivityRef, activityKey } from './roles';
 import {
+  type CoverageLevel,
+  coverageOf,
   isCovered,
   TERM_CATEGORIES,
   type TaxonomyTerm,
@@ -23,6 +25,14 @@ import {
  *   for an abbreviation or historical name, low for an ambiguous alias
  *   (only counted when its required context is in the same sentence).
  * - Evidence: the sentence or line of each match, trimmed to 160 characters.
+ * - Requirement level (separate from detection confidence): from the posting's
+ *   section ("Requirements", "Preferred qualifications", "Responsibilities"…)
+ *   and the wording nearest the mention ("is a plus", "familiarity with",
+ *   "must have"…). Wording wins over the section, so "Nice to have: Docker"
+ *   inside a Requirements list is preferred, not required.
+ * - Alternatives: "Azure or AWS", "Java, Python, or TypeScript" and examples
+ *   ("cloud platforms such as Azure and AWS") form a group where one member
+ *   is enough; a term mentioned only inside groups is an "alternative".
  */
 
 /** Longer postings are cut here, with a notice. */
@@ -41,12 +51,55 @@ export const CONFIDENCE_LABELS: Readonly<Record<MatchConfidence, string>> = {
 
 const CONFIDENCE_RANK: Readonly<Record<MatchConfidence, number>> = { high: 3, medium: 2, low: 1 };
 
+/**
+ * How the posting asks for something (not how sure the match is):
+ * - `required`: in a requirements section, or "required", "must have";
+ * - `responsibility`: part of the job ("You will maintain…", Responsibilities);
+ * - `preferred`: "preferred", "is a plus", "nice to have", Preferred qualifications;
+ * - `familiarity`: "familiarity with", "exposure to", "basic knowledge of";
+ * - `alternative`: only mentioned as one of several options ("Azure or AWS")
+ *   or as an example ("such as");
+ * - `mentioned`: elsewhere (about the company, the team, benefits);
+ * - `uncertain`: the posting has no recognizable structure or wording.
+ */
+export type RequirementLevel =
+  | 'required'
+  | 'responsibility'
+  | 'preferred'
+  | 'familiarity'
+  | 'alternative'
+  | 'mentioned'
+  | 'uncertain';
+
+export const REQUIREMENT_LABELS: Readonly<Record<RequirementLevel, string>> = {
+  required: 'Required',
+  responsibility: 'Core responsibility',
+  preferred: 'Preferred',
+  familiarity: 'General familiarity',
+  alternative: 'One of several options',
+  mentioned: 'Mentioned',
+  uncertain: 'Uncertain',
+};
+
+/** Strongest first; a term's level is the strongest of its mentions. */
+export const REQUIREMENT_RANK: Readonly<Record<RequirementLevel, number>> = {
+  required: 6,
+  responsibility: 5,
+  preferred: 4,
+  familiarity: 3,
+  alternative: 2,
+  mentioned: 1,
+  uncertain: 0,
+};
+
 export interface TermEvidence {
   /** The sentence or line, trimmed (with … where it was shortened). */
   readonly text: string;
   /** The exact text that matched, as written in the posting. */
   readonly matched: string;
   readonly confidence: MatchConfidence;
+  /** How this mention reads. */
+  readonly requirement: RequirementLevel;
 }
 
 export interface DetectedTerm {
@@ -55,10 +108,33 @@ export interface DetectedTerm {
   readonly confidence: MatchConfidence;
   readonly mentions: number;
   readonly evidence: readonly TermEvidence[];
-  /** PracStack has practice for it. */
+  /** PracStack has direct practice for it (all or part of it). */
   readonly covered: boolean;
+  readonly coverage: CoverageLevel;
+  /** The strongest way the posting asks for it. */
+  readonly requirement: RequirementLevel;
+  /** Ids of the alternative groups it belongs to. */
+  readonly alternativeGroups: readonly string[];
+  /** Only matched through an ambiguous name ("MVC", "ASP.NET" alone). */
+  readonly ambiguous: boolean;
   /** Position of the first mention (for ordering). */
   readonly firstIndex: number;
+}
+
+/** Where in the posting a line is. */
+export type PostingSection = 'required' | 'preferred' | 'responsibilities' | 'other' | 'none';
+
+/** Several terms where one is enough ("Azure or AWS"), or examples ("such as Azure and AWS"). */
+export interface AlternativeGroup {
+  readonly id: string;
+  readonly kind: 'or' | 'examples';
+  /** In the order written. */
+  readonly termIds: readonly string[];
+  /** How the posting asks for the group as a whole. */
+  readonly level: Exclude<RequirementLevel, 'alternative'>;
+  /** The broader requirement the examples illustrate ("cloud platforms"), when recognized. */
+  readonly parentTermId?: string;
+  readonly evidence: string;
 }
 
 /** "5+ years of C#": shown as information only; PracStack cannot satisfy it. */
@@ -70,6 +146,20 @@ export interface ExperienceRequirement {
   readonly termIds: readonly string[];
 }
 
+/** Things PracStack cannot practice or verify: degrees, eligibility, soft skills. */
+export type QualificationKind = 'education' | 'eligibility' | 'communication';
+
+export const QUALIFICATION_LABELS: Readonly<Record<QualificationKind, string>> = {
+  education: 'Education',
+  eligibility: 'Work eligibility and location',
+  communication: 'Communication and teamwork',
+};
+
+export interface Qualification {
+  readonly kind: QualificationKind;
+  readonly text: string;
+}
+
 export interface JobAnalysis {
   /** Nothing (or only whitespace) was entered. */
   readonly empty: boolean;
@@ -79,6 +169,11 @@ export interface JobAnalysis {
   /** Category display order, then order of first mention. */
   readonly terms: readonly DetectedTerm[];
   readonly experience: readonly ExperienceRequirement[];
+  readonly alternatives: readonly AlternativeGroup[];
+  /** Degrees, eligibility and soft skills: shown, never practiced or verified. */
+  readonly qualifications: readonly Qualification[];
+  /** Section headings ("Requirements:") were found. */
+  readonly structured: boolean;
 }
 
 interface Matcher {
@@ -218,9 +313,10 @@ const toNumber = (s: string | undefined): number | undefined => {
 };
 
 /**
- * Finds technologies, practices and experience requirements in a job
- * posting. Pure and deterministic; fast enough to run on every keystroke
- * (well under 50 ms for {@link MAX_ANALYSIS_CHARS} characters).
+ * Finds technologies, practices, how each is asked for, alternatives,
+ * experience requirements and general qualifications in a job posting.
+ * Pure and deterministic; fast enough to run on every keystroke (well under
+ * 50 ms for {@link MAX_ANALYSIS_CHARS} characters).
  */
 export function analyzeJobDescription(
   input: string,
@@ -229,7 +325,16 @@ export function analyzeJobDescription(
   const truncated = input.length > MAX_ANALYSIS_CHARS;
   const text = truncated ? input.slice(0, MAX_ANALYSIS_CHARS) : input;
   if (text.trim() === '') {
-    return { empty: true, truncated: false, inputLength: input.length, terms: [], experience: [] };
+    return {
+      empty: true,
+      truncated: false,
+      inputLength: input.length,
+      terms: [],
+      experience: [],
+      alternatives: [],
+      qualifications: [],
+      structured: false,
+    };
   }
   const segments = segmentsOf(text);
 
@@ -261,7 +366,22 @@ export function analyzeJobDescription(
   }
   taken.sort((a, b) => a.start - b.start);
 
-  // 3. Group by term, with evidence.
+  // 3. How each mention is asked for, and alternative groups.
+  const sections = sectionsOf(text);
+  const structured = sections.some((s) => s.heading && s.section !== 'none');
+  const levels = taken.map((c) =>
+    mentionLevel(
+      text,
+      segmentAt(segments, c.start),
+      c.start,
+      c.end,
+      sectionAt(sections, c.start),
+      structured,
+    ),
+  );
+  const { groups: alternatives, grouped } = alternativeGroups(text, segments, taken, levels);
+
+  // 4. Group by term, with evidence.
   const byTerm = new Map<
     string,
     {
@@ -270,10 +390,12 @@ export function analyzeJobDescription(
       mentions: number;
       first: number;
       evidence: TermEvidence[];
+      requirement: RequirementLevel | undefined;
+      groups: Set<string>;
     }
   >();
   const termsBySegment = new Map<number, Set<string>>();
-  for (const c of taken) {
+  taken.forEach((c, i) => {
     const { term, confidence } = c.matcher;
     const segment = segmentAt(segments, c.start);
     const entry = byTerm.get(term.id) ?? {
@@ -282,21 +404,33 @@ export function analyzeJobDescription(
       mentions: 0,
       first: c.start,
       evidence: [],
+      requirement: undefined,
+      groups: new Set<string>(),
     };
     entry.mentions++;
     if (CONFIDENCE_RANK[confidence] > CONFIDENCE_RANK[entry.best]) entry.best = confidence;
+    const group = grouped.get(i);
+    const level: RequirementLevel = group ? 'alternative' : (levels[i] ?? 'uncertain');
+    if (group) entry.groups.add(group);
+    else if (!entry.requirement || REQUIREMENT_RANK[level] > REQUIREMENT_RANK[entry.requirement])
+      entry.requirement = level;
     const snippet = evidenceText(text, segment, c.start, c.end);
     if (
       entry.evidence.length < MAX_EVIDENCE_PER_TERM &&
       !entry.evidence.some((e) => e.text === snippet)
     ) {
-      entry.evidence.push({ text: snippet, matched: text.slice(c.start, c.end), confidence });
+      entry.evidence.push({
+        text: snippet,
+        matched: text.slice(c.start, c.end),
+        confidence,
+        requirement: level,
+      });
     }
     byTerm.set(term.id, entry);
     const inSegment = termsBySegment.get(segment.start) ?? new Set<string>();
     inSegment.add(term.id);
     termsBySegment.set(segment.start, inSegment);
-  }
+  });
 
   const categoryRank = (c: TermCategory) => TERM_CATEGORIES.indexOf(c);
   const terms: DetectedTerm[] = [...byTerm.values()]
@@ -306,6 +440,11 @@ export function analyzeJobDescription(
       mentions: e.mentions,
       evidence: e.evidence,
       covered: isCovered(e.term),
+      coverage: coverageOf(e.term),
+      // Mentioned only inside alternative groups: one of several options.
+      requirement: e.requirement ?? ('alternative' as const),
+      alternativeGroups: [...e.groups],
+      ambiguous: e.best === 'low',
       firstIndex: e.first,
     }))
     .sort(
@@ -314,7 +453,7 @@ export function analyzeJobDescription(
         a.firstIndex - b.firstIndex,
     );
 
-  // 4. Experience requirements ("5+ years of C#").
+  // 5. Experience requirements ("5+ years of C#").
   const experience: ExperienceRequirement[] = [];
   const seen = new Set<string>();
   for (const m of text.matchAll(YEARS)) {
@@ -336,8 +475,266 @@ export function analyzeJobDescription(
     });
   }
 
-  return { empty: false, truncated, inputLength: input.length, terms, experience };
+  return {
+    empty: false,
+    truncated,
+    inputLength: input.length,
+    terms,
+    experience,
+    alternatives,
+    qualifications: qualificationsOf(text, segments),
+    structured,
+  };
 }
+
+/* ---------------------------------------------------------------- Sections and wording */
+
+interface SectionSpan {
+  readonly start: number;
+  readonly end: number;
+  readonly section: PostingSection;
+  /** The line is a heading (or starts with one, "Requirements: …"). */
+  readonly heading: boolean;
+}
+
+const normalizeHeading = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/[:?!.]+\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const HEADINGS: readonly (readonly [PostingSection, RegExp])[] = [
+  [
+    'preferred',
+    /^(?:(?:preferred|desired|additional|bonus|nice[- ]to[- ]have|good[- ]to[- ]have)(?: (?:qualifications|skills|experience|requirements))?|nice[- ]to[- ]haves|bonus points|pluses|desirable|it's a plus if you have)$/,
+  ],
+  [
+    'required',
+    /^(?:requirements?|required(?: (?:qualifications|skills|experience))?|minimum (?:qualifications|requirements)|basic qualifications|qualifications|must[- ]haves?|what we're looking for|what we are looking for|what you(?:'ll| will)? (?:need|bring)|who you are|(?:technical )?skills(?: and (?:experience|qualifications))?|your (?:skills|experience|profile|background)|you have|requirements and qualifications|knowledge,? skills,? and abilities|experience(?: and qualifications)?|job requirements|education and experience)$/,
+  ],
+  [
+    'responsibilities',
+    /^(?:(?:key |main |primary |core )?responsibilities|(?:essential |job )?duties(?: and responsibilities)?|what you(?:'ll| will) do|what will you do|what you will be doing|what you'll be doing|your role|the role|in this role(?:,? you will)?|day[- ]to[- ]day|a day in the life|position summary|role overview|essential functions|about the (?:role|job|position)|job summary)$/,
+  ],
+  [
+    'other',
+    /^(?:about (?:us|the company|the team)|benefits|perks(?: and benefits)?|compensation|salary(?: range)?|pay|why join us|why you'll love working here|our culture|our values|equal (?:employment )?opportunity.*|eeo.*|location|how to apply|what we offer)$/,
+  ],
+];
+
+/** Classifies a heading line; undefined when the line is not a heading. */
+export function headingSection(line: string): PostingSection | undefined {
+  const raw = line
+    .replace(BULLET, '')
+    .replace(/^#+\s*/, '')
+    .replace(/\*+/g, '')
+    .trim();
+  if (raw === '' || raw.length > 70) return undefined;
+  const text = normalizeHeading(raw);
+  for (const [section, regex] of HEADINGS) if (regex.test(text)) return section;
+  // An unknown short line ending in ":" is a heading too, of nothing we know.
+  return /:\s*$/.test(raw) && raw.split(/\s+/).length <= 6 ? 'none' : undefined;
+}
+
+/** Each line's section, from the nearest heading above it ("Heading: text" counts for its own line). */
+function sectionsOf(text: string): SectionSpan[] {
+  const spans: SectionSpan[] = [];
+  let current: PostingSection = 'none';
+  let start = 0;
+  for (const line of text.split('\n')) {
+    const end = start + line.length;
+    const heading = headingSection(line);
+    const inline = /^\s*(?:[-*•]\s*)?([^:\n]{2,50}):\s*\S/.exec(line);
+    const inlineSection = inline?.[1] ? headingSection(`${inline[1]}:`) : undefined;
+    if (heading !== undefined) {
+      current = heading;
+      spans.push({ start, end, section: current, heading: true });
+    } else if (inlineSection !== undefined && inlineSection !== 'none') {
+      // "Requirements: C#, SQL" is in that section; "Nice to have: Docker" inside a
+      // Requirements list changes only its own line.
+      const list = current === 'required' || current === 'preferred';
+      if (!list) current = inlineSection;
+      spans.push({ start, end, section: inlineSection, heading: true });
+    } else {
+      spans.push({ start, end, section: current, heading: false });
+    }
+    start = end + 1;
+  }
+  return spans;
+}
+
+function sectionAt(spans: readonly SectionSpan[], index: number): PostingSection {
+  for (const s of spans) if (index >= s.start && index <= s.end) return s.section;
+  return 'none';
+}
+
+const PREFERRED_WORDING =
+  /\b(?:(?:is|are|would be) (?:a |an )?(?:plus|bonus|advantage|asset)|a plus|an asset|an advantage|preferred|preferably|nice[- ]to[- ]have|bonus|desirable|desired|ideally|good to have|beneficial|not required|optional)\b/gi;
+const FAMILIARITY_WORDING =
+  /\b(?:familiarity|familiar with|exposure to|exposed to|awareness of|aware of|basic (?:understanding|knowledge)|working knowledge|general knowledge|some experience)\b/gi;
+const REQUIRED_WORDING =
+  /\b(?:required|requires?|must[- ]have|must|mandatory|essential|minimum of|at least|proficien(?:t|cy)|expert(?:ise)?|strong|solid|deep|demonstrated|proven)\b/gi;
+const QUALIFYING_WORDING =
+  /\b(?:experience (?:with|in|using|developing|building)|knowledge of|skills? (?:in|with)|hands-on|background in|years)\b/i;
+const RESPONSIBILITY_START =
+  /^(?:you will |you'll |will |the (?:developer|engineer|candidate) will )?(?:write|writes|writing|develop|develops|developing|design|designs|designing|build|builds|building|maintain|maintains|maintaining|test|tests|testing|debug|debugs|debugging|implement|implements|implementing|participate|participates|participating|collaborate|collaborates|support|supports|supporting|create|creates|gather|gathers|gathering|analyze|analyzes|document|documents|documenting|train|trains|training|troubleshoot|troubleshoots|lead|leads|own|owns|deliver|delivers|ensure|ensures|perform|performs|provide|provides|review|reviews|deploy|deploys|monitor|monitors|modify|modifies|code|codes|prepare|prepares|produce|produces|contribute|contributes|resolve|resolves|integrate|integrates|migrate|migrates|optimize|optimizes|automate|automates)\b/i;
+
+/** Distance from a mention to the nearest match of a wording pattern in the same segment. */
+function nearest(
+  regex: RegExp,
+  sentence: string,
+  offset: number,
+  from: number,
+  to: number,
+): number {
+  let best = Infinity;
+  regex.lastIndex = 0;
+  for (const m of sentence.matchAll(regex)) {
+    const a = offset + m.index;
+    const b = a + m[0].length;
+    const d = b <= from ? from - b : a >= to ? a - to : 0;
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+function mentionLevel(
+  text: string,
+  segment: Segment,
+  from: number,
+  to: number,
+  section: PostingSection,
+  structured: boolean,
+): RequirementLevel {
+  const sentence = text.slice(segment.start, segment.end);
+  // The wording closest to the mention decides ("C# required; Docker is a plus").
+  const wording = (
+    [
+      ['preferred', nearest(PREFERRED_WORDING, sentence, segment.start, from, to)],
+      ['familiarity', nearest(FAMILIARITY_WORDING, sentence, segment.start, from, to)],
+      ['required', nearest(REQUIRED_WORDING, sentence, segment.start, from, to)],
+    ] as const
+  )
+    .filter(([, d]) => d < Infinity)
+    .sort((a, b) => a[1] - b[1])[0]?.[0];
+  if (wording === 'preferred' || wording === 'familiarity') return wording;
+  if (wording === 'required') return section === 'preferred' ? 'preferred' : 'required';
+  if (section === 'required') return 'required';
+  if (section === 'preferred') return 'preferred';
+  if (section === 'responsibilities') return 'responsibility';
+  const line = sentence.replace(/\s+/g, ' ').trim().replace(BULLET, '');
+  if (RESPONSIBILITY_START.test(line)) return 'responsibility';
+  if (QUALIFYING_WORDING.test(sentence)) return section === 'other' ? 'mentioned' : 'required';
+  if (section === 'other') return 'mentioned';
+  return structured ? 'mentioned' : 'uncertain';
+}
+
+/* ---------------------------------------------------------------- Alternatives */
+
+/** Text allowed between members of a list: commas, slashes, "or", "and/or" (and "and" in examples). */
+const LIST_GAP = /^[\s,/()]*(?:(?:or|and\/or|and)\s+)?[\s(]*$/i;
+const OR_GAP = /(?:^|[\s,])(?:or|and\/or)\s|\//i;
+const EXAMPLE_MARKER =
+  /(?:\be\.?\s?g\.?|\bsuch as|\bfor example|\bfor instance|\blike|\bincluding|\bvia)\s*[:,]?\s*\(?\s*$/i;
+
+function alternativeGroups(
+  text: string,
+  segments: readonly Segment[],
+  taken: readonly Candidate[],
+  levels: readonly RequirementLevel[],
+): { groups: AlternativeGroup[]; grouped: Map<number, string> } {
+  const groups: AlternativeGroup[] = [];
+  const grouped = new Map<number, string>();
+  let i = 0;
+  while (i < taken.length) {
+    const first = taken[i]!;
+    const segment = segmentAt(segments, first.start);
+    // Extend a run of mentions separated only by list punctuation.
+    let j = i;
+    let hasOr = false;
+    while (j + 1 < taken.length) {
+      const next = taken[j + 1]!;
+      if (segmentAt(segments, next.start).start !== segment.start) break;
+      const gap = text.slice(taken[j]!.end, next.start);
+      if (gap.length > 12 || !LIST_GAP.test(gap)) break;
+      if (OR_GAP.test(gap)) hasOr = true;
+      j++;
+    }
+    const before = text.slice(Math.max(segment.start, first.start - 30), first.start);
+    const examples = EXAMPLE_MARKER.test(before);
+    const members = taken.slice(i, j + 1);
+    const ids = [...new Set(members.map((m) => m.matcher.term.id))];
+    if (ids.length >= 2 && (hasOr || examples)) {
+      const id = `alt-${groups.length + 1}`;
+      // The broader requirement: a term mentioned just before the example marker.
+      const parent = examples
+        ? taken
+            .slice(0, i)
+            .reverse()
+            .find(
+              (t) =>
+                segmentAt(segments, t.start).start === segment.start && first.start - t.end < 40,
+            )
+        : undefined;
+      const level = levels[i] ?? 'uncertain';
+      groups.push({
+        id,
+        kind: examples ? 'examples' : 'or',
+        termIds: ids,
+        level: level === 'alternative' ? 'uncertain' : level,
+        ...(parent ? { parentTermId: parent.matcher.term.id } : {}),
+        evidence: evidenceText(text, segment, first.start, members[members.length - 1]!.end),
+      });
+      for (let k = i; k <= j; k++) grouped.set(k, id);
+    }
+    i = j + 1;
+  }
+  return { groups, grouped };
+}
+
+/* ---------------------------------------------------------------- Qualifications */
+
+const QUALIFICATION_PATTERNS: readonly (readonly [QualificationKind, RegExp])[] = [
+  [
+    'education',
+    /\b(?:degree|bachelor'?s?|master'?s|ph\.?d|B\.S\.|B\.A\.|BS\/BA|diploma|certification|certified)\b/i,
+  ],
+  [
+    'eligibility',
+    /\b(?:citizen(?:ship)?|authori[sz]ed to work|work authori[sz]ation|sponsorship|visa|security clearance|clearance|background check|reside|residen(?:t|cy)|relocat(?:e|ion)|on-?site|hybrid|remote)\b/i,
+  ],
+  [
+    'communication',
+    /\b(?:communication skills|communicat(?:e|ion)|written and verbal|verbal and written|interpersonal|teamwork|team player|collaborat(?:e|ion|ive)|work(?:s)? well with others)\b/i,
+  ],
+];
+const MAX_QUALIFICATIONS = 12;
+
+function qualificationsOf(text: string, segments: readonly Segment[]): Qualification[] {
+  const found: Qualification[] = [];
+  const seen = new Set<string>();
+  for (const segment of segments) {
+    const sentence = text.slice(segment.start, segment.end);
+    // A heading ("Benefits:", "Collaboration:") is not a qualification.
+    if (headingSection(sentence) !== undefined) continue;
+    for (const [kind, regex] of QUALIFICATION_PATTERNS) {
+      const m = regex.exec(sentence);
+      if (!m) continue;
+      const at = segment.start + m.index;
+      const snippet = evidenceText(text, segment, at, at + m[0].length);
+      if (snippet.length < 4 || seen.has(snippet)) break;
+      seen.add(snippet);
+      found.push({ kind, text: snippet });
+      break;
+    }
+    if (found.length >= MAX_QUALIFICATIONS) break;
+  }
+  return found;
+}
+
+/* ---------------------------------------------------------------- Paths */
 
 /** One step of a suggested preparation path: a term and its practice. */
 export interface PathStep {
