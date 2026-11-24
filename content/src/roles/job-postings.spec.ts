@@ -1,4 +1,18 @@
-import { analyzeJobDescription, type JobAnalysis } from '@pracstack/content-model';
+import {
+  type ActivityLookup,
+  analyzeJobDescription,
+  buildStudyPlan,
+  describeActivity,
+  inferFocus,
+  type JobAnalysis,
+  type LanguageId,
+  type PlanSettings,
+  planRequirements,
+} from '@pracstack/content-model';
+import { CHALLENGES } from '../challenges';
+import { SCENARIOS } from '../scenarios';
+import { TRACKS } from '../skill-mastery';
+import { ROLES } from './roles';
 import { describe, expect, it } from 'vitest';
 import {
   ASSOCIATE_ENGINEER_POSTING,
@@ -197,5 +211,116 @@ Our spring sale runs every year. The office has a gym and free lunch.`,
     );
     expect(term(a, 'aspnet-mvc')).toBeUndefined();
     expect(term(a, 'azure-devops')).toBeUndefined();
+  });
+});
+
+describe('study plan for the enterprise posting (real content)', () => {
+  const skillIds = new Set(
+    TRACKS.flatMap((t) => t.topics.flatMap((x) => x.skills.map((s) => s.id))),
+  );
+  const challenges = new Map(CHALLENGES.map((c) => [c.source.challenge.id, c.source.challenge]));
+  const scenarios = new Map(SCENARIOS.map((s) => [s.id, s]));
+  const lookup: ActivityLookup = {
+    hasSkill: (id) => skillIds.has(id),
+    challenge: (id) => {
+      const c = challenges.get(id);
+      return c
+        ? {
+            category: c.category,
+            difficulty: c.difficulty,
+            languages: Object.keys(c.languages) as LanguageId[],
+          }
+        : undefined;
+    },
+    scenario: (id) => scenarios.get(id),
+  };
+  const analysis = analyze(ENTERPRISE_DOTNET_POSTING);
+  const requirements = planRequirements(analysis, TAXONOMY);
+  const plan = (settings: PlanSettings) =>
+    buildStudyPlan({
+      requirements,
+      taxonomy: TAXONOMY,
+      settings,
+      today: '2026-03-02',
+      describe: (ref) => describeActivity(ref, lookup),
+    });
+
+  it('gives the required technologies high priority, and only one of Azure or AWS', () => {
+    const byId = new Map(requirements.map((r) => [r.termId, r]));
+    for (const id of [
+      'csharp',
+      'dotnet-framework',
+      'aspnet-mvc',
+      'aspnet',
+      'sql-server',
+      'ssis',
+      'ssrs',
+    ])
+      expect(byId.get(id)?.priority, id).toBe('high');
+    for (const id of ['microservices', 'apis', 'bdd', 'tdd'])
+      expect(byId.get(id)?.priority, id).toBe('medium');
+    expect([byId.has('azure'), byId.has('aws')].filter(Boolean)).toHaveLength(1);
+  });
+
+  it('a 7-day plan at 2 hours a day stays within 14 hours', () => {
+    const p = plan({ format: 'enterprise', interviewDate: '2026-03-09', dailyMinutes: 120 });
+    expect(p.days).toHaveLength(7);
+    expect(p.plannedMinutes).toBeLessThanOrEqual(14 * 60);
+    for (const d of p.days) expect(d.minutes, d.date).toBeLessThanOrEqual(120);
+  });
+
+  it('does not let general algorithm challenges dominate an enterprise plan', () => {
+    const p = plan({ format: 'enterprise', interviewDate: '2026-03-09', dailyMinutes: 120 });
+    const scheduled = p.days.flatMap((d) => d.items);
+    const firstTen = scheduled.slice(0, 10);
+    expect(firstTen.filter((i) => i.style === 'algorithm')).toEqual([]);
+    expect(scheduled.some((i) => i.style === 'enterprise')).toBe(true);
+    const keys = scheduled.map((i) => i.key);
+    for (const k of ['challenge:reverse-string:csharp', 'challenge:balanced-brackets:csharp']) {
+      const at = keys.indexOf(k);
+      if (at >= 0)
+        expect(at, k).toBeGreaterThan(keys.indexOf('challenge:transaction-batch:csharp'));
+    }
+  });
+
+  it('keeps unsupported requirements visible as external study', () => {
+    const p = plan({ format: 'enterprise' });
+    const keys = p.path.map((i) => i.key);
+    for (const id of [
+      'dotnet-framework',
+      'aspnet-mvc',
+      'os-fundamentals',
+      'technical-documentation',
+      'systems-analysis',
+    ])
+      expect(keys, id).toContain(`external:${id}`);
+    const mvc = p.path.find((i) => i.key === 'external:aspnet-mvc');
+    expect(mvc?.resources?.[0]?.url).toMatch(/^https:\/\/learn\.microsoft\.com\//);
+  });
+
+  it('links only to content that exists', () => {
+    const p = plan({ format: 'enterprise' });
+    for (const item of p.path) {
+      if (!item.ref) continue;
+      expect(describeActivity(item.ref, lookup), item.key).toBeDefined();
+    }
+  });
+
+  it('schedules algorithm practice early for a live coding interview', () => {
+    const p = plan({ format: 'live-coding' });
+    const firstAlgorithm = p.path.findIndex((i) => i.style === 'algorithm');
+    expect(firstAlgorithm).toBeGreaterThanOrEqual(0);
+    expect(firstAlgorithm).toBeLessThan(8);
+  });
+
+  it('infers an enterprise or .NET focus, labeled as an inference', () => {
+    const focus = inferFocus(requirements, ROLES);
+    expect(focus?.matchedTermIds.length).toBeGreaterThanOrEqual(2);
+    expect([
+      'enterprise-application-developer',
+      'dotnet-backend-developer',
+      'sql-server-database-developer',
+      'csharp-dotnet-developer',
+    ]).toContain(focus?.role.id);
   });
 });

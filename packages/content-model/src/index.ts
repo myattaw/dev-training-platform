@@ -10,4 +10,5 @@ export * from './company';
 export * from './roles';
 export * from './taxonomy';
 export * from './job-analysis';
+export * from './study-planner';
 export * from './scenario';
