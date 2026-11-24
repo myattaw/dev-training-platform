@@ -94,6 +94,17 @@ export function brandLogoBase64(): string {
 }
 
 /**
+ * The GitHub mark for the "Continue with GitHub" button (light and dark mode).
+ * Cognito has built-in icons only for its own social providers; a custom OIDC
+ * provider gets a generic icon unless an IDP_BUTTON_ICON with its name is set.
+ * Glyph: Simple Icons (CC0); the mark is GitHub's, used per https://github.com/logos.
+ */
+export function githubMarkBase64(mode: 'light' | 'dark'): string {
+  const name = mode === 'dark' ? 'github-mark-dark.svg' : 'github-mark.svg';
+  return readFileSync(new URL(`../assets/brand/${name}`, import.meta.url)).toString('base64');
+}
+
+/**
  * The managed login style for one app client (Cognito allows one style per client;
  * changing the client replaces the style). Needs a domain on managed login (version 2)
  * and the Essentials plan or higher.
@@ -103,6 +114,8 @@ export function addManagedLoginBranding(
   id: string,
   userPool: cognito.IUserPool,
   client: cognito.IUserPoolClient,
+  /** Custom identity providers with their own button icon (e.g. "GitHub"). */
+  providerIcons: readonly 'GitHub'[] = [],
 ): cognito.CfnManagedLoginBranding {
   const branding = new cognito.CfnManagedLoginBranding(scope, id, {
     userPoolId: userPool.userPoolId,
@@ -112,6 +125,15 @@ export function addManagedLoginBranding(
     settings: BRANDING_SETTINGS,
     assets: [
       { category: 'FORM_LOGO', colorMode: 'LIGHT', extension: 'SVG', bytes: brandLogoBase64() },
+      ...providerIcons.flatMap((resourceId) =>
+        (['LIGHT', 'DARK'] as const).map((colorMode) => ({
+          category: 'IDP_BUTTON_ICON',
+          colorMode,
+          extension: 'SVG',
+          resourceId,
+          bytes: githubMarkBase64(colorMode === 'DARK' ? 'dark' : 'light'),
+        })),
+      ),
     ],
   });
   branding.node.addDependency(client);

@@ -413,7 +413,13 @@ export class PracStackStack extends Stack {
     if (github) client.node.addDependency(github);
     // PracStack colors and logo on the managed login pages. The Google button comes from the
     // client's supported identity providers; the style needs nothing extra for it.
-    const branding = addManagedLoginBranding(this, 'WebClientBranding', userPool, client);
+    const branding = addManagedLoginBranding(
+      this,
+      'WebClientBranding',
+      userPool,
+      client,
+      github ? ['GitHub'] : [],
+    );
     branding.node.addDependency(domain);
     if (authDomain) branding.node.addDependency(authDomain);
     const issuer = `https://cognito-idp.${this.region}.amazonaws.com/${userPool.userPoolId}`;

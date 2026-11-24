@@ -23,6 +23,13 @@ them. Code: `apps/web/src/app/features/home/tech-logos.ts`.
 To add a logo: check the owner's brand guidelines first, then add the glyph to `tech-logos.ts`
 and a row here.
 
+## Sign-in buttons
+
+The "Continue with GitHub" button on the Cognito sign-in pages shows the GitHub mark
+(`infra/assets/brand/github-mark*.svg`, glyph from Simple Icons 16.38.1, CC0 1.0). The mark is
+GitHub's trademark, used to link to GitHub sign-in as its [logo guidelines](https://github.com/logos)
+allow. Google's button icon is Cognito's own.
+
 ## Fonts
 
 The PracStack wordmark is drawn from Fira Code Bold glyph outlines (SIL Open Font License 1.1).

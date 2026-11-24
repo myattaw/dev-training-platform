@@ -807,6 +807,22 @@ describe('private staging options', () => {
       });
     });
 
+    it('shows the GitHub mark on the sign-in page button, in light and dark mode', () => {
+      const branding = Object.values(
+        withGithub.template.findResources('AWS::Cognito::ManagedLoginBranding'),
+      )[0] as Json;
+      const icons = (branding.Properties.Assets as Json[]).filter(
+        (a) => a.Category === 'IDP_BUTTON_ICON',
+      );
+      expect(icons.map((a) => [a.ResourceId, a.ColorMode, a.Extension])).toEqual([
+        ['GitHub', 'LIGHT', 'SVG'],
+        ['GitHub', 'DARK', 'SVG'],
+      ]);
+      const svg = (a: Json) => Buffer.from(a.Bytes as string, 'base64').toString('utf8');
+      expect(svg(icons[0]!)).toContain('fill="#181717"');
+      expect(svg(icons[1]!)).toContain('fill="#ffffff"');
+    });
+
     it('tells the app to offer GitHub', () => {
       const dir = withGithub.app.synth().directory;
       const configs = readdirSync(dir, { recursive: true })
