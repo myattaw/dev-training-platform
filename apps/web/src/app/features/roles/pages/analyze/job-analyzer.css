@@ -99,11 +99,11 @@
 
 @media (max-width: 480px) {
   .summary-grid {
-    grid-template-columns: 1fr;
+    gap: var(--space-2);
   }
 
-  .stat.wide {
-    grid-column: auto;
+  .stat .number {
+    font-size: var(--font-size-lg, 1.25rem);
   }
 }
 

@@ -185,9 +185,46 @@ const COVERAGE_COLORS: Readonly<Record<CoverageLevel, BadgeColor>> = {
     .table-wrap {
       overflow-x: auto;
     }
+    /* Phones: each requirement is a compact card instead of a wide row. */
+    @media (max-width: 640px) {
+      table,
+      tbody {
+        display: block;
+        width: 100%;
+      }
+      thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+      }
+      tr {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1) var(--space-2);
+        align-items: center;
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid var(--color-border-divider);
+      }
+      th,
+      td {
+        display: block;
+        padding: 0;
+        border: none;
+      }
+      th.name {
+        flex: 1 0 100%;
+      }
+      td:nth-of-type(1)::after {
+        content: ' ·';
+      }
+    }
     .name {
       font-weight: 600;
       text-align: left;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
     .evidence {
       font-weight: normal;
