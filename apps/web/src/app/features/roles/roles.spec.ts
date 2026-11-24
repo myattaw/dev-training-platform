@@ -21,6 +21,7 @@ const NOTHING_SAVED: PreparationResponse = { targetRoleId: null, plans: [] };
 
 const SKILL_PROGRESS: ProgressResponse = {
   technologyId: 'typescript',
+  sqlComingSoon: [],
   skills: [
     { skillId: 'primitives', score: 90, tier: 4, mastered: true, attempts: 12 },
     { skillId: 'unions', score: 40, tier: 2, mastered: false, attempts: 4 },

@@ -67,6 +67,11 @@ export interface ProgressResponse {
   readonly technologyId: string;
   /** Only skills with at least one attempt are listed. */
   readonly skills: readonly SkillProgress[];
+  /**
+   * SQL dialects (display names, e.g. "SQL Server") this technology has query-writing
+   * questions for, but that this server cannot run yet. Those questions are not served.
+   */
+  readonly sqlComingSoon: readonly string[];
 }
 
 /** POST /api/skill-mastery/practice/next */

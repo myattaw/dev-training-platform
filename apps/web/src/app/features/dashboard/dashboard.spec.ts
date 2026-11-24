@@ -9,6 +9,7 @@ import { Dashboard } from './dashboard';
 
 const progress: ProgressResponse = {
   technologyId: 'typescript',
+  sqlComingSoon: [],
   skills: [
     {
       skillId: 'primitives',

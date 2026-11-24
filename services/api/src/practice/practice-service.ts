@@ -79,9 +79,17 @@ export class PracticeService {
   async progress(user: UserInfo, technologyId: string): Promise<ProgressResponse> {
     if (!this.deps.content.hasTechnology(technologyId)) throw notFound('Unknown technology.');
     const records = await this.deps.store.listMastery(user.id);
+    const missing = new Set<SqlDialect>();
+    for (const skillId of this.deps.content.skillIds(technologyId)) {
+      for (const { question } of this.deps.content.questions(skillId)) {
+        if (question.format === 'sql-query' && !this.sql[question.dialect])
+          missing.add(question.dialect);
+      }
+    }
     return {
       technologyId,
       skills: records.filter((r) => r.technologyId === technologyId).map(toSkillProgress),
+      sqlComingSoon: SQL_DIALECTS.filter((d) => missing.has(d)).map((d) => SQL_DIALECT_LABELS[d]),
     };
   }
 

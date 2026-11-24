@@ -1,4 +1,4 @@
-import type { NextQuestionResponse } from '@pracstack/api-contracts';
+import type { NextQuestionResponse, ProgressResponse } from '@pracstack/api-contracts';
 import { TRACKS } from '@pracstack/content';
 import { type SplitQuestion, splitTrack } from '@pracstack/content-model';
 import { type OracleContainer, OracleSqlEngine, oracleForTests } from '@pracstack/sql-engine';
@@ -110,5 +110,15 @@ describe('Oracle track without an Oracle engine (e.g. on AWS)', () => {
     const offline = questionsBySkill['ora-nulls']?.filter((q) => q.question.format !== 'sql-query');
     expect(offline).toHaveLength(7);
     expect(seen.size).toBeGreaterThanOrEqual(1);
+  });
+
+  it('tells the track page that Oracle query writing is coming soon', async () => {
+    const content = createContentSource('test', [catalog], questionsBySkill, []);
+    const res = await testApi({ content }).call(
+      'GET',
+      '/api/skill-mastery/progress?technologyId=oracle-sql',
+    );
+    expect(res.status).toBe(200);
+    expect((res.body as ProgressResponse).sqlComingSoon).toEqual(['Oracle']);
   });
 });

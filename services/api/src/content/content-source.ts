@@ -32,6 +32,8 @@ export interface ContentSource {
   readonly contentVersion: string;
   hasTechnology(technologyId: string): boolean;
   findSkill(skillId: string): { readonly technologyId: string; readonly skill: Skill } | undefined;
+  /** The ids of a technology's skills. */
+  skillIds(technologyId: string): readonly string[];
   questions(skillId: string): readonly SplitQuestion[];
   findQuestion(questionId: string): SplitQuestion | undefined;
   /** A coding challenge with its private grading data (hidden tests). */
@@ -108,6 +110,8 @@ export function createContentSource(
     contentVersion,
     hasTechnology: (id) => technologies.has(id),
     findSkill: (id) => skills.get(id),
+    skillIds: (technologyId) =>
+      [...skills.entries()].filter(([, s]) => s.technologyId === technologyId).map(([id]) => id),
     questions: (skillId) => questionsBySkill[skillId] ?? [],
     findQuestion: (id) => questions.get(id),
     findChallenge: (id) => challengeMap.get(id),

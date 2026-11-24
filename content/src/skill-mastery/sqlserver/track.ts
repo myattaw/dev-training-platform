@@ -20,7 +20,7 @@ export const sqlServerTrack: TrackSource = {
   name: 'SQL Server (T-SQL)',
   category: 'databases',
   description:
-    'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, table design, and SSIS and SSRS. Where a SQL Server engine is available, you also write T-SQL queries that run on a real SQL Server.',
+    'Microsoft SQL Server and T-SQL: querying, joins and window functions, stored procedures and error handling, transactions and concurrency, indexing and query performance, table design, and SSIS and SSRS.',
   topics: [
     {
       id: 'mssql-querying-data',

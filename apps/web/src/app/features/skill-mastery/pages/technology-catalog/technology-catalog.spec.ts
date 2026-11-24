@@ -15,9 +15,10 @@ async function setup(api: FakeApiClient = new FakeApiClient()) {
   return { fixture, el: fixture.nativeElement as HTMLElement };
 }
 
-const empty: ProgressResponse = { technologyId: 'typescript', skills: [] };
+const empty: ProgressResponse = { technologyId: 'typescript', sqlComingSoon: [], skills: [] };
 const practiced: ProgressResponse = {
   technologyId: 'typescript',
+  sqlComingSoon: [],
   skills: [
     {
       skillId: 'unions',

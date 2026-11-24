@@ -18,6 +18,7 @@ async function setup(api: FakeApiClient, technologyId = 'typescript') {
 
 const progress: ProgressResponse = {
   technologyId: 'typescript',
+  sqlComingSoon: [],
   skills: [
     { skillId: 'primitives', score: 100, tier: 5, mastered: true, attempts: 20 },
     { skillId: 'unions', score: 42, tier: 3, mastered: false, attempts: 6 },
@@ -89,6 +90,23 @@ describe('TechnologyOverview', () => {
     expect(el.querySelector('app-alert')?.textContent).toContain(
       'Your progress could not be loaded',
     );
+  });
+
+  it('says query writing is coming soon for SQL dialects this server cannot run', async () => {
+    const el = await setup(
+      new FakeApiClient().on('GET /skill-mastery/progress', () => ({
+        ...progress,
+        sqlComingSoon: ['SQL Server'],
+      })),
+    );
+    const note = el.querySelector('.sql-coming-soon');
+    expect(note?.textContent).toContain('Coming soon');
+    expect(note?.textContent).toContain('run them on a real SQL Server database');
+  });
+
+  it('shows no coming-soon note when every dialect can run', async () => {
+    const el = await setup(new FakeApiClient().on('GET /skill-mastery/progress', () => progress));
+    expect(el.querySelector('.sql-coming-soon')).toBeNull();
   });
 
   it('shows not found for an unknown technology', async () => {

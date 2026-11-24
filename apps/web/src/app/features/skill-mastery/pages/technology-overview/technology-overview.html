@@ -40,6 +40,15 @@
     </app-alert>
   }
 
+  @if (progressState.status === 'ready') {
+    @for (dialect of progressState.value?.sqlComingSoon ?? []; track dialect) {
+      <app-alert class="sql-coming-soon" type="info" heading="Coming soon">
+        Write {{ dialect }} queries and run them on a real {{ dialect }} database. Until then,
+        practice here uses the questions that don't need a database.
+      </app-alert>
+    }
+  }
+
   @if (recommendations(); as rec) {
     @if (rec.resume || rec.next) {
       <section class="recommendations" aria-label="Where to go next">

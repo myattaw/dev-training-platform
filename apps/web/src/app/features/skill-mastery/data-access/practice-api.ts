@@ -27,7 +27,8 @@ export class PracticeApi {
 
   /** Signed out: no progress yet (the catalog still shows). */
   progress(technologyId: string): Promise<ProgressResponse> {
-    if (!this.auth.canUseApi()) return Promise.resolve({ technologyId, skills: [] });
+    if (!this.auth.canUseApi())
+      return Promise.resolve({ technologyId, skills: [], sqlComingSoon: [] });
     return this.api.get('/skill-mastery/progress', { technologyId });
   }
 
