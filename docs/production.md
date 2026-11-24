@@ -79,13 +79,13 @@ working as well.
 
 ## Inviting people
 
- takes comma-separated entries: emails, domains () and
-GitHub accounts by **numeric user ID** (). Use the ID, never the username:
+`-c signUpAllowlist=` takes comma-separated entries: emails, domains (`@example.com`) and
+GitHub accounts by **numeric user ID** (`github:39500954`). Use the ID, never the username:
 usernames can be renamed and then claimed by someone else. Look it up with
- (the  field). A GitHub entry only
-admits sign-ups through Continue with GitHub (Cognito user ).
+`curl -s https://api.github.com/users/<username>` (the `id` field). A GitHub entry only
+admits sign-ups through Continue with GitHub (Cognito user `GitHub_<id>`).
 
-Invited GitHub users (2026-11-24):  = 39500954,  = 63262699.
+Invited GitHub users (2026-11-24): `myattaw` = 39500954, `owenbean400` = 63262699.
 
 ## 5. Google and GitHub redirect URIs
 
