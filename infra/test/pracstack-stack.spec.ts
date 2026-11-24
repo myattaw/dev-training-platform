@@ -587,8 +587,8 @@ describe('private staging options', () => {
     });
     const handler = module.exports.handler;
     if (!handler) throw new Error('no handler');
-    return (email: string, triggerSource = 'PreSignUp_SignUp') =>
-      handler({ triggerSource, request: { userAttributes: { email } } });
+    return (email: string, triggerSource = 'PreSignUp_SignUp', userName = 'a1b2c3') =>
+      handler({ triggerSource, userName, request: { userAttributes: { email } } });
   };
 
   it('leaves sign-up open and creates no trigger by default', () => {
@@ -638,7 +638,31 @@ describe('private staging options', () => {
     await expect(check('anyone@else.org', 'PreSignUp_AdminCreateUser')).resolves.toBeTruthy();
   });
 
+  it('allows GitHub accounts by numeric user ID, only through the GitHub provider', async () => {
+    const check = gate(['github:39500954', 'ada@example.com']);
+    const external = 'PreSignUp_ExternalProvider';
+    await expect(check('anything@x.org', external, 'GitHub_39500954')).resolves.toBeTruthy();
+    for (const [userName, source] of [
+      ['GitHub_63262699', external], // not on the list
+      ['GitHub_395009540', external], // a longer ID is a different account
+      ['Google_39500954', external], // another provider with the same subject
+      ['GitHub_39500954', 'PreSignUp_SignUp'], // a password sign-up cannot claim it
+      ['github_39500954', external],
+    ])
+      await expect(check('eve@x.org', source, userName), `${userName} ${source}`).rejects.toThrow(
+        /invite-only/,
+      );
+    // Email entries still apply to GitHub users.
+    await expect(check('ada@example.com', external, 'GitHub_1')).resolves.toBeTruthy();
+  });
+
   it('rejects malformed allowlist entries instead of silently ignoring them', () => {
+    expect(normalizeAllowlist(['GitHub:39500954', 'github:63262699'])).toEqual([
+      'github:39500954',
+      'github:63262699',
+    ]);
+    for (const bad of ['github:myattaw', 'github:', 'github:0123', 'github:1 2'])
+      expect(() => normalizeAllowlist([bad]), bad).toThrow(/numeric user ID/);
     expect(normalizeAllowlist([' Ada@Example.com ', '', '@team.dev', '@team.dev'])).toEqual([
       '@team.dev',
       'ada@example.com',

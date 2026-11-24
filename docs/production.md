@@ -77,6 +77,16 @@ Then add, in Cloudflare:
 The Cognito address (`pracstack-production-<suffix>.auth.us-east-2.amazoncognito.com`) keeps
 working as well.
 
+## Inviting people
+
+ takes comma-separated entries: emails, domains () and
+GitHub accounts by **numeric user ID** (). Use the ID, never the username:
+usernames can be renamed and then claimed by someone else. Look it up with
+ (the  field). A GitHub entry only
+admits sign-ups through Continue with GitHub (Cognito user ).
+
+Invited GitHub users (2026-11-24):  = 39500954,  = 63262699.
+
 ## 5. Google and GitHub redirect URIs
 
 Add to the Google OAuth client (Google Cloud → APIs & Services → Credentials) and the GitHub

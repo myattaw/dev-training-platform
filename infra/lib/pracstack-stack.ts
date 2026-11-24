@@ -1016,14 +1016,24 @@ export function webConfig(
 
 /**
  * Validates and normalizes sign-up allowlist entries: lower-case full emails
- * (`ada@example.com`) or domains (`@example.com`). Throws on anything else, so
- * a typo cannot silently open or close sign-up.
+ * (`ada@example.com`), domains (`@example.com`) or GitHub accounts by numeric
+ * user ID (`github:39500954`; IDs never change, unlike usernames, which can be
+ * renamed and reclaimed by someone else). Throws on anything else, so a typo
+ * cannot silently open or close sign-up.
  */
 export function normalizeAllowlist(entries: readonly string[]): string[] {
   const out = new Set<string>();
   for (const raw of entries) {
     const entry = raw.trim().toLowerCase();
     if (entry === '') continue;
+    if (entry.startsWith('github:')) {
+      if (!/^github:[1-9][0-9]{0,11}$/.test(entry))
+        throw new Error(
+          `Invalid sign-up allowlist entry "${raw}": use github:<numeric user ID>, not a username.`,
+        );
+      out.add(entry);
+      continue;
+    }
     if (!/^[^@\s,]*@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(entry))
       throw new Error(
         `Invalid sign-up allowlist entry "${raw}": use ada@example.com or @example.com.`,
@@ -1041,6 +1051,12 @@ export function normalizeAllowlist(entries: readonly string[]): string[] {
 export const SIGN_UP_GATE_SOURCE = `const allow = new Set(JSON.parse(process.env.ALLOWLIST || '[]'));
 exports.handler = async (event) => {
   if (event.triggerSource === 'PreSignUp_AdminCreateUser') return event;
+  // GitHub accounts by their numeric user ID: Cognito names federated users
+  // <provider>_<subject>, and the bridge's subject is GitHub's permanent user ID.
+  if (event.triggerSource === 'PreSignUp_ExternalProvider') {
+    const github = /^GitHub_([0-9]{1,12})$/.exec(String(event.userName || ''));
+    if (github && allow.has('github:' + github[1])) return event;
+  }
   const email = String((event.request && event.request.userAttributes && event.request.userAttributes.email) || '').trim().toLowerCase();
   const at = email.lastIndexOf('@');
   if (at > 0 && (allow.has(email) || allow.has(email.slice(at)))) return event;
