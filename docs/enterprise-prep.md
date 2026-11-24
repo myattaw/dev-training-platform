@@ -45,8 +45,8 @@ its needs (256 is enough in tests).
 The SQL Server track is a curriculum of reasoning questions; **no T-SQL is executed**.
 Running learners' T-SQL needs a real SQL Server, and two things block it:
 
-- **Licence acceptance.** The official `mcr.microsoft.com/mssql/server` image only starts with
-  `ACCEPT_EULA=Y`. Accepting Microsoft's licence terms is the owner's decision, so this
+- **License acceptance.** The official `mcr.microsoft.com/mssql/server` image only starts with
+  `ACCEPT_EULA=Y`. Accepting Microsoft's license terms is the owner's decision, so this
   phase did not do it.
 - **Edition.** Developer edition is free but licensed for development and testing only.
   Serving learners on a public site is production use, so production needs **Express**
@@ -58,7 +58,7 @@ Options for a later phase:
 | Option | Fit | Monthly cost (order of magnitude) |
 | --- | --- | --- |
 | Local only: SQL Server Developer in Docker, like the Oracle track | Development and content checks | Free; needs about 2 GB RAM and accepting the EULA |
-| Amazon RDS for SQL Server Express (licence included, smallest instance) | Production; managed backups and patching | Tens of dollars, always on, plus a VPC path from the runner |
+| Amazon RDS for SQL Server Express (license included, smallest instance) | Production; managed backups and patching | Tens of dollars, always on, plus a VPC path from the runner |
 | Express in a container on a small always-on host | Production; you patch it | Similar to the RDS option, more operations work |
 
 Lambda cannot host SQL Server, so any production option is an always-on database, unlike the

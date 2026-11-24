@@ -87,7 +87,7 @@
               <td class="techs">{{ r.labels.join(', ') }}</td>
               <td>
                 @if (r.coverage; as c) {
-                  {{ c.practised }} of {{ c.total }} competencies
+                  {{ c.practiced }} of {{ c.total }} competencies
                 } @else {
                   <span class="text-secondary">No path yet</span>
                 }

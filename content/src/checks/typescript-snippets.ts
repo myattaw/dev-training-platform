@@ -167,7 +167,7 @@ function collectSnippets(tracks: readonly TrackSource[]): Snippet[] {
             } else if (q.typeCheck.kind === 'type-equals') {
               // Exact type identity (not just assignability), the standard trick.
               // The check sits inside a function: there, outer `let` variables are
-              // not narrowed by their initialiser, so `typeof` gives the declared
+              // not narrowed by their initializer, so `typeof` gives the declared
               // type the learner sees on hover (`boolean`, not `false`).
               const { prelude, expression } = q.typeCheck;
               for (const option of q.options) {
@@ -230,7 +230,7 @@ function typeCheck(snippets: readonly Snippet[]): Map<string, string[]> {
   );
   if (angular.length > 0) {
     // Real paths for resolution; diagnostics are reported under the snippet's own name.
-    // Forward slashes: the compiler asks the host for normalised paths, also on Windows.
+    // Forward slashes: the compiler asks the host for normalized paths, also on Windows.
     const realName = (s: Snippet) =>
       join(ANGULAR_SNIPPET_DIR, s.fileName.replace(/^\/snippets\//, '')).replace(/\\/g, '/');
     const angularResult = compile(

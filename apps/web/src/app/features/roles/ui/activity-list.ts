@@ -10,7 +10,7 @@ import type { ActivityStatus } from '../data-access/role-progress';
 
 const DISPLAY: Readonly<Record<Exclude<ActivityStatus, 'unknown'>, [StatusType, string]>> = {
   mastered: ['success', 'Mastered'],
-  practised: ['in-progress', 'Practised, not mastered'],
+  practiced: ['in-progress', 'Practiced, not mastered'],
   'not-assessed': ['neutral', 'Not yet assessed'],
   solved: ['success', 'Solved'],
   attempted: ['in-progress', 'Attempted, not solved'],

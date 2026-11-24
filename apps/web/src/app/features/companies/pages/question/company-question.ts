@@ -16,7 +16,7 @@ import { QUESTION_STATUS_LABELS, QuestionStatus } from '../../ui/prep-status';
 
 /**
  * One reported question. PracStack holds only its title, difficulty and link:
- * the problem itself is practised on the provider's site.
+ * the problem itself is practiced on the provider's site.
  */
 @Component({
   selector: 'app-company-question',
@@ -70,7 +70,7 @@ import { QUESTION_STATUS_LABELS, QuestionStatus } from '../../ui/prep-status';
           <dd><app-question-status [status]="q.status" /></dd>
         </dl>
         <p class="explain">
-          The problem statement is on {{ q.provider }}; PracStack does not copy it. Practise it
+          The problem statement is on {{ q.provider }}; PracStack does not copy it. Practice it
           there, then mark it here. PracStack cannot see your activity on {{ q.provider }}.
         </p>
         <div class="actions">
@@ -107,7 +107,7 @@ import { QUESTION_STATUS_LABELS, QuestionStatus } from '../../ui/prep-status';
             }
           </ul>
           <p class="text-secondary small">
-            Original challenges that practise similar skills. They are not this question.
+            Original challenges that practice similar skills. They are not this question.
           </p>
         } @else {
           <p class="text-secondary">No closely related PracStack challenge yet.</p>

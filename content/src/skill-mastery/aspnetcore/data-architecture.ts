@@ -8,7 +8,7 @@ import { choiceFamily, outputFamily, web } from './builders';
  * EF Core, xUnit and WebApplicationFactory are NuGet packages the C# runner does
  * not have, so that code is shown as plain text and those questions are reviewed
  * reasoning. Where the point can be shown with the shared framework alone (DTO
- * serialisation, swapping services for test doubles), the program is run.
+ * serialization, swapping services for test doubles), the program is run.
  */
 
 // ================================================================ EF Core
@@ -109,7 +109,7 @@ public class PendingOrdersWorker(/* ? */) : BackgroundService
         wrong: [
           'Inject `ShopDb` in the constructor and reuse it for every iteration',
           'Register the worker as scoped so it can take `ShopDb` directly',
-          'Store the context in a static field initialised on the first iteration',
+          'Store the context in a static field initialized on the first iteration',
         ],
         why: 'A singleton taking the scoped context in its constructor is a captive dependency: one context forever, with a growing change tracker. A scope (or a context factory) per unit of work gives each iteration a fresh, short-lived context. Hosted services are always singletons, whatever lifetime you would like them to have.',
       },
@@ -226,7 +226,7 @@ var bigOrders = db.Orders
           'It throws, because `Where` cannot follow `ToList`',
           'It sends one query per order to check the total',
         ],
-        why: '`ToList()` executes the query so far (`SELECT * FROM Orders`) and returns a `List<Order>`; everything after it is LINQ to Objects. Move `Where` and `Take` before the materialising call so they become part of the SQL.',
+        why: '`ToList()` executes the query so far (`SELECT * FROM Orders`) and returns a `List<Order>`; everything after it is LINQ to Objects. Move `Where` and `Take` before the materializing call so they become part of the SQL.',
       },
     ],
   ),
@@ -552,7 +552,7 @@ export const testingArchitectureFamilies: readonly QuestionSource[] = [
           'A unit test of the `Order` class',
           'A manual check with an HTTP client before each release',
         ],
-        why: 'Routing, authentication, model binding and serialisation are framework behaviour wired up in `Program.cs`. Calling the handler directly skips all of them, so only a test that goes through the real pipeline can verify this, and automating it keeps it checked on every build.',
+        why: 'Routing, authentication, model binding and serialization are framework behavior wired up in `Program.cs`. Calling the handler directly skips all of them, so only a test that goes through the real pipeline can verify this, and automating it keeps it checked on every build.',
       },
     ],
   ),
@@ -567,7 +567,7 @@ export const testingArchitectureFamilies: readonly QuestionSource[] = [
         'Refactor the existing code, write a failing test, then make it pass',
         'Write all the tests for the feature, then write all the code',
       ],
-      why: 'Seeing the test fail first proves it can detect the missing behaviour. Passing it with minimal code keeps the design driven by tests, and refactoring happens only while all tests are green, so behaviour is preserved.',
+      why: 'Seeing the test fail first proves it can detect the missing behavior. Passing it with minimal code keeps the design driven by tests, and refactoring happens only while all tests are green, so behavior is preserved.',
     },
     {
       key: 'next-step',
@@ -579,7 +579,7 @@ export const testingArchitectureFamilies: readonly QuestionSource[] = [
         'Refactor the shipping code before making the test pass',
         'Delete the test, since a failing test blocks the build',
       ],
-      why: 'Green comes next, with the simplest change that passes. Building untested rules skips the feedback loop, and refactoring while a test is red mixes two kinds of change. A failing test at this point is expected: it is the specification of the next behaviour.',
+      why: 'Green comes next, with the simplest change that passes. Building untested rules skips the feedback loop, and refactoring while a test is red mixes two kinds of change. A failing test at this point is expected: it is the specification of the next behavior.',
     },
   ]),
   ...choiceFamily(
@@ -628,7 +628,7 @@ class FixedClock : IClock
 }`),
         correct: 'A stub: it returns a canned answer so the test controls the input',
         wrong: ['A fake', 'A spy', 'A dummy'],
-        why: 'It has no behaviour beyond returning a fixed value, which makes date-dependent logic deterministic in tests. It does not record anything (spy) or implement real clock logic (fake).',
+        why: 'It has no behavior beyond returning a fixed value, which makes date-dependent logic deterministic in tests. It does not record anything (spy) or implement real clock logic (fake).',
       },
       {
         key: 'spy',
@@ -667,7 +667,7 @@ class RecordingEmailSender : IEmailSender
           'Given a cart / When `ShippingCalculator.Compute` is called with 120 and `isPremium = false` / Then it returns 0',
           'Given a cart totalling 120 / When the customer checks out and then cancels and then checks out again / Then the shipping cost is 0 and an email is sent',
         ],
-        why: 'A good scenario describes behaviour in the domain’s language, with one action and a clear outcome. The alternatives tie it to UI details, to internal method names (implementation, not behaviour), or bundle several actions and outcomes into one scenario.',
+        why: 'A good scenario describes behavior in the domain’s language, with one action and a clear outcome. The alternatives tie it to UI details, to internal method names (implementation, not behavior), or bundle several actions and outcomes into one scenario.',
       },
       {
         key: 'arrange-act-assert',
@@ -675,7 +675,7 @@ class RecordingEmailSender : IEmailSender
           'A team writes their unit tests in Arrange / Act / Assert sections. Which BDD step corresponds to Act?',
         correct: 'When',
         wrong: ['Given', 'Then', 'Background'],
-        why: 'Arrange sets up the context (Given), Act performs the one behaviour under test (When), and Assert checks the outcome (Then). The structure is the same; BDD phrases it in business language.',
+        why: 'Arrange sets up the context (Given), Act performs the one behavior under test (When), and Assert checks the outcome (Then). The structure is the same; BDD phrases it in business language.',
       },
     ],
   ),
@@ -910,10 +910,10 @@ public interface IRepository<T> where T : class
           'Have the service depend on a narrow, query-specific interface (for example `IOrderReader.GetOpenOrdersFor(customerId)`) and use a fake in unit tests, with integration tests against a real database for the EF Core queries',
         wrong: [
           'Mock `DbSet<Order>` so that LINQ queries run against an in-memory list, which proves the SQL translation works',
-          'Use EF Core’s in-memory provider, which guarantees the same behaviour as the production database',
+          'Use EF Core’s in-memory provider, which guarantees the same behavior as the production database',
           'Skip tests for data access, since EF Core is already tested by Microsoft',
         ],
-        why: 'A narrow interface is trivial to fake, and keeps business logic tests fast and focused. Whether the real queries translate and behave correctly can only be shown against a real database. Mocked `DbSet`s and the in-memory provider run LINQ to Objects, so they cannot catch translation errors or relational behaviour.',
+        why: 'A narrow interface is trivial to fake, and keeps business logic tests fast and focused. Whether the real queries translate and behave correctly can only be shown against a real database. Mocked `DbSet`s and the in-memory provider run LINQ to Objects, so they cannot catch translation errors or relational behavior.',
       },
     ],
   ),

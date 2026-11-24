@@ -19,7 +19,7 @@ type CatalogTechnology = Technology & { readonly skillCount: number };
 
 interface TechnologyProgress {
   readonly mastered: number;
-  readonly practised: number;
+  readonly practiced: number;
 }
 
 interface RecentSkill {
@@ -30,7 +30,7 @@ interface RecentSkill {
 }
 
 /**
- * Skill Mastery catalog: technologies grouped into labelled sections (from
+ * Skill Mastery catalog: technologies grouped into labeled sections (from
  * each technology's `category` in the content), one search across all of
  * them, and the learner's most recent skills when there is real progress.
  */
@@ -62,7 +62,7 @@ export class TechnologyCatalog {
     },
   );
 
-  /** Most recently practised skills, with their names from the technology catalogs. */
+  /** Most recently practiced skills, with their names from the technology catalogs. */
   protected readonly recent = asyncResource(
     () => this.progressMap(),
     async (byTech): Promise<readonly RecentSkill[]> => {
@@ -122,7 +122,7 @@ export class TechnologyCatalog {
     if (!skills) return undefined;
     return {
       mastered: skills.filter((s) => s.mastered).length,
-      practised: skills.filter((s) => s.attempts > 0).length,
+      practiced: skills.filter((s) => s.attempts > 0).length,
     };
   }
 

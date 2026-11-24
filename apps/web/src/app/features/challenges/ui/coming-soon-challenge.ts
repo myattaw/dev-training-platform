@@ -9,7 +9,7 @@ import { DifficultyBadge } from './difficulty-badge';
 
 /**
  * An announced challenge. There is deliberately no editor and no Start
- * button: nothing exists to practise yet. No release date is shown because
+ * button: nothing exists to practice yet. No release date is shown because
  * none is set.
  */
 @Component({
@@ -35,7 +35,7 @@ import { DifficultyBadge } from './difficulty-badge';
       </p>
       <p>{{ challenge().summary }}</p>
       <p class="text-secondary">
-        Practises: {{ skills() }}. This challenge is not available yet, so there is nothing to open
+        Practices: {{ skills() }}. This challenge is not available yet, so there is nothing to open
         or run. No release date has been set.
       </p>
       <a class="btn" routerLink="/challenges">Browse available challenges</a>

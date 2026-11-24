@@ -36,13 +36,13 @@ export const handler = async (event: { orderId: string }) => {
   return result.Item;
 };`),
         correct:
-          'Code outside the handler runs once when the execution environment initialises, so later invocations in that environment reuse the client and its connections',
+          'Code outside the handler runs once when the execution environment initializes, so later invocations in that environment reuse the client and its connections',
         wrong: [
           'Lambda requires every SDK client to be global; creating one inside the handler fails',
           'The client is then shared by every execution environment of the function across all machines',
           'Module-level code runs before every invocation, so it is just a style choice',
         ],
-        why: 'Initialisation (imports and module-level code) runs once per execution environment, during a cold start. Warm invocations then reuse whatever it created: SDK clients, open connections, parsed configuration. Creating the client inside the handler works but pays the setup cost on every call. Each environment has its own copy, though; nothing is shared between environments.',
+        why: 'Initialization (imports and module-level code) runs once per execution environment, during a cold start. Warm invocations then reuse whatever it created: SDK clients, open connections, parsed configuration. Creating the client inside the handler works but pays the setup cost on every call. Each environment has its own copy, though; nothing is shared between environments.',
       },
       {
         key: 'init-duration',
@@ -52,13 +52,13 @@ export const handler = async (event: { orderId: string }) => {
         code: plain(`REPORT RequestId: 8a0d...  Duration: 41.20 ms  Billed Duration: 42 ms  Memory Size: 512 MB  Max Memory Used: 118 MB
 REPORT RequestId: c71e...  Duration: 44.87 ms  Billed Duration: 45 ms  Memory Size: 512 MB  Max Memory Used: 117 MB  Init Duration: 812.34 ms`),
         correct:
-          'That invocation had a cold start: Lambda created a new execution environment and ran the initialisation code first, which took about 0.8 seconds',
+          'That invocation had a cold start: Lambda created a new execution environment and ran the initialization code first, which took about 0.8 seconds',
         wrong: [
           'The handler waited 812 ms for a DynamoDB response',
           'The invocation was retried after an 812 ms timeout',
-          'API Gateway spent 812 ms authorising the request',
+          'API Gateway spent 812 ms authorizing the request',
         ],
-        why: '`Init Duration` appears only when a new environment was initialised for the request: runtime start-up plus your module-level code. Warm invocations skip it. Heavy imports and slow start-up work show up here, which is why trimming dependencies or using provisioned concurrency reduces cold-start latency.',
+        why: '`Init Duration` appears only when a new environment was initialized for the request: runtime start-up plus your module-level code. Warm invocations skip it. Heavy imports and slow start-up work show up here, which is why trimming dependencies or using provisioned concurrency reduces cold-start latency.',
       },
       {
         key: 'state-leak',
@@ -138,21 +138,21 @@ REPORT RequestId: 9e41...  Duration: 4210.11 ms  Billed Duration: 4211 ms  Memor
   ...scenarioFamily(
     'aws-lambda-concurrency',
     4,
-    'Reserved concurrency caps (and guarantees) how many environments a function can use. Provisioned concurrency keeps environments initialised in advance.',
+    'Reserved concurrency caps (and guarantees) how many environments a function can use. Provisioned concurrency keeps environments initialized in advance.',
     [
       {
         key: 'provisioned-for-latency',
         difficulty: 3,
         question:
-          'A checkout API on Lambda has a sharp traffic spike every morning, and the first requests of the spike are slow because of long initialisation. Which setting addresses that latency?',
+          'A checkout API on Lambda has a sharp traffic spike every morning, and the first requests of the spike are slow because of long initialization. Which setting addresses that latency?',
         correct:
-          'Provisioned concurrency, so a number of execution environments are already initialised before the spike',
+          'Provisioned concurrency, so a number of execution environments are already initialized before the spike',
         wrong: [
           'Reserved concurrency, which pre-warms the reserved number of environments',
           'A longer function timeout, so slow requests do not fail',
           'Putting an SQS queue in front of the API',
         ],
-        why: 'Provisioned concurrency initialises environments ahead of time, so requests served by them skip the cold start. Reserved concurrency does not pre-warm anything: it sets aside capacity and caps the function at that number. A longer timeout hides nothing from the user, and a queue makes a synchronous API asynchronous.',
+        why: 'Provisioned concurrency initializes environments ahead of time, so requests served by them skip the cold start. Reserved concurrency does not pre-warm anything: it sets aside capacity and caps the function at that number. A longer timeout hides nothing from the user, and a queue makes a synchronous API asynchronous.',
       },
       {
         key: 'protect-database',

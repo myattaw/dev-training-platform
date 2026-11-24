@@ -1,7 +1,7 @@
 # Company Interview Prep
 
 Learners pick a company, see the coding questions a **third-party dataset** associates with it,
-and practise related skills with **PracStack's own challenges**, including in timed sessions.
+and practice related skills with **PracStack's own challenges**, including in timed sessions.
 
 Two kinds of content are always kept apart, in the data model, the API and the UI:
 
@@ -10,7 +10,7 @@ Two kinds of content are always kept apart, in the data model, the API and the U
 | What it is | A reference to a problem on another site (title, difficulty, link) | An original PracStack challenge |
 | Where you solve it | On the provider (link opens in a new tab) | In PracStack's workspace |
 | How it counts as done | Only when the learner marks it ("Reviewed externally", "Solved externally") | Only when a server-graded submission passes every test |
-| Claim made | "Listed in a third-party company-question dataset" (a reported association) | "Practises related skills"; never "asked by this company" |
+| Claim made | "Listed in a third-party company-question dataset" (a reported association) | "Practices related skills"; never "asked by this company" |
 
 Every page carries a "not affiliated with, endorsed by or sponsored by" notice. Frequency values
 are always shown with an explanation that they are the source's relative ranking, not a
@@ -29,7 +29,7 @@ data, and the existing auth path for entitlements.
 
 Defined in `packages/content-model/src/company.ts`:
 
-- `DataSource`: provenance and licence status (see [company-data-licensing.md](company-data-licensing.md)).
+- `DataSource`: provenance and license status (see [company-data-licensing.md](company-data-licensing.md)).
 - `Company`: stable slug (`liberty-mutual`), display name, aliases.
 - `ExternalProblemReference`: `<source>:<externalId>`, title, URL, difficulty, acceptance rate,
   and **editorial** competency tags (assigned by PracStack, not the source).
@@ -52,13 +52,13 @@ Owned challenges stay in `content/src/challenges` (with hidden tests and TS/Java
 - `company-csv.ts`: checks the required columns (any order and case, extras reported), the file
   name → time window, kebab-case folders and stable slugs. Per row: numeric IDs, https problem
   URLs on allow-listed hosts only (no credentials or other paths), difficulty, percentages from
-  0 to 100, sanitised titles (control and bidirectional-override characters removed), and
+  0 to 100, sanitized titles (control and bidirectional-override characters removed), and
   duplicate or conflicting rows. Bad rows are rejected with a reason; good rows are kept.
 - `dataset.ts`: pure, repeatable merge. References are deduplicated; associations are keyed by
   company, problem, source and window. A newer snapshot updates; an older one is ignored as
   stale; disagreeing facts (title, URL, difficulty, or a different frequency in the same
   snapshot) are reported as **conflicts** and never overwrite.
-- `content/scripts/import-companies.ts`: CLI for authorised sources. Incremental (merges into an
+- `content/scripts/import-companies.ts`: CLI for authorized sources. Incremental (merges into an
   existing dataset file), prints a summary, exits 1 on rejected rows or conflicts, and refuses
   sources without `bulkImportAllowed`.
 
@@ -76,7 +76,7 @@ learning.
    (strings, arrays) count half, and at least one specific competency must be shared, so
    "both use strings" is never enough on its own. Weak matches are dropped rather than padding
    the list.
-3. Reasons are generated from the shared competencies ("Practises stacks and string
+3. Reasons are generated from the shared competencies ("Practices stacks and string
    manipulation, like “Simplify Path”."). The build rejects reasons that overclaim ("asked",
    "official", "chance", …).
 

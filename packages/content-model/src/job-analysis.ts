@@ -73,7 +73,7 @@ export interface ExperienceRequirement {
 export interface JobAnalysis {
   /** Nothing (or only whitespace) was entered. */
   readonly empty: boolean;
-  /** The input was longer than {@link MAX_ANALYSIS_CHARS}; only the start was analysed. */
+  /** The input was longer than {@link MAX_ANALYSIS_CHARS}; only the start was analyzed. */
   readonly truncated: boolean;
   readonly inputLength: number;
   /** Category display order, then order of first mention. */

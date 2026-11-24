@@ -4,7 +4,7 @@
  *
  * Display only. The statements are our own authored content (PostgreSQL or
  * Oracle), so this handles the forms they use rather than all of SQL. Anything
- * it does not recognise is shown as part of the column's type.
+ * it does not recognize is shown as part of the column's type.
  */
 export interface SchemaColumn {
   readonly name: string;

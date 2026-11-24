@@ -25,7 +25,7 @@ export const agileSdlcFamilies: readonly QuestionSource[] = [
           'The Developers, by majority vote',
           'The most senior stakeholder',
         ],
-        why: "The Product Owner is accountable for the Product Backlog, including its ordering, and for maximising the value of the product. Others can influence it, but the decision is the Product Owner's. The Scrum Master serves the team and organisation by helping Scrum work; it is not a project-manager role that sets priorities.",
+        why: "The Product Owner is accountable for the Product Backlog, including its ordering, and for maximizing the value of the product. Others can influence it, but the decision is the Product Owner's. The Scrum Master serves the team and organization by helping Scrum work; it is not a project-manager role that sets priorities.",
       },
       {
         key: 'stakeholder-request',
@@ -49,7 +49,7 @@ export const agileSdlcFamilies: readonly QuestionSource[] = [
         correct:
           'It signals that Increments are not really Done; every Sprint should produce a usable Increment that meets the Definition of Done, so improve the Definition of Done and practices instead',
         wrong: [
-          'It is fine; the Scrum Guide describes hardening sprints for stabilisation',
+          'It is fine; the Scrum Guide describes hardening sprints for stabilization',
           'It is fine as long as the Product Owner agrees to it',
           'It is required whenever the team has more than nine members',
         ],
@@ -95,7 +95,7 @@ export const agileSdlcFamilies: readonly QuestionSource[] = [
           'It is released and the scan runs in the next Sprint',
           'The Product Owner can declare it done for this Sprint only',
         ],
-        why: "The Definition of Done is the commitment for the Increment: an item that does not meet it is not part of the Increment, cannot be released, and should not be presented as finished at the Sprint Review. Acceptance criteria describe one item's behaviour; the Definition of Done is the quality bar for all of them.",
+        why: "The Definition of Done is the commitment for the Increment: an item that does not meet it is not part of the Increment, cannot be released, and should not be presented as finished at the Sprint Review. Acceptance criteria describe one item's behavior; the Definition of Done is the quality bar for all of them.",
       },
     ],
   ),
@@ -178,7 +178,7 @@ export const agileSdlcFamilies: readonly QuestionSource[] = [
         difficulty: 2,
         question: 'Which acceptance criterion for a product search can be tested?',
         correct:
-          'For a catalogue of 50,000 products, 95% of searches return results within 2 seconds',
+          'For a catalog of 50,000 products, 95% of searches return results within 2 seconds',
         wrong: ['Search is fast', 'Search is user-friendly', 'Search works well on mobile devices'],
         why: 'A testable criterion states a measurable outcome and its conditions, so anyone can check it and get the same answer. "Fast", "user-friendly" and "works well" mean different things to different people and lead to arguments at the Sprint Review.',
       },
@@ -270,7 +270,7 @@ export const agileSdlcFamilies: readonly QuestionSource[] = [
           'Velocity stays the same, because points cannot change',
           'Quality improves, because the team works more efficiently',
         ],
-        why: "When a measure becomes a target, people optimise the measure (Goodhart's law). Points are estimated by the team, so the easiest way to hit the target is to estimate higher, often unconsciously. To improve delivery, look at outcomes, cycle time and obstacles instead of setting point targets.",
+        why: "When a measure becomes a target, people optimize the measure (Goodhart's law). Points are estimated by the team, so the easiest way to hit the target is to estimate higher, often unconsciously. To improve delivery, look at outcomes, cycle time and obstacles instead of setting point targets.",
       },
     ],
   ),
@@ -375,14 +375,14 @@ export const agileSdlcFamilies: readonly QuestionSource[] = [
         question: 'Which of these are non-functional requirements?',
         right: [
           'The service is available 99.9% of each month',
-          'Customer data is stored only in data centres inside the EU',
+          'Customer data is stored only in data centers inside the EU',
           'The user interface meets WCAG 2.2 level AA',
         ],
         wrong: [
           'Customers can filter their orders by date',
           "Expenses over 1,000 euros need a manager's approval",
         ],
-        why: 'Availability, data residency and accessibility describe qualities and constraints of the whole system. Filtering orders and approving expenses are behaviours, so they are functional requirements, even though one of them is a business rule.',
+        why: 'Availability, data residency and accessibility describe qualities and constraints of the whole system. Filtering orders and approving expenses are behaviors, so they are functional requirements, even though one of them is a business rule.',
       },
     ],
   ),

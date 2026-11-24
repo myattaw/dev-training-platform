@@ -77,7 +77,7 @@ ${CHECK}`,
           '`var amount = 30m;`',
           '`Check.Equal(70m, account.Balance);`',
         ],
-        why: 'The Act is the single call whose behaviour the test is about: `Withdraw`. Creating the account and choosing the amount are Arrange (setting the scene), and `Check.Equal` is the Assert. Mistaking the constructor for the Act is common; keeping the three parts visibly separate (often with a blank line between them) makes a test easy to read.',
+        why: 'The Act is the single call whose behavior the test is about: `Withdraw`. Creating the account and choosing the amount are Arrange (setting the scene), and `Check.Equal` is the Assert. Mistaking the constructor for the Act is common; keeping the three parts visibly separate (often with a blank line between them) makes a test easy to read.',
       },
       {
         key: 'no-assert',
@@ -136,13 +136,13 @@ class Account(decimal opening)
 
 ${CHECK}`,
         correct:
-          'It has two Acts (withdraw, then deposit) in one test with a vague name; split it into one test per behaviour, so a failure names exactly what broke',
+          'It has two Acts (withdraw, then deposit) in one test with a vague name; split it into one test per behavior, so a failure names exactly what broke',
         wrong: [
           'It should assert only once, at the very end, after both calls',
           'Tests must not call more than one method of the class under test',
           'The two `Check.Equal` calls run in parallel, so their results get mixed up',
         ],
-        why: 'One test, one behaviour: when `Account works` fails you must read the code to learn whether withdrawing or depositing broke, and the deposit check depends on the withdraw step before it. Two tests (`Withdraw_ReducesBalance`, `Deposit_IncreasesBalance`), each with its own Arrange, fail independently and name the problem. Asserting only at the end makes it worse, not better.',
+        why: 'One test, one behavior: when `Account works` fails you must read the code to learn whether withdrawing or depositing broke, and the deposit check depends on the withdraw step before it. Two tests (`Withdraw_ReducesBalance`, `Deposit_IncreasesBalance`), each with its own Arrange, fail independently and name the problem. Asserting only at the end makes it worse, not better.',
       },
     ],
   ),
@@ -222,7 +222,7 @@ static class Check
           '`WithdrawWorksCorrectly`',
           '`Withdraw_CallsValidateThenWritesBalanceField`',
         ],
-        why: 'A name in the form “unit, scenario, expected outcome” reads as a specification and makes a failure report self-explanatory. `TestWithdraw2` and `WithdrawWorksCorrectly` say nothing about the case. Naming the internal steps (`CallsValidateThenWritesBalanceField`) describes the implementation, so the name goes stale as soon as the code is refactored, even though the behaviour is unchanged.',
+        why: 'A name in the form “unit, scenario, expected outcome” reads as a specification and makes a failure report self-explanatory. `TestWithdraw2` and `WithdrawWorksCorrectly` say nothing about the case. Naming the internal steps (`CallsValidateThenWritesBalanceField`) describes the implementation, so the name goes stale as soon as the code is refactored, even though the behavior is unchanged.',
       },
     ],
   ),
@@ -286,7 +286,7 @@ class GreetingService(IUserStore users)
 ${CHECK}`,
         correct: DOUBLE_OPTIONS.stub,
         wrong: [DOUBLE_OPTIONS.spy, DOUBLE_OPTIONS.fake, DOUBLE_OPTIONS.mock],
-        why: '`FixedUserStore` ignores its input and returns a canned value: a stub. It feeds indirect input into the code under test, and the test asserts on the result (`Greet`), not on the store. It records nothing (so it is not a spy), has no real behaviour (not a fake), and does not verify anything itself (not a mock). People often call every double a “mock”; the precise words help you pick the simplest one that works.',
+        why: '`FixedUserStore` ignores its input and returns a canned value: a stub. It feeds indirect input into the code under test, and the test asserts on the result (`Greet`), not on the store. It records nothing (so it is not a spy), has no real behavior (not a fake), and does not verify anything itself (not a mock). People often call every double a “mock”; the precise words help you pick the simplest one that works.',
       },
       {
         key: 'spy',
@@ -546,7 +546,7 @@ ${CHECK}`,
           'Change the expected count to `1` and keep the test as it is',
           'Make `Calls` private so tests cannot depend on it',
         ],
-        why: 'Good tests survive refactoring: they check observable behaviour (the price returned) and fail only when that behaviour breaks. Counting repository calls over-specifies the interaction, so it fails on a harmless change; changing the number to 1 just pins the new implementation, and the next refactoring breaks it again. Assert on interactions only when the interaction is the requirement (for example “never call the paid API twice for the same SKU”), and name the test after that requirement.',
+        why: 'Good tests survive refactoring: they check observable behavior (the price returned) and fail only when that behavior breaks. Counting repository calls over-specifies the interaction, so it fails on a harmless change; changing the number to 1 just pins the new implementation, and the next refactoring breaks it again. Assert on interactions only when the interaction is the requirement (for example “never call the paid API twice for the same SKU”), and name the test after that requirement.',
       },
     ],
   ),
@@ -614,7 +614,7 @@ ${CHECK}`,
           'Write the gift-card test, make it pass and remove the duplication in one change',
           'Nothing needs tidying: the tests pass, so the duplication is harmless',
         ],
-        why: 'The refactor step is part of the cycle, not optional polish: with all tests green you can restructure (`var points = (int)Math.Floor(amount); return member ? points * 2 : points;`) and the tests prove behaviour is unchanged. Mixing the refactor with new behaviour means a red test could come from either change. Skipping it lets duplication pile up; the next rule would have to be added in two places.',
+        why: 'The refactor step is part of the cycle, not optional polish: with all tests green you can restructure (`var points = (int)Math.Floor(amount); return member ? points * 2 : points;`) and the tests prove behavior is unchanged. Mixing the refactor with new behavior means a red test could come from either change. Skipping it lets duplication pile up; the next rule would have to be added in two places.',
       },
     ],
   ),
@@ -1268,7 +1268,7 @@ class AuditLog(RequestContext context)
       {
         key: 'wrapper-interface',
         question:
-          'A reviewer asks whether `IDecimalRounder` earns its place. What is the best judgement?',
+          'A reviewer asks whether `IDecimalRounder` earns its place. What is the best judgment?',
         code: `var formatter = new PriceFormatter(new DecimalRounder());
 Console.WriteLine(formatter.Format(12.345m));
 
@@ -1293,7 +1293,7 @@ class PriceFormatter(IDecimalRounder rounder)
           'It does: dependency inversion requires an abstraction for every call into the framework',
           'It does: without it, tests of `PriceFormatter` cannot control the result of rounding',
         ],
-        why: 'Interfaces are seams for things you need to vary or isolate: I/O, time, randomness, external services. Wrapping a pure function adds a type, a registration and indirection, and tests that mock it only prove that the formatter calls the mock. A test with real rounding checks the actual behaviour (including that `Math.Round` defaults to banker’s rounding, so 12.345 becomes 12.34). DI can inject concrete classes too; add the interface when a second implementation actually appears.',
+        why: 'Interfaces are seams for things you need to vary or isolate: I/O, time, randomness, external services. Wrapping a pure function adds a type, a registration and indirection, and tests that mock it only prove that the formatter calls the mock. A test with real rounding checks the actual behavior (including that `Math.Round` defaults to banker’s rounding, so 12.345 becomes 12.34). DI can inject concrete classes too; add the interface when a second implementation actually appears.',
       },
       {
         key: 'which-seam',
@@ -1324,7 +1324,7 @@ class OrderService(TimeProvider clock, ITaxCalculator tax)
           'Keep both: mocking every dependency is what makes a test a unit test',
           'Remove both and call `DateTime.UtcNow` and the tax arithmetic inline',
         ],
-        why: 'The clock is an external, changing input; without a seam the summary cannot be tested for a known date. The tax calculator is pure and fast, so mocking it adds nothing: the test would assert that the service adds whatever the mock returns, and a wrong tax rate would pass. A “unit” is a unit of behaviour, not necessarily one class; mock what is slow, nondeterministic or external, and use real collaborators otherwise. Introduce `ITaxCalculator` later if tax rules really start to vary by country.',
+        why: 'The clock is an external, changing input; without a seam the summary cannot be tested for a known date. The tax calculator is pure and fast, so mocking it adds nothing: the test would assert that the service adds whatever the mock returns, and a wrong tax rate would pass. A “unit” is a unit of behavior, not necessarily one class; mock what is slow, nondeterministic or external, and use real collaborators otherwise. Introduce `ITaxCalculator` later if tax rules really start to vary by country.',
       },
     ],
   ),
@@ -1439,7 +1439,7 @@ static string CanShip(Order? order)
 
 record Order(bool IsPaid, bool InStock, string Country);`,
         output: 'missing country\nunpaid\nmissing country',
-        why: 'Someone “tidied” the guards by moving the country check up. For orders that fail several checks, the message changes: an unpaid, out-of-stock order without a country now says “missing country” instead of “unpaid”. Reordering guard clauses is a behaviour change whenever conditions can overlap; it needs a test, not just a glance.',
+        why: 'Someone “tidied” the guards by moving the country check up. For orders that fail several checks, the message changes: an unpaid, out-of-stock order without a country now says “missing country” instead of “unpaid”. Reordering guard clauses is a behavior change whenever conditions can overlap; it needs a test, not just a glance.',
       },
     ],
   ),
@@ -1499,7 +1499,7 @@ static decimal ShippingCost(decimal weightKg)
     'cs-refactor-behaviour-preserving',
     3,
     [
-      'A refactoring changes the structure, not the behaviour: the before and after versions must print the same results for the same inputs.',
+      'A refactoring changes the structure, not the behavior: the before and after versions must print the same results for the same inputs.',
     ],
     [
       {
@@ -1682,33 +1682,33 @@ static class Discounts
   ...csConceptFamily(
     'cs-refactor-safe-order',
     4,
-    'Refactor in small steps behind a safety net, and never mix structure changes with behaviour changes.',
+    'Refactor in small steps behind a safety net, and never mix structure changes with behavior changes.',
     [
       {
         key: 'legacy-method',
         question:
           'You must change a 300-line `CalculateInvoice` method that has no tests and whose exact rules nobody remembers. Which order of work is safest?',
         correct:
-          'Write characterisation tests that pin its current outputs for representative inputs, refactor in small steps running them after each step, then make the behaviour change as a separate commit',
+          'Write characterization tests that pin its current outputs for representative inputs, refactor in small steps running them after each step, then make the behavior change as a separate commit',
         wrong: [
           'Rewrite it from scratch from the specification, then compare a few invoices by hand',
           'Refactor it and fix the bugs you notice along the way, then add tests for the cleaned-up version',
-          'Make the behaviour change first, since it is what was asked for, and refactor in a later sprint',
+          'Make the behavior change first, since it is what was asked for, and refactor in a later sprint',
         ],
-        why: 'Without tests you cannot tell whether a refactoring changed behaviour. Characterisation tests record what the code does now (not what it should do), giving a safety net. Small steps, each verified and committed, make any mistake easy to find and revert. Mixing bug fixes or new behaviour into the refactoring means a changed output could be intended or accidental, and nobody can tell which.',
+        why: 'Without tests you cannot tell whether a refactoring changed behavior. Characterization tests record what the code does now (not what it should do), giving a safety net. Small steps, each verified and committed, make any mistake easy to find and revert. Mixing bug fixes or new behavior into the refactoring means a changed output could be intended or accidental, and nobody can tell which.',
       },
       {
         key: 'odd-current-behaviour',
         question:
-          'While writing characterisation tests for legacy pricing code, you find that a price of 2.5 is rounded to 2, where you expected 3 (it uses banker’s rounding). What should the test assert?',
+          'While writing characterization tests for legacy pricing code, you find that a price of 2.5 is rounded to 2, where you expected 3 (it uses banker’s rounding). What should the test assert?',
         correct:
-          'That it returns 2, the current behaviour; raise the rounding as a possible bug and change it, with the business’s agreement, in a separate step',
+          'That it returns 2, the current behavior; raise the rounding as a possible bug and change it, with the business’s agreement, in a separate step',
         wrong: [
           'That it returns 3, since that is clearly the correct answer',
           'Nothing for this input: leave out cases whose results look wrong',
           'That it returns either 2 or 3, so the test survives whichever choice is made later',
         ],
-        why: 'A characterisation test documents the system as it is, so refactoring can prove it changed nothing. Asserting 3 would make the safety net red before you have touched anything, and leaving the case out hides exactly the behaviour most likely to be changed by accident. Whether 2 is a bug is a business question: customers or reports may rely on it. Decide it explicitly, then change the test and the code together in their own commit.',
+        why: 'A characterization test documents the system as it is, so refactoring can prove it changed nothing. Asserting 3 would make the safety net red before you have touched anything, and leaving the case out hides exactly the behavior most likely to be changed by accident. Whether 2 is a bug is a business question: customers or reports may rely on it. Decide it explicitly, then change the test and the code together in their own commit.',
       },
     ],
   ),
@@ -1753,7 +1753,7 @@ static bool Save(string name, List<string> db)
     return true;
 }`,
         output: '2 [ada,linus]\n2 [ada,,linus]',
-        why: '“Extract variable” moved `Save` out of the `&&`. In `Before`, `&&` short-circuits: for the empty name `Save` is never called. In `After`, `Save` runs for every name before validation, so an empty name is stored. The returned count is still 2, so a test that only checks the count passes. Extracting a call with side effects out of a short-circuiting condition is not behaviour-preserving.',
+        why: '“Extract variable” moved `Save` out of the `&&`. In `Before`, `&&` short-circuits: for the empty name `Save` is never called. In `After`, `Save` runs for every name before validation, so an empty name is stored. The returned count is still 2, so a test that only checks the count passes. Extracting a call with side effects out of a short-circuiting condition is not behavior-preserving.',
       },
       {
         key: 'single-vs-loop',
@@ -1778,7 +1778,7 @@ static string Before(List<(int Id, string Name)> users, int id)
 static string After(List<(int Id, string Name)> users, int id) =>
     users.Single(u => u.Id == id).Name;`,
         output: 'linus linus\nada InvalidOperationException',
-        why: 'The loop returns the first match; `Single` throws `InvalidOperationException` when more than one element matches (and when none does, where the loop returned “?”). For clean data they agree, so the change slips through tests that only use unique ids. A faithful translation keeps the first-match semantics (`FirstOrDefault`); switching to `Single` may be a good idea, but it is a behaviour change to make deliberately.',
+        why: 'The loop returns the first match; `Single` throws `InvalidOperationException` when more than one element matches (and when none does, where the loop returned “?”). For clean data they agree, so the change slips through tests that only use unique ids. A faithful translation keeps the first-match semantics (`FirstOrDefault`); switching to `Single` may be a good idea, but it is a behavior change to make deliberately.',
       },
     ],
   ),

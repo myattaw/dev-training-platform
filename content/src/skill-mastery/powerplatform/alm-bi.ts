@@ -3,7 +3,7 @@ import { plain } from '../helpers';
 import { ppChoiceFamily, ppSelectFamily } from './builders';
 
 /*
- * Application lifecycle management and governance, and Power BI modelling and DAX.
+ * Application lifecycle management and governance, and Power BI modeling and DAX.
  * Scenario reasoning only.
  */
 
@@ -79,14 +79,14 @@ export const almFamilies: readonly QuestionSource[] = [
           'The default publisher is limited to 100 components',
           'Only custom publishers can create managed solutions for production',
         ],
-        why: 'A publisher gives components a recognisable prefix and identifies who owns them, which keeps layering and upgrades understandable when several solutions touch the same environment. The other options are not real limits; the point is clean ownership and naming, which cannot be fixed afterwards.',
+        why: 'A publisher gives components a recognizable prefix and identifies who owns them, which keeps layering and upgrades understandable when several solutions touch the same environment. The other options are not real limits; the point is clean ownership and naming, which cannot be fixed afterwards.',
       },
     ],
   ),
   ...ppChoiceFamily(
     'pp-alm-managed',
     2,
-    'Unmanaged solutions are for development; managed solutions are deployed artefacts that can be upgraded and removed cleanly.',
+    'Unmanaged solutions are for development; managed solutions are deployed artifacts that can be upgraded and removed cleanly.',
     [
       {
         key: 'prod-managed',
@@ -214,7 +214,7 @@ Solution B (installed 2nd):  ctso_region display name = "Territory"`),
   ...ppChoiceFamily(
     'pp-alm-pipelines',
     4,
-    'Source control holds what developers changed; deployments promote one tested managed artefact.',
+    'Source control holds what developers changed; deployments promote one tested managed artifact.',
     [
       {
         key: 'unpack',
@@ -234,13 +234,13 @@ Solution B (installed 2nd):  ctso_region display name = "Territory"`),
         question:
           'Which release design gives the most confidence that production receives exactly what was tested?',
         correct:
-          'Build one managed solution artefact, run solution checker, deploy it to test, and after approval deploy the same artefact to production',
+          'Build one managed solution artifact, run solution checker, deploy it to test, and after approval deploy the same artifact to production',
         wrong: [
           'Export a fresh managed solution from dev just before deploying to production',
           'Import the unmanaged solution into production and publish all customizations',
           'Deploy to production first and to test afterwards, so testers see the live version',
         ],
-        why: 'Promoting the same artefact through stages means production gets the bits that passed testing; re-exporting from dev later may include untested changes. Unmanaged imports into production create an active layer and lose clean upgrades, and testing after production misses the point of a test stage.',
+        why: 'Promoting the same artifact through stages means production gets the bits that passed testing; re-exporting from dev later may include untested changes. Unmanaged imports into production create an active layer and lose clean upgrades, and testing after production misses the point of a test stage.',
       },
       {
         key: 'service-principal',
@@ -386,7 +386,7 @@ OrderLine(OrderDate, CustomerKey, ProductKey, Quantity, Amount)`),
         question:
           'A model has one wide table with every order line repeating the customer’s name, city and segment and the product’s name and category. Which is the main benefit of reshaping it into a star schema?',
         correct:
-          'Dimensions filter the fact table through one-to-many relationships, which keeps the model smaller, DAX simpler and filtering behaviour predictable',
+          'Dimensions filter the fact table through one-to-many relationships, which keeps the model smaller, DAX simpler and filtering behavior predictable',
         wrong: [
           'A star schema lets Power BI skip data refresh',
           'Only star schemas can be published to the Power BI service',
@@ -646,7 +646,7 @@ Big customers B = COUNTROWS(FILTER(Customer, SUM(Sales[Amount]) > 1000))`),
         key: 'gateway',
         difficulty: 3,
         question:
-          'A report published to the Power BI service imports data from a SQL Server in the company’s own data centre. Scheduled refresh fails because the service cannot reach the server. What is needed?',
+          'A report published to the Power BI service imports data from a SQL Server in the company’s own data center. Scheduled refresh fails because the service cannot reach the server. What is needed?',
         correct:
           'An on-premises data gateway that can reach the SQL Server, configured for the data source',
         wrong: [

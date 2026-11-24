@@ -58,7 +58,7 @@ need an account (or local mode, where the local developer user is used).
 Progress uses only server data the app already fetches:
 
 - **Skills**: `GET /api/skill-mastery/progress?technologyId=…` for each technology the path uses.
-  A skill is *mastered* when the server says `mastered`, *practised, not mastered* when it has at
+  A skill is *mastered* when the server says `mastered`, *practiced, not mastered* when it has at
   least one attempt, and *not yet assessed* otherwise.
 - **Challenges**: `GET /api/challenges/progress`. A challenge activity is *solved* when a
   server-graded submission passed every test; if the activity names a language, only a solve in
@@ -67,7 +67,7 @@ Progress uses only server data the app already fetches:
 The role page shows these separately, with labels:
 
 - **Content coverage**: competencies with practice on PracStack / all competencies.
-- **Skills mastered**: x of y; **skills practised, not yet mastered**; **skills not yet assessed**.
+- **Skills mastered**: x of y; **skills practiced, not yet mastered**; **skills not yet assessed**.
 - **Challenges solved**: x of y.
 
 There is deliberately **no single "readiness" percentage**: mastering a skill and solving a
@@ -83,7 +83,7 @@ solved (challenges). Scenario refs are skipped. Signed out, it is the first acti
 `analyzeJobDescription(text, taxonomy)` in `packages/content-model/src/job-analysis.ts` is a pure,
 deterministic function. **It runs in the browser**: the posting is never sent to PracStack,
 logged, or stored (not even in `localStorage`; the text box also disables spell checking, which
-some browsers send to a cloud service). The page says "Analysed in your browser; the text is not
+some browsers send to a cloud service). The page says "Analyzed in your browser; the text is not
 sent to PracStack". There is no AI, no network call and no learning.
 
 ### Taxonomy
@@ -138,7 +138,7 @@ once. Uncovered terms are listed separately under "Not covered by PracStack yet"
 
 Signed-in users can save the path: `POST /api/me/preparation/plans { title, termIds }`. The API
 accepts exactly those two fields (any other field is a 400), validates term ids against the
-taxonomy, sanitises the title like display names (1–80 characters) and keeps at most 10 plans
+taxonomy, sanitizes the title like display names (1–80 characters) and keeps at most 10 plans
 (409 beyond). A plan's path is rebuilt from its term ids, so the posting is never needed again.
 The e2e test asserts that no request body or URL contains the posting.
 
@@ -158,7 +158,7 @@ Storage (`AccountStore`): one record per user. DynamoDB item `USER#<user> / PREP
 ## Limitations
 
 - Keyword matching cannot understand negation ("Java not required" still detects Java) or
-  seniority; it only recognises names in the taxonomy.
+  seniority; it only recognizes names in the taxonomy.
 - Coverage means PracStack has *some* practice for a term, not that the practice covers
   everything a job means by it.
 - Enterprise Scenarios are not registered yet; the scenario step of the .NET path uses the

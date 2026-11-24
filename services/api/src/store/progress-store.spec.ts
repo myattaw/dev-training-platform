@@ -13,7 +13,7 @@ import type {
 } from './progress-store';
 
 /*
- * One behavioural contract, run against every store: the in-memory store used
+ * One behavioral contract, run against every store: the in-memory store used
  * locally and the DynamoDB store used on AWS (against DynamoDB Local).
  */
 

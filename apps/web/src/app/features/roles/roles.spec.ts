@@ -139,7 +139,7 @@ describe('RoleDetail', () => {
       ['Union types', '/skills/typescript/unions'],
     ]);
     expect(text(basics)).toContain('Mastered');
-    expect(text(basics)).toContain('Practised, not mastered');
+    expect(text(basics)).toContain('Practiced, not mastered');
     const problems = competencies[2];
     expect(text(problems)).toContain('Coding challenge · TypeScript');
     expect(problems?.querySelector('a')?.getAttribute('href')).toBe(
@@ -157,7 +157,7 @@ describe('RoleDetail', () => {
       .join(' | ');
     expect(progress).toContain('Content coverage 3 of 4 competencies have practice on PracStack');
     expect(progress).toContain('Skills mastered 1 of 3');
-    expect(progress).toContain('Skills practised, not yet mastered 1');
+    expect(progress).toContain('Skills practiced, not yet mastered 1');
     expect(progress).toContain('Skills not yet assessed 1');
     expect(progress).toContain('Challenges solved 1 of 2');
     expect(el.textContent).not.toMatch(/readiness|ready for the job|%/i);
@@ -241,10 +241,10 @@ describe('JobAnalyzer', () => {
     return { ...result, fake };
   }
 
-  it('says the posting is analysed in the browser and not sent', async () => {
+  it('says the posting is analyzed in the browser and not sent', async () => {
     const { el } = await render(JobAnalyzer, api());
     expect(text(el.querySelector('app-alert'))).toContain(
-      'Analysed in your browser; the text is not sent to PracStack',
+      'Analyzed in your browser; the text is not sent to PracStack',
     );
     expect(el.querySelector('textarea')?.getAttribute('spellcheck')).toBe('false');
   });
@@ -362,7 +362,7 @@ describe('pathProgress', () => {
     expect(pathProgress(groups, data)).toEqual({
       competenciesWithPractice: 2,
       competencies: 3,
-      skills: { total: 2, mastered: 2, practised: 0, notAssessed: 0 },
+      skills: { total: 2, mastered: 2, practiced: 0, notAssessed: 0 },
       challenges: { total: 1, solved: 0 },
       scenarios: { total: 1, completed: 0 },
       next: { groupIndex: 2, ref: groups[2]?.activities[0] },
@@ -390,7 +390,7 @@ describe('pathProgress', () => {
 
   it('treats everything as not assessed without progress data, starting at the first activity', () => {
     expect(pathProgress(groups, undefined)).toMatchObject({
-      skills: { total: 2, mastered: 0, practised: 0, notAssessed: 2 },
+      skills: { total: 2, mastered: 0, practiced: 0, notAssessed: 2 },
       next: { groupIndex: 0, ref: skill('a') },
     });
   });

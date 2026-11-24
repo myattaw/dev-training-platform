@@ -53,7 +53,7 @@ attack itself.
 
 ## Grading
 
-Queries are compared by **behaviour, never by SQL text** (`services/api/src/practice/sql-grading.ts`):
+Queries are compared by **behavior, never by SQL text** (`services/api/src/practice/sql-grading.ts`):
 
 1. The learner's query and the private reference query run on the sample data and on every
    hidden dataset. Reference results are cached per question version.
@@ -132,7 +132,7 @@ control, set up by the engine:
 | **Admin credentials** | The SYS/SYSTEM password is random, kept in `.local/oracle.json` (git-ignored), used only to create datasets, and never reaches learner sessions |
 | **Local only** | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB |
 
-Values are normalised like the PostgreSQL engine's: numbers stay exact (long ones as text),
+Values are normalized like the PostgreSQL engine's: numbers stay exact (long ones as text),
 `DATE` values print as `YYYY-MM-DD` (with the time when there is one) independent of this
 machine's time zone, and Oracle's rule that `''` is NULL applies.
 
@@ -147,7 +147,7 @@ by a fresh database per run as with PGlite); a query can list other datasets' *s
   between datasets (hidden data), writes, network packages, runaway queries.
 - `content/src/checks/oracle-questions.spec.ts`: every Oracle reference query on every dataset.
 - `services/api/src/practice/oracle-grading.spec.ts`: hard-coded and NULL-mistake answers fail
-  on hidden data without revealing it; behaviour without an Oracle engine.
-- `e2e/oracle.e2e.ts`: practising in the browser against the local Oracle.
+  on hidden data without revealing it; behavior without an Oracle engine.
+- `e2e/oracle.e2e.ts`: practicing in the browser against the local Oracle.
 
 All start Oracle in Docker (about 20 s); `PRACSTACK_SKIP_DOCKER_TESTS=1` skips them.

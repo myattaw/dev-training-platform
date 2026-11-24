@@ -16,7 +16,7 @@ export type ActivityStatus =
   /** Skill: the server marked it mastered. */
   | 'mastered'
   /** Skill: answered at least once, not mastered. */
-  | 'practised'
+  | 'practiced'
   /** Skill: never answered. */
   | 'not-assessed'
   /** Challenge: a submission passed every test (in the activity's language, if it has one). */
@@ -45,7 +45,7 @@ export function activityStatus(ref: ActivityRef, data: ProgressData | undefined)
     case 'skill': {
       const p = data.skills.get(ref.skillId);
       if (!p || p.attempts === 0) return 'not-assessed';
-      return p.mastered ? 'mastered' : 'practised';
+      return p.mastered ? 'mastered' : 'practiced';
     }
     case 'challenge': {
       const p = data.challenges.get(ref.challengeId);
@@ -72,7 +72,7 @@ export interface PathProgress {
   readonly skills: {
     readonly total: number;
     readonly mastered: number;
-    readonly practised: number;
+    readonly practiced: number;
     readonly notAssessed: number;
   };
   readonly challenges: { readonly total: number; readonly solved: number };
@@ -90,7 +90,7 @@ export function pathProgress(
   groups: readonly { readonly activities: readonly ActivityRef[] }[],
   data: ProgressData | undefined,
 ): PathProgress {
-  const skills = { total: 0, mastered: 0, practised: 0, notAssessed: 0 };
+  const skills = { total: 0, mastered: 0, practiced: 0, notAssessed: 0 };
   const challenges = { total: 0, solved: 0 };
   const scenarios = { total: 0, completed: 0 };
   let next: PathProgress['next'];
@@ -100,7 +100,7 @@ export function pathProgress(
       if (ref.kind === 'skill') {
         skills.total++;
         if (status === 'mastered') skills.mastered++;
-        else if (status === 'practised') skills.practised++;
+        else if (status === 'practiced') skills.practiced++;
         else skills.notAssessed++;
       } else if (ref.kind === 'challenge') {
         challenges.total++;

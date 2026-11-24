@@ -9,7 +9,7 @@ public static class Solution
 
     private const string Error = "ERROR";
 
-    // Existing behaviour: banker's rounding (Math.Round's default), kept on purpose.
+    // Existing behavior: banker's rounding (Math.Round's default), kept on purpose.
     private static string Format(decimal total) =>
         Math.Round(total, 2).ToString("0.00", CultureInfo.InvariantCulture);
 }

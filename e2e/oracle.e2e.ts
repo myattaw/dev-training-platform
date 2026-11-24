@@ -17,7 +17,7 @@ test.describe('Oracle SQL track', () => {
     await expect(page.locator('tbody tr')).toHaveCount(5);
   });
 
-  test('practise: DUAL, then write a row-limiting query and run it on Oracle', async ({ page }) => {
+  test('practice: DUAL, then write a row-limiting query and run it on Oracle', async ({ page }) => {
     await page.goto('/skills/oracle-sql/ora-row-limiting/practice');
     // Beginner: two questions that need no database (selection is deterministic).
     await page

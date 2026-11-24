@@ -61,7 +61,7 @@ sam         Reader   /subscriptions/<sub-id>`),
           'Resource group → subscription → management group → resource',
           'Management group → resource group → subscription → resource',
         ],
-        why: 'Management groups organise subscriptions, subscriptions contain resource groups, and resource groups contain resources. A role assigned at any level applies to everything below it.',
+        why: 'Management groups organize subscriptions, subscriptions contain resource groups, and resource groups contain resources. A role assigned at any level applies to everything below it.',
       },
       {
         key: 'assignments-add-up',

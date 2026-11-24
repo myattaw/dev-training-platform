@@ -189,7 +189,7 @@ describe('parseCompanyFile', () => {
 });
 
 describe('company names', () => {
-  it('normalises names for search', () => {
+  it('normalizes names for search', () => {
     expect(normalizeCompanyName('  AT&T ')).toBe('at and t');
     expect(normalizeCompanyName('Société Générale')).toBe('societe generale');
     expect(normalizeCompanyName("McDonald's")).toBe('mcdonalds');
@@ -337,7 +337,7 @@ describe('recommendations', () => {
     const recs = recommend({ companyId: 'acme', references, associations, challenges });
     expect(recs.map((r) => r.challengeId)).toEqual(['brackets', 'commands']);
     expect(recs[0]).toMatchObject({
-      reason: 'Practises stacks and string manipulation, like “Simplify Path”.',
+      reason: 'Practices stacks and string manipulation, like “Simplify Path”.',
       sourceProblemId: 'path',
       similarityTags: ['stacks', 'strings'],
       origin: 'computed',

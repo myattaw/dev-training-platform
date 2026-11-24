@@ -245,7 +245,7 @@ static decimal Average(IEnumerable<decimal> prices) => prices.Sum() / prices.Cou
           'Local functions run twice when they capture a variable; make `LoadPrices` static',
           'Decimal division evaluates its operands twice; cast to `double` first',
         ],
-        why: 'An `IEnumerable<T>` may be lazy: every enumeration runs the producer again. `Sum` enumerates once and `Count()` enumerates again, so `loads` is `2` (with a database query or file read, that is double the work, and the two passes may even see different data). A parameter of type `IReadOnlyCollection<T>` or `IReadOnlyList<T>` says “give me materialised data with a count”, or the method can call `ToList()` once.',
+        why: 'An `IEnumerable<T>` may be lazy: every enumeration runs the producer again. `Sum` enumerates once and `Count()` enumerates again, so `loads` is `2` (with a database query or file read, that is double the work, and the two passes may even see different data). A parameter of type `IReadOnlyCollection<T>` or `IReadOnlyList<T>` says “give me materialized data with a count”, or the method can call `ToList()` once.',
       },
     ],
   ),
@@ -335,7 +335,7 @@ catch (Exception e)
     Console.WriteLine(e.GetType().Name);
 }`,
         output: '1',
-        why: 'Unlike `List<T>`, a `Dictionary` on modern .NET allows `Remove` during enumeration: removing does not invalidate the enumerator, so both sold-out items are removed and 1 remains. On the old .NET Framework this threw; do not generalise the rule to other collections.',
+        why: 'Unlike `List<T>`, a `Dictionary` on modern .NET allows `Remove` during enumeration: removing does not invalidate the enumerator, so both sold-out items are removed and 1 remains. On the old .NET Framework this threw; do not generalize the rule to other collections.',
       },
       {
         key: 'add',

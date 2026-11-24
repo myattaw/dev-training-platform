@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-/** A circle of radius 6.5 centred in the 16×16 box, as a path. */
+/** A circle of radius 6.5 centered in the 16×16 box, as a path. */
 const CIRCLE = 'M14.5 8a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0';
 
 interface IconDef {

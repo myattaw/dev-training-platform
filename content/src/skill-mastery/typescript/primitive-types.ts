@@ -19,7 +19,7 @@ export const primitiveTypesQuestions: readonly QuestionSource[] = [
     answer: { correct: ['a'] },
     hints: ['TypeScript has a single primitive type for all numbers, written in lower case.'],
     explanation: text(
-      'TypeScript infers `number` from the initial value. There is no separate integer type, and the capitalised `Number` is the wrapper object type, which you should almost never use.',
+      'TypeScript infers `number` from the initial value. There is no separate integer type, and the capitalized `Number` is the wrapper object type, which you should almost never use.',
     ),
   },
   {

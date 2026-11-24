@@ -92,7 +92,7 @@ export const LIBERTY: CompanyContent = {
       companyId: 'liberty-mutual',
       challengeId: 'double',
       sourceProblemId: 'lc-companywise:2296',
-      reason: 'Practises arithmetic.',
+      reason: 'Practices arithmetic.',
       similarityTags: ['math'],
       confidence: 'high',
       origin: 'curated',
@@ -101,7 +101,7 @@ export const LIBERTY: CompanyContent = {
     {
       companyId: 'liberty-mutual',
       challengeId: 'premium-editor',
-      reason: 'Practises text editing.',
+      reason: 'Practices text editing.',
       similarityTags: ['text-editing'],
       confidence: 'medium',
       origin: 'curated',

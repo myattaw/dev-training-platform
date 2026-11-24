@@ -26,7 +26,7 @@ class Box
     public string? Name;
 }`,
         output: '0\nTrue',
-        why: 'An unassigned `int` field is `0` and an unassigned reference-type field is `null`. Fields are always initialised to their default; only local variables must be assigned before use.',
+        why: 'An unassigned `int` field is `0` and an unassigned reference-type field is `null`. Fields are always initialized to their default; only local variables must be assigned before use.',
       },
       {
         key: 'bool-and-array',

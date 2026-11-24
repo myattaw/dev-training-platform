@@ -1,11 +1,11 @@
 /**
  * Imports a folder of company CSVs (one sub-folder per company, one CSV per
- * time window) into a normalised dataset file, for sources that PracStack is
- * authorised to use.
+ * time window) into a normalized dataset file, for sources that PracStack is
+ * authorized to use.
  *
  *   npx tsx content/scripts/import-companies.ts --source <id> --dir <folder> --out <dataset.json> [--dry-run]
  *
- * - Refuses sources whose licence review does not allow bulk import
+ * - Refuses sources whose license review does not allow bulk import
  *   (`bulkImportAllowed`, see content/src/companies/sources.ts).
  * - Incremental and repeatable: an existing `--out` file is loaded and merged;
  *   importing the same files again changes nothing.
@@ -42,7 +42,7 @@ if (!source || !values.dir || !values.out) {
 }
 if (!source.bulkImportAllowed) {
   console.error(
-    `Refusing to import "${source.id}": its licence status is "${source.license.status}". ${source.license.note}`,
+    `Refusing to import "${source.id}": its license status is "${source.license.status}". ${source.license.note}`,
   );
   process.exit(1);
 }

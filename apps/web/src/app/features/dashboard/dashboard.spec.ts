@@ -80,12 +80,12 @@ describe('Dashboard', () => {
     expect(statValues(el)).toEqual({
       'Challenges solved': '0 / 4',
       'Skills mastered': '1 / 3',
-      'Skills practised': '2',
+      'Skills practiced': '2',
       'Questions answered': '26',
     });
   });
 
-  it('shows each track with its progress and continues the last practised skill', async () => {
+  it('shows each track with its progress and continues the last practiced skill', async () => {
     const el = await setup({
       api: new FakeApiClient().on('GET /skill-mastery/progress', () => progress),
     });
@@ -97,7 +97,7 @@ describe('Dashboard', () => {
     expect(ts.querySelector('a.btn')?.getAttribute('href')).toBe('/skills/typescript/unions');
   });
 
-  it('offers to start a track that has not been practised', async () => {
+  it('offers to start a track that has not been practiced', async () => {
     const el = await setup({
       api: new FakeApiClient().on('GET /skill-mastery/progress', () => ({
         technologyId: 'typescript',

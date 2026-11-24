@@ -85,7 +85,7 @@ public static class CustomerApi
 
         customers.MapPut("/{id:int}/email", (int id, UpdateEmailRequest request, ClaimsPrincipal user, CustomerStore store) =>
         {
-            // Authorise before validating, so a 400 never confirms that a record exists.
+            // Authorize before validating, so a 400 never confirms that a record exists.
             var customer = store.Find(id);
             if (customer is null || !CanRead(user, customer)) return Results.NotFound();
             if (!IsOwner(user, customer)) return Results.Forbid();

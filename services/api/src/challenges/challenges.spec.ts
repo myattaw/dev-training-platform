@@ -18,7 +18,7 @@ import { createContentSource } from '../content/content-source';
 import { SlidingWindowRateLimiter } from '../rate-limit';
 import { FIXTURE_TRACK, testApi } from '../testing/fixtures';
 
-/** A challenge whose hidden tests contain recognisable secrets. */
+/** A challenge whose hidden tests contain recognizable secrets. */
 const source: ChallengeSource = {
   challenge: {
     id: 'double',

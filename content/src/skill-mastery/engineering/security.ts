@@ -32,7 +32,7 @@ using var reader = command.ExecuteReader();`),
           'SQL Server rejects the query because of the extra quotes',
           '`SqlCommand` escapes the quotes automatically',
         ],
-        why: "Concatenating input into SQL lets the input change the statement's structure: the query becomes `WHERE Email = '' OR '1'='1'`, which matches every row. `SqlCommand` executes the text it is given; it cannot know which parts came from the user. The fix is a parameterised query.",
+        why: "Concatenating input into SQL lets the input change the statement's structure: the query becomes `WHERE Email = '' OR '1'='1'`, which matches every row. `SqlCommand` executes the text it is given; it cannot know which parts came from the user. The fix is a parameterized query.",
       },
       {
         key: 'choose-fix',
@@ -95,7 +95,7 @@ static string BuildQuery(string sort)
           '`db.Users.FromSqlRaw("SELECT * FROM Users WHERE Name = {0}", name)`',
           '`db.Users.Where(u => u.Name == name)`',
         ],
-        why: '`FromSql` takes a `FormattableString` and turns each interpolated value into a database parameter, and `FromSqlRaw` turns `{0}` placeholders with separate arguments into parameters. LINQ queries are always parameterised. But passing an already interpolated or concatenated string to `FromSqlRaw` builds the SQL text from user input before EF Core sees it. The two look almost the same, which is why raw SQL needs careful review.',
+        why: '`FromSql` takes a `FormattableString` and turns each interpolated value into a database parameter, and `FromSqlRaw` turns `{0}` placeholders with separate arguments into parameters. LINQ queries are always parameterized. But passing an already interpolated or concatenated string to `FromSqlRaw` builds the SQL text from user input before EF Core sees it. The two look almost the same, which is why raw SQL needs careful review.',
       },
     ],
   ),
@@ -116,7 +116,7 @@ static string BuildQuery(string sort)
 <span>@Model.CommentBody.Length chars</span> @* line 4 *@`),
         correct: 'Line 3, because `Html.Raw` outputs the comment as HTML without encoding',
         wrong: ['Line 1', 'Line 2', 'Line 4'],
-        why: 'Razor HTML-encodes every `@` expression by default, so `<script>` is shown as text. `Html.Raw` turns that protection off and writes the markup as-is, so user content passed to it can run script. Only use it for HTML you generated or sanitised with a proper HTML sanitiser.',
+        why: 'Razor HTML-encodes every `@` expression by default, so `<script>` is shown as text. `Html.Raw` turns that protection off and writes the markup as-is, so user content passed to it can run script. Only use it for HTML you generated or sanitized with a proper HTML sanitizer.',
       },
       {
         key: 'angular-bypass',
@@ -136,13 +136,13 @@ export class ProfileComponent {
   }
 }`),
         correct:
-          "`bypassSecurityTrustHtml` switches off Angular's sanitisation, so a bio containing script, such as an `onerror` handler, runs in other users' browsers",
+          "`bypassSecurityTrustHtml` switches off Angular's sanitization, so a bio containing script, such as an `onerror` handler, runs in other users' browsers",
         wrong: [
-          'None: `[innerHTML]` bindings are always sanitised by Angular',
+          'None: `[innerHTML]` bindings are always sanitized by Angular',
           'None: Angular templates cannot contain user data',
           'Only that the bio may display with broken formatting',
         ],
-        why: 'Without the bypass, Angular sanitises values bound to `[innerHTML]`, removing scripts and event handlers. Marking a value as trusted tells Angular to skip that, so it must only be used for content you control. User-provided HTML should go through the normal binding or a sanitiser.',
+        why: 'Without the bypass, Angular sanitizes values bound to `[innerHTML]`, removing scripts and event handlers. Marking a value as trusted tells Angular to skip that, so it must only be used for content you control. User-provided HTML should go through the normal binding or a sanitizer.',
       },
       {
         key: 'dom-innerhtml',
@@ -188,7 +188,7 @@ document.querySelector('#greeting')!.innerHTML = 'Welcome, ' + name;`),
       {
         key: 'cookie-form',
         question:
-          "An ASP.NET Core MVC app uses cookie authentication. `POST /account/email` changes the account's email. An attacker's page contains a hidden form that posts to it automatically. Which defence stops the attack?",
+          "An ASP.NET Core MVC app uses cookie authentication. `POST /account/email` changes the account's email. An attacker's page contains a hidden form that posts to it automatically. Which defense stops the attack?",
         correct:
           'Validate an anti-forgery token on state-changing requests (as `[ValidateAntiForgeryToken]` does), together with `SameSite` session cookies',
         wrong: [
@@ -233,7 +233,7 @@ document.querySelector('#greeting')!.innerHTML = 'Welcome, ' + name;`),
   ...scenarioFamily(
     'eng-sec-access-control',
     2,
-    'Authentication says who the user is; authorisation must check, on the server, what they may access.',
+    'Authentication says who the user is; authorization must check, on the server, what they may access.',
     [
       {
         key: 'idor',
@@ -276,7 +276,7 @@ class InvoiceService
           'None: `[Authorize]` already restricts the endpoint to administrators',
           'Only administrators who disable JavaScript can misuse it',
         ],
-        why: "The browser is under the user's control: anyone can send the request with developer tools or `curl`. Hiding the button is a usability choice, not a security control. Plain `[Authorize]` only requires that the user is authenticated; authorisation rules for roles or policies must be enforced by the server on every request.",
+        why: "The browser is under the user's control: anyone can send the request with developer tools or `curl`. Hiding the button is a usability choice, not a security control. Plain `[Authorize]` only requires that the user is authenticated; authorization rules for roles or policies must be enforced by the server on every request.",
       },
       {
         key: 'mass-assignment',
@@ -305,7 +305,7 @@ public async Task<IActionResult> UpdateProfile([FromBody] User user)
           'Cross-site scripting, because `DisplayName` is not encoded when saved',
           'None: the action sets `Id` from the signed-in user, so only their own row changes',
         ],
-        why: 'Binding the request straight to the entity lets the client set every property, including ones it should never control. Setting `Id` correctly limits whose row changes, not which fields. A request model with only `DisplayName` makes privilege fields impossible to send. EF Core parameterises the update, and encoding belongs at output time.',
+        why: 'Binding the request straight to the entity lets the client set every property, including ones it should never control. Setting `Id` correctly limits whose row changes, not which fields. A request model with only `DisplayName` makes privilege fields impossible to send. EF Core parameterizes the update, and encoding belongs at output time.',
       },
     ],
   ),
@@ -493,12 +493,12 @@ static bool Verify(string attempt, byte[] salt, byte[] expected)
         key: 'ssrf',
         difficulty: 4,
         question:
-          'A C# endpoint fetches a preview of any URL the user supplies, with `await http.GetStringAsync(url)`, on a cloud server. What is the main risk, and the right defence?',
+          'A C# endpoint fetches a preview of any URL the user supplies, with `await http.GetStringAsync(url)`, on a cloud server. What is the main risk, and the right defense?',
         correct:
           'Server-side request forgery: the user can make the server call internal addresses (such as the cloud metadata endpoint or internal services); allow only expected destinations and block private and link-local ranges',
         wrong: [
           'Cross-site scripting, prevented by HTML-encoding the URL',
-          'SQL injection, prevented by parameterising the URL',
+          'SQL injection, prevented by parameterizing the URL',
           'None: the request comes from the server, which is trusted',
         ],
         why: 'The server sits inside the network and can reach things the user cannot, so a user-controlled URL turns it into a proxy. The metadata endpoint can hand out cloud credentials. Defences check the resolved destination against an allow-list (and block internal ranges, including after redirects). The misconception is that requests made by the server are automatically safe.',
@@ -507,7 +507,7 @@ static bool Verify(string attempt, byte[] salt, byte[] expected)
         key: 'incident-first-steps',
         difficulty: 5,
         question:
-          'At 03:20 the on-call engineer sees alerts: unusual outbound traffic from a production server, and a new administrator account created at 03:12 that nobody recognises. What should they do first?',
+          'At 03:20 the on-call engineer sees alerts: unusual outbound traffic from a production server, and a new administrator account created at 03:12 that nobody recognizes. What should they do first?',
         correct:
           'Follow the incident response plan: alert the security lead, contain (disable the unknown account, isolate the server from the network) while preserving logs and disk state as evidence, and start a written timeline',
         wrong: [

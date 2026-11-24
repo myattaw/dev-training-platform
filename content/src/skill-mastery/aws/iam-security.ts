@@ -79,7 +79,7 @@ export const iamSecurityFamilies: readonly QuestionSource[] = [
         key: 'implicit-deny',
         difficulty: 3,
         question:
-          'This is the only policy on a role. The role calls `aws s3 ls s3://reports/` (ListObjectsV2, which is authorised as the `s3:ListBucket` action). What happens?',
+          'This is the only policy on a role. The role calls `aws s3 ls s3://reports/` (ListObjectsV2, which is authorized as the `s3:ListBucket` action). What happens?',
         code: json(`{
   "Version": "2012-10-17",
   "Statement": [

@@ -12,7 +12,7 @@ const NOTHING_SAVED: PreparationResponse = { targetRoleId: null, plans: [] };
 
 /**
  * The learner's target role and saved plans. Plans carry taxonomy term ids
- * only: job postings are analysed in the browser and are never sent.
+ * only: job postings are analyzed in the browser and are never sent.
  */
 @Injectable({ providedIn: 'root' })
 export class PreparationApi {

@@ -54,7 +54,7 @@ Requirements:
 - You work in an Agile/Scrum team and write clear technical documentation.`;
 
 /**
- * Job description analyzer. The posting is analysed in this browser with a
+ * Job description analyzer. The posting is analyzed in this browser with a
  * deterministic matcher (@pracstack/content-model job-analysis.ts): it is
  * never sent to the server, logged or stored, not even in local storage.
  * Saving a plan sends only the detected taxonomy term ids and a title.
@@ -96,12 +96,12 @@ export class JobAnalyzer {
 
   /** What is in the text box. Held in memory only. */
   protected readonly draft = signal('');
-  /** The text last analysed (on "Analyze"). */
-  private readonly analysed = signal<string | undefined>(undefined);
+  /** The text last analyzed (on "Analyze"). */
+  private readonly analyzed = signal<string | undefined>(undefined);
 
   protected readonly analysis = computed(() => {
     const s = this.data.state();
-    const text = this.analysed();
+    const text = this.analyzed();
     return s.status === 'ready' && text !== undefined
       ? analyzeJobDescription(text, s.value.taxonomy)
       : undefined;
@@ -163,7 +163,7 @@ export class JobAnalyzer {
   }
 
   protected analyze(): void {
-    this.analysed.set(this.draft());
+    this.analyzed.set(this.draft());
     this.savedPlan.set(undefined);
     this.saveError.set(undefined);
   }
@@ -175,7 +175,7 @@ export class JobAnalyzer {
 
   protected clear(): void {
     this.draft.set('');
-    this.analysed.set(undefined);
+    this.analyzed.set(undefined);
     this.savedPlan.set(undefined);
   }
 

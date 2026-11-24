@@ -151,7 +151,7 @@ export class Dashboard {
     return [
       { label: 'Challenges solved', value: challenges.solved, of: challenges.total },
       { label: 'Skills mastered', value: sum((t) => t.mastered), of: sum((t) => t.skillCount) },
-      { label: 'Skills practised', value: sum((t) => t.practiced) },
+      { label: 'Skills practiced', value: sum((t) => t.practiced) },
       { label: 'Questions answered', value: sum((t) => t.attempts) },
     ];
   });

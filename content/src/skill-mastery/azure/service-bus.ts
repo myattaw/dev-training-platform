@@ -172,7 +172,7 @@ export const serviceBusFamilies: readonly QuestionSource[] = [
         correct:
           'It completes the message before doing the work, so if `SaveAsync` fails the message is already gone and the order is lost',
         wrong: [
-          'Messages must be deserialised before they can be completed',
+          'Messages must be deserialized before they can be completed',
           'Completing a message in the handler causes it to be processed twice',
           'Nothing; completing early only improves throughput',
         ],

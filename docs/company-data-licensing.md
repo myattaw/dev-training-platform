@@ -19,18 +19,18 @@ states, not legal advice.
 | Check | Result |
 | --- | --- |
 | `LICENSE`, `LICENSE.md`, `LICENSE.txt`, `COPYING`, `NOTICE`, `LICENSE-DATA` | None exist (HTTP 404) |
-| GitHub's detected licence (`/repos/…` API, `license` field) | `null` |
-| README or "About" licence statement | None |
+| GitHub's detected license (`/repos/…` API, `license` field) | `null` |
+| README or "About" license statement | None |
 | README statements on commercial use, redistribution or attribution | None |
 | Provenance | The README does not say where the company lists come from. It links a scraper for contributing data that needs a LeetCode Premium username and password. |
 
 ## Conclusions
 
-1. **No licence means no permission.** Being publicly visible on GitHub does not grant the right
+1. **No license means no permission.** Being publicly visible on GitHub does not grant the right
    to redistribute the data or use it commercially.
 2. **Provenance concern.** The lists may come from LeetCode Premium's paid company tags, which
    carry LeetCode's own terms. PracStack does not scrape LeetCode and must not redistribute
-   Premium content without authorisation.
+   Premium content without authorization.
 3. **What PracStack stores is limited to facts and links**: problem number, title, difficulty,
    URL, and the source's two percentage columns, always with attribution and a link to the
    source. No problem statements, examples, test cases, editorials or solutions are copied.
@@ -45,7 +45,7 @@ states, not legal advice.
 ## To import the full dataset later
 
 1. Obtain written permission from the repository owner for commercial reuse and
-   redistribution, or use a dataset with an explicit licence that allows it.
+   redistribution, or use a dataset with an explicit license that allows it.
 2. Get legal advice on the provider-side question (LeetCode's terms for problem titles, links
    and company tags).
 3. Record the outcome in `sources.ts` (`license.status: 'licensed'`, a note that cites the

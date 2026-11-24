@@ -41,7 +41,7 @@ export const testingFamilies: readonly QuestionSource[] = [
           'Delete the unit tests, since the end-to-end tests already cover that code',
           'Keep the suite as it is but run it only once a week',
         ],
-        why: 'The pyramid recommends many fast, isolated tests at the bottom and few slow, broad ones at the top. This suite is inverted: feedback takes hours and random failures teach people to ignore red builds. End-to-end tests are still valuable for a few key journeys; most behaviour can be checked lower down, faster and more reliably.',
+        why: 'The pyramid recommends many fast, isolated tests at the bottom and few slow, broad ones at the top. This suite is inverted: feedback takes hours and random failures teach people to ignore red builds. End-to-end tests are still valuable for a few key journeys; most behavior can be checked lower down, faster and more reliably.',
       },
       {
         key: 'sql-needs-integration',
@@ -100,7 +100,7 @@ static class Check
           '`cart.Add(new Line("Book", 12.50m, 2));`',
           '`Check.Equal(30.00m, total);`',
         ],
-        why: 'Creating the cart and adding lines is Arrange: it puts the object into the state the test needs. Calling `Total()` is the behaviour under test, the Act. `Check.Equal` is the Assert. Keeping the three parts separate, with a single Act, makes it obvious what a failing test was testing.',
+        why: 'Creating the cart and adding lines is Arrange: it puts the object into the state the test needs. Calling `Total()` is the behavior under test, the Act. `Check.Equal` is the Assert. Keeping the three parts separate, with a single Act, makes it obvious what a failing test was testing.',
       },
       {
         key: 'split-test',
@@ -108,13 +108,13 @@ static class Check
         question:
           'A test named `Test1` deposits money, checks the balance, withdraws, checks again, then tries an overdraft and checks for an exception. It fails at the second check. What is the best improvement?',
         correct:
-          'Split it into focused tests, one behaviour each, with names such as `Withdraw_more_than_balance_is_rejected`',
+          'Split it into focused tests, one behavior each, with names such as `Withdraw_more_than_balance_is_rejected`',
         wrong: [
           'Add comments before each step explaining what it does',
           'Combine the checks into a single condition joined with `&&`',
           'Wrap each check in `try`/`catch` so the test continues after a failure',
         ],
-        why: 'A test that exercises several behaviours stops at the first failure, hiding whether the others work, and its name says nothing about what broke. Separate tests with descriptive names act as a specification and fail independently. Combining conditions or swallowing failures makes the result even less informative.',
+        why: 'A test that exercises several behaviors stops at the first failure, hiding whether the others work, and its name says nothing about what broke. Separate tests with descriptive names act as a specification and fail independently. Combining conditions or swallowing failures makes the result even less informative.',
       },
     ],
   ),
@@ -150,7 +150,7 @@ class Subscription(DateTime endsUtc, IClock clock)
           'A spy: it records how it was used for later checks',
           'A fake: a working lightweight implementation of a real dependency',
         ],
-        why: 'A stub supplies predetermined answers and checks nothing. Here it makes "now" a fixed moment, so the test is deterministic. A mock is set up with expectations about calls and verifies them; a spy records calls for the test to inspect; a fake has real working behaviour, like an in-memory database.',
+        why: 'A stub supplies predetermined answers and checks nothing. Here it makes "now" a fixed moment, so the test is deterministic. A mock is set up with expectations about calls and verifies them; a spy records calls for the test to inspect; a fake has real working behavior, like an in-memory database.',
       },
       {
         key: 'fake-repository',
@@ -227,7 +227,7 @@ class PasswordReset(IEmailSender email)
         key: 'over-mocking',
         difficulty: 5,
         question: [
-          'This C# test uses xUnit and Moq. A developer changed `OrderService` to compute the subtotal once and reuse it, with no change in behaviour. The test now fails. What is the underlying problem?',
+          'This C# test uses xUnit and Moq. A developer changed `OrderService` to compute the subtotal once and reuse it, with no change in behavior. The test now fails. What is the underlying problem?',
         ],
         code: plain(`[Fact]
 public void PlaceOrder_saves_order()
@@ -246,8 +246,8 @@ public void PlaceOrder_saves_order()
           'The test verifies how `OrderService` uses an internal collaborator (how often `Subtotal` is called) instead of the observable outcome, so a harmless refactor breaks it',
         wrong: [
           '`Times.Exactly(2)` should be `Times.AtLeastOnce()`, and then the test would be well designed',
-          'The test needs more `Verify` calls to pin down the behaviour completely',
-          'The refactor must be reverted, because the test defines the required behaviour',
+          'The test needs more `Verify` calls to pin down the behavior completely',
+          'The refactor must be reverted, because the test defines the required behavior',
         ],
         why: 'Interaction checks on internal collaborators couple tests to implementation details. Good tests assert outcomes: what was saved, what was returned, what message left the system. Verifying calls is most useful at real boundaries, such as an outgoing payment or email. Loosening the count treats the symptom; more verifies make the coupling worse.',
       },
@@ -399,7 +399,7 @@ public async Task Sends_reminder_after_signup()
           'Configure the CI to retry failed tests three times',
           'Run the whole test suite on one thread',
         ],
-        why: 'A fixed sleep races against the job: on a busy CI machine 100 ms is sometimes not enough. A longer sleep makes every run slower and still fails under enough load. Automatic retries hide the race, and the suite stays nondeterministic. The fix is to synchronise on the event itself.',
+        why: 'A fixed sleep races against the job: on a busy CI machine 100 ms is sometimes not enough. A longer sleep makes every run slower and still fails under enough load. Automatic retries hide the race, and the suite stays nondeterministic. The fix is to synchronize on the event itself.',
       },
     ],
   ),
@@ -431,7 +431,7 @@ public async Task Sends_reminder_after_signup()
   ...scenarioFamily(
     'eng-test-tdd-bdd',
     2,
-    "Red, green, refactor; and scenarios describe behaviour in the business's words.",
+    "Red, green, refactor; and scenarios describe behavior in the business's words.",
     [
       {
         key: 'after-red',
@@ -444,13 +444,13 @@ public async Task Sends_reminder_after_signup()
           'Refactor the existing code first, while the test is still failing',
           'Commit the failing test to `main` so the team can see it',
         ],
-        why: "Red-green-refactor works in small steps: one failing test, the minimum code to pass it, then clean-up under the protection of green tests. Writing many tests first loses the tight feedback loop, and refactoring while red mixes changing behaviour with restructuring. A failing test on `main` breaks everyone's build.",
+        why: "Red-green-refactor works in small steps: one failing test, the minimum code to pass it, then clean-up under the protection of green tests. Writing many tests first loses the tight feedback loop, and refactoring while red mixes changing behavior with restructuring. A failing test on `main` breaks everyone's build.",
       },
       {
         key: 'passes-immediately',
         difficulty: 3,
         question:
-          'You write a new test for behaviour you have not implemented yet, run it, and it passes. What does that most likely mean?',
+          'You write a new test for behavior you have not implemented yet, run it, and it passes. What does that most likely mean?',
         correct:
           'The test does not test what you think: it may assert something already true, not reach the new code, or never run',
         wrong: [
@@ -458,7 +458,7 @@ public async Task Sends_reminder_after_signup()
           'TDD is working as intended: tests should pass on the first run',
           'The test framework is caching old results',
         ],
-        why: 'Seeing a test fail first proves it can detect the missing behaviour. A new test that passes immediately usually has a mistake: a wrong assertion, a test that is not discovered, or a check that is true regardless. Investigate before trusting it.',
+        why: 'Seeing a test fail first proves it can detect the missing behavior. A new test that passes immediately usually has a mistake: a wrong assertion, a test that is not discovered, or a check that is true regardless. Investigate before trusting it.',
       },
       {
         key: 'given-when-then',
@@ -472,7 +472,7 @@ public async Task Sends_reminder_after_signup()
           'Given a loyal customer, When they check out, Then shipping is cheaper',
           'Given a customer, When they spend more than 500 euros, Then the system works correctly',
         ],
-        why: 'A BDD scenario states concrete behaviour in domain language: a specific context, one action and an observable outcome. Table names and service methods are implementation details that make scenarios brittle. "Loyal", "cheaper" and "works correctly" are too vague to verify.',
+        why: 'A BDD scenario states concrete behavior in domain language: a specific context, one action and an observable outcome. Table names and service methods are implementation details that make scenarios brittle. "Loyal", "cheaper" and "works correctly" are too vague to verify.',
       },
       {
         key: 'boundary-example',
@@ -542,7 +542,7 @@ static void Check(bool passed, string name) =>
           'Coverage is too high and some tests should be removed',
           'The code is too complex to test and should be excluded from the report',
         ],
-        why: 'Mutation testing makes small changes to the code and expects some test to fail. A surviving mutant means no test noticed the behaviour change, typically because tests execute code without asserting on its results. High coverage combined with surviving mutants is the classic sign of tests that run code but do not verify it.',
+        why: 'Mutation testing makes small changes to the code and expects some test to fail. A surviving mutant means no test noticed the behavior change, typically because tests execute code without asserting on its results. High coverage combined with surviving mutants is the classic sign of tests that run code but do not verify it.',
       },
     ],
   ),

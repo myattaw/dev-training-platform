@@ -173,7 +173,7 @@ public class ProcessOrder(IOrderRepository repository)
           'Grant the function app’s managed identity a Service Bus data role that allows receiving (such as Azure Service Bus Data Receiver) on the namespace or queue',
         wrong: [
           'Add the shared access connection string back next to the namespace setting',
-          'Nothing; knowing the namespace name is enough for the platform to authorise',
+          'Nothing; knowing the namespace name is enough for the platform to authorize',
           'Give the identity Reader on the Service Bus namespace',
         ],
         why: 'The `__fullyQualifiedNamespace` setting tells the extension to connect with a Microsoft Entra token from the managed identity instead of a key, but the identity still needs a data-plane role. Reader is a control-plane role and does not allow receiving messages. Adding the connection string back undoes the point of the change.',

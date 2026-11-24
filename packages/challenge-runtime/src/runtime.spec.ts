@@ -106,7 +106,7 @@ describe('runInSandbox (call tests)', () => {
 });
 
 describe('runTests (operations tests)', () => {
-  it('passes a correct class and summarises the checked values', () => {
+  it('passes a correct class and summarizes the checked values', () => {
     const outcome = runTests({ Counter }, 'Counter', counterTests);
     expect(outcome).toEqual({
       kind: 'completed',

@@ -45,7 +45,7 @@ const messages = (roles: readonly JobRole[], ctx: RoleValidationContext = contex
   validateRoles(roles, ctx).map((i) => `${i.path}: ${i.message}`);
 
 describe('validateRoles', () => {
-  it('accepts an available role with four practised competencies and an empty one', () => {
+  it('accepts an available role with four practiced competencies and an empty one', () => {
     expect(messages([role()])).toEqual([]);
   });
 

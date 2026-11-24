@@ -3,7 +3,7 @@ import { plain } from '../helpers';
 import { ppChoiceFamily, ppSelectFamily } from './builders';
 
 /*
- * Dataverse (data modelling, server logic, security) and Dynamics 365 Customer
+ * Dataverse (data modeling, server logic, security) and Dynamics 365 Customer
  * Engagement apps at a developer level. Scenario reasoning only.
  */
 
@@ -32,7 +32,7 @@ export const dataverseFamilies: readonly QuestionSource[] = [
           'A choice column listing the account names',
           'A whole number column holding the account number',
         ],
-        why: 'A lookup column creates a many-to-one relationship: each project references one account row, the form shows a link, and renaming the account updates everywhere. Copying the name into text or a choice duplicates data that drifts, and a number gives no relationship, navigation or security behaviour.',
+        why: 'A lookup column creates a many-to-one relationship: each project references one account row, the form shows a link, and renaming the account updates everywhere. Copying the name into text or a choice duplicates data that drifts, and a number gives no relationship, navigation or security behavior.',
       },
       {
         key: 'multi-select',
@@ -63,7 +63,7 @@ export const dataverseFamilies: readonly QuestionSource[] = [
           'A text column on each table with a business rule that checks the allowed values',
           'One local choice on Case, referenced by the other two tables',
         ],
-        why: 'A global choice is defined once and reused by columns on several tables, so adding an option updates all of them. Local choices belong to a single column, so three copies drift apart; a local choice cannot be shared by other tables. Text plus validation rules is fragile and loses the choice behaviour in filters and views.',
+        why: 'A global choice is defined once and reused by columns on several tables, so adding an option updates all of them. Local choices belong to a single column, so three copies drift apart; a local choice cannot be shared by other tables. Text plus validation rules is fragile and loses the choice behavior in filters and views.',
       },
       {
         key: 'rename-label',
@@ -116,12 +116,12 @@ export const dataverseFamilies: readonly QuestionSource[] = [
   ...ppChoiceFamily(
     'pp-dv-cascade',
     3,
-    'Cascade behaviour decides what happens to child rows when the parent row is deleted, assigned or shared.',
+    'Cascade behavior decides what happens to child rows when the parent row is deleted, assigned or shared.',
     [
       {
         key: 'parental',
         question:
-          'Invoice lines have no meaning without their invoice. When an invoice is deleted, its lines must be deleted too, and assigning the invoice should reassign its lines. Which relationship behaviour fits Invoice → Invoice line?',
+          'Invoice lines have no meaning without their invoice. When an invoice is deleted, its lines must be deleted too, and assigning the invoice should reassign its lines. Which relationship behavior fits Invoice → Invoice line?',
         correct: 'Parental',
         wrong: [
           'Referential, Remove Link',
@@ -136,8 +136,8 @@ export const dataverseFamilies: readonly QuestionSource[] = [
         question:
           'An admin deletes a customer account that still has orders, and every order loses its customer. The business requires that accounts with orders cannot be deleted at all. Which change implements this?',
         code: plain(`Relationship: Account (1) → Order (N), lookup Order.Customer
-Delete behaviour: Referential, Remove Link`),
-        correct: 'Change the delete behaviour to Referential, Restrict Delete',
+Delete behavior: Referential, Remove Link`),
+        correct: 'Change the delete behavior to Referential, Restrict Delete',
         wrong: [
           'Change the relationship to Parental',
           'Make the Customer lookup on Order a required column',
@@ -151,14 +151,14 @@ Delete behaviour: Referential, Remove Link`),
         question:
           'With this relationship, a user deletes the Marketing campaign "Spring 2026". What happens to the 400 leads that reference it?',
         code: plain(`Relationship: Campaign (1) → Lead (N), lookup Lead.Source campaign
-Delete behaviour: Referential, Remove Link`),
+Delete behavior: Referential, Remove Link`),
         correct: 'The leads stay, and their Source campaign lookup becomes empty',
         wrong: [
           'The leads are deleted with the campaign',
           'The delete is blocked because leads reference the campaign',
           'The leads keep pointing to the deleted campaign until they are edited',
         ],
-        why: 'Remove Link deletes the parent and clears the lookup on the child rows, which keep their other data. Deleting children is the Parental (or Cascade All delete) behaviour, and blocking is Restrict Delete. A lookup never points to a row that no longer exists.',
+        why: 'Remove Link deletes the parent and clears the lookup on the child rows, which keep their other data. Deleting children is the Parental (or Cascade All delete) behavior, and blocking is Restrict Delete. A lookup never points to a row that no longer exists.',
       },
     ],
   ),
@@ -295,7 +295,7 @@ Role: Sales Manager (table Opportunity)
           'A new business unit for each opportunity',
           'Organization-level Write on Opportunity for all specialists',
         ],
-        why: 'Access teams grant rights on individual rows according to a template, without security roles or ownership changes, which suits ad hoc per-record collaboration. An owner team with a BU-level role would open every opportunity in that business unit, and Organization-level write gives far too much. Business units model the organisation, not single records.',
+        why: 'Access teams grant rights on individual rows according to a template, without security roles or ownership changes, which suits ad hoc per-record collaboration. An owner team with a BU-level role would open every opportunity in that business unit, and Organization-level write gives far too much. Business units model the organization, not single records.',
       },
       {
         key: 'hierarchy',
@@ -452,7 +452,7 @@ export const dynamicsFamilies: readonly QuestionSource[] = [
           'A rollup column counting hours since creation',
           'A queue named "4 hours"',
         ],
-        why: 'SLAs define KPIs such as first response and resolve-by times, track them on each case and trigger actions at warning and failure. A business process flow guides users but does not time them, a rollup column does not raise warnings, and queues organise work without enforcing time targets.',
+        why: 'SLAs define KPIs such as first response and resolve-by times, track them on each case and trigger actions at warning and failure. A business process flow guides users but does not time them, a rollup column does not raise warnings, and queues organize work without enforcing time targets.',
       },
     ],
   ),
@@ -484,7 +484,7 @@ export const dynamicsFamilies: readonly QuestionSource[] = [
           'An automated cloud flow',
           'A separate form for lost opportunities',
         ],
-        why: 'Showing and hiding columns is form behaviour, and business rules do it without code. Plug-ins and flows run on the server and cannot change what the form displays, and maintaining a second form for one column adds work.',
+        why: 'Showing and hiding columns is form behavior, and business rules do it without code. Plug-ins and flows run on the server and cannot change what the form displays, and maintaining a second form for one column adds work.',
       },
       {
         key: 'reject-save',
@@ -568,7 +568,7 @@ export const dynamicsFamilies: readonly QuestionSource[] = [
           'The invoice is saved, but all four lines are rolled back',
           'The invoice is saved and the plug-in is retried later',
         ],
-        why: 'A synchronous post-operation step runs inside the same database transaction as the create. Any exception rolls back everything in that transaction: the invoice and the rows the plug-in created. That all-or-nothing behaviour is a reason to use synchronous steps; asynchronous steps run in their own context after the commit.',
+        why: 'A synchronous post-operation step runs inside the same database transaction as the create. Any exception rolls back everything in that transaction: the invoice and the rows the plug-in created. That all-or-nothing behavior is a reason to use synchronous steps; asynchronous steps run in their own context after the commit.',
       },
     ],
   ),
@@ -684,7 +684,7 @@ Content-Type: application/json
           'A rollup column on Account that totals the orders',
           'An access team template on Account',
         ],
-        why: 'A virtual table presents external data as a Dataverse table; rows are fetched from the source when requested and are not stored in Dataverse. A nightly import copies the data and is up to a day stale, a rollup column summarises Dataverse rows only, and access teams are a security feature.',
+        why: 'A virtual table presents external data as a Dataverse table; rows are fetched from the source when requested and are not stored in Dataverse. A nightly import copies the data and is up to a day stale, a rollup column summarizes Dataverse rows only, and access teams are a security feature.',
       },
       {
         key: 'service-bus',

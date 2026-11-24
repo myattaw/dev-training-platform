@@ -214,7 +214,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
 
   /**
    * /api/me/preparation: target job role and saved plans (taxonomy term ids
-   * only; job postings are analysed in the browser and never sent).
+   * only; job postings are analyzed in the browser and never sent).
    */
   async function routePreparation(
     request: ApiRequest,

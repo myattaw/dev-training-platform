@@ -8,9 +8,9 @@ import type { ChallengeCategory, Difficulty } from './challenge';
  * - External problem references: problems on another provider (e.g. LeetCode)
  *   that a third-party dataset associates with a company. PracStack stores only
  *   facts about them (title, difficulty, link) with provenance; never their
- *   statements, tests or solutions. They cannot be practised in PracStack.
+ *   statements, tests or solutions. They cannot be practiced in PracStack.
  * - Owned challenges: problems written by PracStack (`content/src/challenges`),
- *   which can be practised and graded here. They are linked to companies only
+ *   which can be practiced and graded here. They are linked to companies only
  *   as *recommended practice*, never as "asked by this company".
  */
 
@@ -51,10 +51,10 @@ export type Competency = keyof typeof COMPETENCIES;
 
 export const isCompetency = (tag: string): tag is Competency => Object.hasOwn(COMPETENCIES, tag);
 
-/** Whether a challenge can be practised. */
+/** Whether a challenge can be practiced. */
 export type ChallengeAvailability = 'available' | 'coming-soon' | 'retired';
 
-/** Who can practise a challenge once it is available. Enforced by the API. */
+/** Who can practice a challenge once it is available. Enforced by the API. */
 export type ContentAccess = 'free' | 'pro';
 
 /**
@@ -80,9 +80,9 @@ export interface PlannedChallenge {
 /**
  * Rights status of a third-party source.
  *
- * - `unverified`: no licence found; only a small, manually curated sample may
+ * - `unverified`: no license found; only a small, manually curated sample may
  *   be used for demonstration, and bulk import is refused.
- * - `licensed`: written permission or an explicit licence allows the use.
+ * - `licensed`: written permission or an explicit license allows the use.
  */
 export type SourceLicenseStatus = 'unverified' | 'licensed';
 
@@ -101,7 +101,7 @@ export interface DataSource {
     /** What was checked and when; see docs/company-data-licensing.md. */
     readonly note: string;
   };
-  /** Bulk import allowed. False unless the licence status is `licensed`. */
+  /** Bulk import allowed. False unless the license status is `licensed`. */
   readonly bulkImportAllowed: boolean;
 }
 
@@ -178,7 +178,7 @@ export interface CompanyRecommendation {
   readonly challengeId: string;
   /** External reference the recommendation relates to, if any. */
   readonly sourceProblemId?: string;
-  /** One sentence for learners, e.g. "Practises cursor state management." */
+  /** One sentence for learners, e.g. "Practices cursor state management." */
   readonly reason: string;
   readonly similarityTags: readonly Competency[];
   readonly confidence: RecommendationConfidence;
@@ -243,7 +243,7 @@ export interface CompanyIndexFile {
 }
 
 /**
- * Normalises a company name for search and comparison: lower case, accents
+ * Normalizes a company name for search and comparison: lower case, accents
  * removed, `&` → `and`, punctuation dropped, whitespace collapsed.
  */
 export function normalizeCompanyName(name: string): string {

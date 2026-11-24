@@ -10,7 +10,7 @@ import { sql, text } from '../helpers';
 /**
  * SQL Server (T-SQL) question family builders.
  *
- * There is no SQL Server engine in PracStack yet (it needs Microsoft's licence
+ * There is no SQL Server engine in PracStack yet (it needs Microsoft's license
  * terms accepted), so nothing here is executed: every answer key is reviewed by
  * hand. Keep exactly one defensible answer for single choice, and make every
  * option of a multiple-selection question unambiguously right or wrong.

@@ -287,7 +287,7 @@ error: could not apply 5e1d0aa... Raise upload limit to 50 MB`),
         key: 'reflog-recover',
         difficulty: 5,
         question:
-          'Your working tree is clean. You ran `git reset --hard HEAD~3` on your local branch and realise you need those three commits. They were never pushed. What do you do?',
+          'Your working tree is clean. You ran `git reset --hard HEAD~3` on your local branch and realize you need those three commits. They were never pushed. What do you do?',
         code: plain(`$ git reflog
 1c9d2e4 (HEAD -> feature/report) HEAD@{0}: reset: moving to HEAD~3
 8f7e6d5 HEAD@{1}: commit: Add CSV export

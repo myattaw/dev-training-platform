@@ -2,7 +2,7 @@ import type { PreparationPath } from '@pracstack/content-model';
 import type { CuratedRecommendation } from './recommend';
 
 /**
- * Editorial choices per company. Reasons describe what a challenge practises;
+ * Editorial choices per company. Reasons describe what a challenge practices;
  * they never claim the company asks it.
  */
 export const CURATED_RECOMMENDATIONS: Readonly<Record<string, readonly CuratedRecommendation[]>> = {
@@ -11,7 +11,7 @@ export const CURATED_RECOMMENDATIONS: Readonly<Record<string, readonly CuratedRe
       challengeId: 'text-cursor-buffer',
       sourceProblemId: 'lc-companywise:2296',
       reason:
-        'Recommended because it practises cursor state management: moving a cursor and editing text at its position.',
+        'Recommended because it practices cursor state management: moving a cursor and editing text at its position.',
       similarityTags: ['cursor-state', 'text-editing', 'index-boundaries'],
       confidence: 'high',
     },
@@ -32,7 +32,7 @@ export const CURATED_RECOMMENDATIONS: Readonly<Record<string, readonly CuratedRe
     },
     {
       challengeId: 'balanced-brackets',
-      reason: 'Practises stacks, the data structure behind a fast two-stack text buffer.',
+      reason: 'Practices stacks, the data structure behind a fast two-stack text buffer.',
       similarityTags: ['stacks'],
       confidence: 'medium',
     },
@@ -47,7 +47,7 @@ export const CURATED_RECOMMENDATIONS: Readonly<Record<string, readonly CuratedRe
     {
       challengeId: 'piece-table-editor',
       sourceProblemId: 'lc-companywise:2296',
-      reason: 'Practises an efficient text buffer for large documents.',
+      reason: 'Practices an efficient text buffer for large documents.',
       similarityTags: ['text-editing', 'design'],
       confidence: 'medium',
     },

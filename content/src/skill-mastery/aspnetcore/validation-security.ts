@@ -627,7 +627,7 @@ var bob = User(new Claim("department", "finance"));`,
 Console.WriteLine((await authorization.AuthorizeAsync(bob, "Policy")).Succeeded);`,
         ),
         output: 'False\nTrue',
-        why: '`RequireClaim(type, values)` compares claim values with ordinal (case-sensitive) comparison, so "Finance" does not satisfy "finance". Normalise claim values when issuing tokens, or write a custom requirement if case should not matter.',
+        why: '`RequireClaim(type, values)` compares claim values with ordinal (case-sensitive) comparison, so "Finance" does not satisfy "finance". Normalize claim values when issuing tokens, or write a custom requirement if case should not matter.',
       },
       {
         key: 'and',

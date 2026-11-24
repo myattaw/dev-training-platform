@@ -41,7 +41,7 @@ export const powerAppsFamilies: readonly QuestionSource[] = [
       {
         key: 'context-scope',
         question:
-          'A canvas app has two screens. The button is on `BrowseScreen` and the label is on `DetailScreen`. The label shows an error saying the name is not recognised. Why?',
+          'A canvas app has two screens. The button is on `BrowseScreen` and the label is on `DetailScreen`. The label shows an error saying the name is not recognized. Why?',
         code: plain(`// BrowseScreen > btnOpen.OnSelect
 UpdateContext({ selectedId: ThisItem.ID });
 Navigate(DetailScreen)
@@ -74,7 +74,7 @@ Collect(colOpenOrders, Filter(Orders, Status = "Open"))`),
       {
         key: 'set-blank-counter',
         question:
-          'The variable `clicks` is never initialised anywhere in the app. What does the label show after the user selects the button three times?',
+          'The variable `clicks` is never initialized anywhere in the app. What does the label show after the user selects the button three times?',
         code: plain(`// btnAdd.OnSelect
 Set(clicks, clicks + 1)
 
@@ -86,7 +86,7 @@ clicks`),
           '1, because `Set` resets the variable each time',
           'Nothing: `clicks + 1` stays blank because blank plus a number is blank',
         ],
-        why: 'A global variable that has not been set is blank, and Power Fx treats blank as zero in arithmetic, so the first click sets `clicks` to 1 and the third to 3. `Set` keeps the value between clicks; it just assigns the new one. Relying on this is legal, but initialising variables explicitly (for example in `App.OnStart` or with a default in a named formula) makes intent clearer.',
+        why: 'A global variable that has not been set is blank, and Power Fx treats blank as zero in arithmetic, so the first click sets `clicks` to 1 and the third to 3. `Set` keeps the value between clicks; it just assigns the new one. Relying on this is legal, but initializing variables explicitly (for example in `App.OnStart` or with a default in a named formula) makes intent clearer.',
       },
     ],
   ),
@@ -301,7 +301,7 @@ LookUp(Customers, CustomerId = ThisItem.CustomerId).Name`),
           'Wrap the `LookUp` in `Concurrent` so the rows load in parallel',
           'Replace `LookUp` with `First(Filter(...))`, which is cached automatically',
         ],
-        why: 'A `LookUp` against the data source in a gallery template can mean a request per visible row. Caching a small, stable reference table once and looking up locally removes those calls. The data row limit does not reduce the number of calls, `Concurrent` is for behaviour formulas like `OnStart`, not label properties, and `First(Filter(...))` makes the same request as `LookUp`.',
+        why: 'A `LookUp` against the data source in a gallery template can mean a request per visible row. Caching a small, stable reference table once and looking up locally removes those calls. The data row limit does not reduce the number of calls, `Concurrent` is for behavior formulas like `OnStart`, not label properties, and `First(Filter(...))` makes the same request as `LookUp`.',
       },
       {
         key: 'concurrent-dependency',
@@ -646,7 +646,7 @@ Scope: Catch   [run after Try: has failed, has timed out]
           'Add a retry policy of None to the create action',
           'Add a Delay of 1 minute at the start of the flow',
         ],
-        why: 'With at-least-once delivery, the same event can legitimately arrive twice, possibly hours apart. Making the operation idempotent, keyed on a stable business identifier, means the second processing updates or finds the same invoice instead of creating another. Serialising runs only stops overlapping runs, not repeated ones; removing retries or adding delays does not change that the event was delivered twice.',
+        why: 'With at-least-once delivery, the same event can legitimately arrive twice, possibly hours apart. Making the operation idempotent, keyed on a stable business identifier, means the second processing updates or finds the same invoice instead of creating another. Serializing runs only stops overlapping runs, not repeated ones; removing retries or adding delays does not change that the event was delivered twice.',
       },
       {
         key: 'race-check',

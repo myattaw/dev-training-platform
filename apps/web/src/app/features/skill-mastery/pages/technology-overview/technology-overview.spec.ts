@@ -64,7 +64,7 @@ describe('TechnologyOverview', () => {
       {
         label: 'Recommended next',
         skill: 'typeof narrowing',
-        reason: 'It builds on Union types; practising that first will help.',
+        reason: 'It builds on Union types; practicing that first will help.',
         action: 'Start typeof narrowing',
       },
     ]);

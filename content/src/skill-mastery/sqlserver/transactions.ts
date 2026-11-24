@@ -45,7 +45,7 @@ export const transactionFamilies: readonly QuestionSource[] = [
           'Only item 1',
           'Only item 1, with the transaction left open for the caller to commit',
         ],
-        why: 'With `XACT_ABORT ON`, most run-time errors terminate the batch and roll back the entire transaction, so the third `INSERT` and the `COMMIT` never run. That is the behaviour most code expects from a transaction.',
+        why: 'With `XACT_ABORT ON`, most run-time errors terminate the batch and roll back the entire transaction, so the third `INSERT` and the `COMMIT` never run. That is the behavior most code expects from a transaction.',
       },
       {
         key: 'client-timeout',
@@ -160,7 +160,7 @@ END;`,
           'In a SQL Server database (not Azure SQL Database) where no isolation options have been changed, which isolation level does a new session use?',
         correct: '`READ COMMITTED`, implemented with shared locks',
         wrong: ['`SERIALIZABLE`', '`READ UNCOMMITTED`', '`SNAPSHOT`'],
-        why: 'SQL Server defaults to `READ COMMITTED` using locks: readers never see uncommitted data, but they can wait for writers. Azure SQL Database enables the row-versioning variant (`READ_COMMITTED_SNAPSHOT`) by default, which is why behaviour can differ between the two. `SERIALIZABLE` is the ANSI default but not SQL Server’s.',
+        why: 'SQL Server defaults to `READ COMMITTED` using locks: readers never see uncommitted data, but they can wait for writers. Azure SQL Database enables the row-versioning variant (`READ_COMMITTED_SNAPSHOT`) by default, which is why behavior can differ between the two. `SERIALIZABLE` is the ANSI default but not SQL Server’s.',
       },
       {
         key: 'dirty-read',
@@ -263,7 +263,7 @@ IF NOT EXISTS (SELECT 1 FROM dbo.Bookings
     VALUES (@ShowId, @SeatId, @CustomerId);
 COMMIT TRANSACTION;`,
         correct:
-          'Add a unique constraint on `(ShowId, SeatId)` and handle the duplicate-key error (the check can also read `WITH (UPDLOCK, HOLDLOCK)` to serialise bookings)',
+          'Add a unique constraint on `(ShowId, SeatId)` and handle the duplicate-key error (the check can also read `WITH (UPDLOCK, HOLDLOCK)` to serialize bookings)',
         wrong: [
           'Turn RCSI off, because locking `READ COMMITTED` keeps the shared lock from the check until commit',
           'Add `WITH (NOLOCK)` to the check, so it sees bookings that are not committed yet',

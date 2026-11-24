@@ -69,7 +69,7 @@ export const csharpTrack: TrackSource = {
     {
       id: 'cs-object-oriented',
       name: 'Object-oriented programming',
-      description: 'Model data and behaviour with classes, interfaces and records.',
+      description: 'Model data and behavior with classes, interfaces and records.',
       skills: [
         {
           id: 'cs-oop',
@@ -92,7 +92,7 @@ export const csharpTrack: TrackSource = {
     {
       id: 'cs-methods-generics',
       name: 'Methods, generics and delegates',
-      description: 'Write reusable methods and pass behaviour around.',
+      description: 'Write reusable methods and pass behavior around.',
       skills: [
         {
           id: 'cs-generics-methods',
@@ -130,7 +130,7 @@ export const csharpTrack: TrackSource = {
           prerequisites: ['cs-linq'],
           name: 'Deferred execution and LINQ performance',
           description:
-            'When queries run, multiple enumeration, materialisation, captured variables and common performance mistakes.',
+            'When queries run, multiple enumeration, materialization, captured variables and common performance mistakes.',
           questions: linqExecutionFamilies,
         },
       ],
@@ -184,7 +184,7 @@ export const csharpTrack: TrackSource = {
           prerequisites: ['cs-unit-testing'],
           name: 'Refactoring and readable code',
           description:
-            'Code smells, behaviour-preserving refactorings, refactorings that quietly change behaviour, naming, comments and a safe order of changes.',
+            'Code smells, behavior-preserving refactorings, refactorings that quietly change behavior, naming, comments and a safe order of changes.',
           questions: refactoringFamilies,
         },
       ],

@@ -116,7 +116,7 @@ Requirements:
 
     await page.goto('/roles/analyze');
     await expect(
-      page.getByText('Analysed in your browser; the text is not sent to PracStack'),
+      page.getByText('Analyzed in your browser; the text is not sent to PracStack'),
     ).toBeVisible();
     await page.getByLabel('Paste the job description').fill(POSTING);
     await page.getByRole('button', { name: 'Analyze', exact: true }).click();

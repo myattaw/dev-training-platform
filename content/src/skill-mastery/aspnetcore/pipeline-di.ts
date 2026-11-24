@@ -671,7 +671,7 @@ class RetryOptions
     public bool Jitter { get; set; } = true;
 }`,
         output: '5 200 True',
-        why: '`Attempts` is bound from configuration. `DelayMs` and `Jitter` have no keys, so they keep their property initialisers instead of being reset to 0 and false. Keys with no matching property (`Unknown`) are ignored silently, which is how typos in settings go unnoticed.',
+        why: '`Attempts` is bound from configuration. `DelayMs` and `Jitter` have no keys, so they keep their property initializers instead of being reset to 0 and false. Keys with no matching property (`Unknown`) are ignored silently, which is how typos in settings go unnoticed.',
       },
       {
         key: 'configure-after-bind',

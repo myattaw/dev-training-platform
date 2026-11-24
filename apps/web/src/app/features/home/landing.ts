@@ -36,7 +36,7 @@ import { TrackMark } from './track-mark';
     </section>
 
     <section class="section" aria-labelledby="features-heading">
-      <h2 id="features-heading">Three ways to practise</h2>
+      <h2 id="features-heading">Three ways to practice</h2>
       <div class="features">
         <article class="feature">
           <h3>Coding Challenges</h3>
@@ -57,7 +57,7 @@ import { TrackMark } from './track-mark';
         <article class="feature">
           <h3>Company Interview Prep</h3>
           <p>
-            See what companies ask, then practise it in timed sessions that feel like the real
+            See what companies ask, then practice it in timed sessions that feel like the real
             interview, with a summary of how you did.
           </p>
           <button type="button" class="btn--link" (click)="createAccount()">
@@ -106,7 +106,7 @@ import { TrackMark } from './track-mark';
           <span class="text-secondary">Start with a language, a database, or a company.</span>
         </li>
         <li>
-          <strong>Practise</strong>
+          <strong>Practice</strong>
           <span class="text-secondary"
             >Questions adapt to you: harder after correct answers, easier after misses.</span
           >

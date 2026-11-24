@@ -178,7 +178,7 @@ export interface ReportedQuestion {
     readonly window: ObservationWindow;
     readonly reportedFrequency?: number;
   }[];
-  /** Original PracStack challenges that practise related skills. */
+  /** Original PracStack challenges that practice related skills. */
   readonly relatedChallenges: readonly { readonly id: string; readonly title: string }[];
   readonly status: ReportedQuestionStatus;
 }
@@ -188,7 +188,7 @@ export interface CompanyProgress {
   readonly questionsTotal: number;
   readonly questionsReviewed: number;
   readonly questionsSolvedExternally: number;
-  /** Recommended PracStack challenges you can practise, and how many you solved (server-graded). */
+  /** Recommended PracStack challenges you can practice, and how many you solved (server-graded). */
   readonly practiceTotal: number;
   readonly practiceSolved: number;
   readonly timedSessionsCompleted: number;

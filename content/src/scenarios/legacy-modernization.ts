@@ -36,15 +36,15 @@ export const legacyModernization: ScenarioSource = {
       items: [
         'Refactor the invoice calculation into readable, testable code with identical results.',
         'Fix INV-4521 (a discount carried over from one invoice to the next) and only that.',
-        'Agree a safe order of work and keep behaviour changes out of the refactoring.',
+        'Agree a safe order of work and keep behavior changes out of the refactoring.',
         'Plan the migration from ASP.NET MVC 5 to ASP.NET Core without a big-bang rewrite.',
       ],
     },
   ],
   acceptanceCriteria: [
-    'The refactored calculator passes the hidden characterisation tests, which pin today’s totals including their quirks.',
+    'The refactored calculator passes the hidden characterization tests, which pin today’s totals including their quirks.',
     'INV-4521 is fixed and covered by regression tests.',
-    'Characterisation tests exist before the refactoring, and the bug fix is a separate, reviewable change.',
+    'Characterization tests exist before the refactoring, and the bug fix is a separate, reviewable change.',
     'The migration plan routes traffic incrementally and keeps the old application serving what has not moved.',
   ],
   artifacts: [
@@ -83,7 +83,7 @@ Windows Task Scheduler ──> Billing.NightlyRun.exe (.NET Framework 4.8, refer
       'refactor-and-fix',
       'Refactor the calculator and fix INV-4521',
       'legacy-invoice-refactor',
-      'Refactor `Solution.BillingRun` into readable code and fix INV-4521. The hidden characterisation tests compare your totals with the legacy totals, quirks included.',
+      'Refactor `Solution.BillingRun` into readable code and fix INV-4521. The hidden characterization tests compare your totals with the legacy totals, quirks included.',
     ),
     questionTask(
       'technical-debt',
@@ -131,14 +131,14 @@ Windows Task Scheduler ──> Billing.NightlyRun.exe (.NET Framework 4.8, refer
         difficulty: 3,
         prompt: 'In which order should the work on `InvoiceTotals.cs` be done?',
         correct:
-          'First write characterisation tests that pin today’s totals, quirks included; then refactor in small steps, keeping them green; then fix INV-4521 in a separate commit, starting with a test that fails on the old behaviour',
+          'First write characterization tests that pin today’s totals, quirks included; then refactor in small steps, keeping them green; then fix INV-4521 in a separate commit, starting with a test that fails on the old behavior',
         wrong: [
           'Fix INV-4521 first, since it is confirmed, then refactor, then write tests for the new code',
           'Rewrite the calculator from the specification in the wiki, then compare a sample of invoices by hand',
           'Refactor and fix the bug together in one commit, then add unit tests for the new classes',
         ],
-        hint: 'You can only call a change a refactoring if something proves that behaviour did not change.',
-        why: 'Characterisation tests record what the code does today (not what anyone thinks it should do), so every refactoring step can be verified. The bug fix is a deliberate behaviour change: in its own commit with its own failing-then-passing test, reviewers can see that it changes exactly the INV-4521 cases. Mixing the fix into the refactoring, or rewriting from a wiki that is probably out of date, makes it impossible to tell an intended change from an accident.',
+        hint: 'You can only call a change a refactoring if something proves that behavior did not change.',
+        why: 'Characterization tests record what the code does today (not what anyone thinks it should do), so every refactoring step can be verified. The bug fix is a deliberate behavior change: in its own commit with its own failing-then-passing test, reviewers can see that it changes exactly the INV-4521 cases. Mixing the fix into the refactoring, or rewriting from a wiki that is probably out of date, makes it impossible to tell an intended change from an accident.',
       }),
     ),
     questionTask(
@@ -158,7 +158,7 @@ foreach (var total in totals)
 }`),
         output: '50.12 50.13\n50.14 50.14\n75.62 75.63',
         hint: '`Math.Round` without a mode rounds a midpoint to the nearest even digit.',
-        why: '`Math.Round(decimal, int)` defaults to `MidpointRounding.ToEven` (banker’s rounding): 50.125 goes down to 50.12 because 2 is even, 50.135 goes up to 50.14. AwayFromZero always rounds midpoints up, so two of the three totals would change by a cent. Whatever the better rule is, changing it is a business decision for Finance, not part of a refactoring; the characterisation tests exist to catch exactly this.',
+        why: '`Math.Round(decimal, int)` defaults to `MidpointRounding.ToEven` (banker’s rounding): 50.125 goes down to 50.12 because 2 is even, 50.135 goes up to 50.14. AwayFromZero always rounds midpoints up, so two of the three totals would change by a cent. Whatever the better rule is, changing it is a business decision for Finance, not part of a refactoring; the characterization tests exist to catch exactly this.',
       }),
     ),
     questionTask(
@@ -206,15 +206,15 @@ foreach (var total in totals)
             correct: false,
           },
           {
-            text: 'Add the characterisation tests that the refactoring relies on',
+            text: 'Add the characterization tests that the refactoring relies on',
             correct: false,
           },
         ],
-        hint: 'A refactoring PR changes structure, not behaviour or platform. What would a reviewer need to approve separately?',
-        why: 'Rounding and case-sensitivity changes alter invoice totals: they may well be improvements, but they need Finance’s decision, their own tests and their own release note. A framework and package upgrade changes the platform under the code and deserves its own review and rollback. Named constants are exactly what the refactoring is for, and the characterisation tests are its safety net, so both belong in it.',
+        hint: 'A refactoring PR changes structure, not behavior or platform. What would a reviewer need to approve separately?',
+        why: 'Rounding and case-sensitivity changes alter invoice totals: they may well be improvements, but they need Finance’s decision, their own tests and their own release note. A framework and package upgrade changes the platform under the code and deserves its own review and rollback. Named constants are exactly what the refactoring is for, and the characterization tests are its safety net, so both belong in it.',
       }),
     ),
   ],
   limitations:
-    'Only behaviour is graded automatically: the hidden tests prove the refactored code gives the same totals and fixes INV-4521, but code structure and readability are not scored, and the migration plan is assessed through questions, not by running ASP.NET MVC or YARP.',
+    'Only behavior is graded automatically: the hidden tests prove the refactored code gives the same totals and fixes INV-4521, but code structure and readability are not scored, and the migration plan is assessed through questions, not by running ASP.NET MVC or YARP.',
 };

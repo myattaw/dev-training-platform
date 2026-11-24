@@ -80,7 +80,7 @@ export class InterviewService {
       if (this.deps.content.findPlannedChallenge(request.challengeId)) {
         throw new ApiError(
           'conflict',
-          'This challenge is coming soon and cannot be practised yet.',
+          'This challenge is coming soon and cannot be practiced yet.',
         );
       }
       throw notFound('There is no challenge with this id.');

@@ -129,7 +129,7 @@ export function validateTaxonomy(
     issues.push({ severity: 'error', path, message });
 
   const ids = new Set<string>();
-  /** Normalised name → term id, across the whole taxonomy. */
+  /** Normalized name → term id, across the whole taxonomy. */
   const owners = new Map<string, string>();
   for (const term of terms) {
     const path = `term:${term.id}`;

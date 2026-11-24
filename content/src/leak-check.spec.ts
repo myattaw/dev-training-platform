@@ -30,7 +30,7 @@ describe('leak check', { timeout: 120_000 }, () => {
   it('treats company data (reported questions, editorial reasons) as sensitive, but not its vocabulary', () => {
     expect(sensitive).toContain('lc-companywise:2296');
     expect(sensitive).toContain('https://leetcode.com/problems/design-a-text-editor');
-    expect(sensitive).toContain('Practises an efficient text buffer for large documents.');
+    expect(sensitive).toContain('Practices an efficient text buffer for large documents.');
     for (const vocabulary of ['more-than-six-months', 'dynamic-programming', 'timed-session']) {
       expect(sensitive).not.toContain(vocabulary);
     }

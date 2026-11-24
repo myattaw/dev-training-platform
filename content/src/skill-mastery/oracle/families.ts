@@ -747,7 +747,7 @@ export const hierarchyFamilies: readonly QuestionSource[] = [
       {
         key: 'top',
         question:
-          'In the `employees` table, how do you recognise the employee at the top of the hierarchy?',
+          'In the `employees` table, how do you recognize the employee at the top of the hierarchy?',
         correct: '`manager_id` is NULL',
         wrong: ['`id` is 1', 'The highest salary', '`department_id` is NULL'],
         why: 'The top manager reports to nobody, so their `manager_id` is NULL. That is what `START WITH manager_id IS NULL` selects.',

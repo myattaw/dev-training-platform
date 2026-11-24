@@ -2,7 +2,7 @@ import type { Competency, DataSource } from '@pracstack/content-model';
 
 /**
  * Third-party sources of company ↔ problem associations, with the outcome of
- * their licence review (docs/company-data-licensing.md).
+ * their license review (docs/company-data-licensing.md).
  */
 export const LC_COMPANYWISE: DataSource = {
   id: 'lc-companywise',
@@ -13,7 +13,7 @@ export const LC_COMPANYWISE: DataSource = {
   snapshotDate: '2026-07-12',
   license: {
     status: 'unverified',
-    note: 'Checked 2026-11-22: the repository has no licence file and GitHub reports no licence, so redistribution rights are not granted. Only a small, manually curated demonstration sample is used.',
+    note: 'Checked 2026-11-22: the repository has no license file and GitHub reports no license, so redistribution rights are not granted. Only a small, manually curated demonstration sample is used.',
   },
   bulkImportAllowed: false,
 };

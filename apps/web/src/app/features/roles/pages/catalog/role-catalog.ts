@@ -105,7 +105,7 @@ export class RoleCatalog {
         coverage:
           role.status === 'available'
             ? {
-                practised: role.competencies.filter((c) => c.activities.length > 0).length,
+                practiced: role.competencies.filter((c) => c.activities.length > 0).length,
                 total: role.competencies.length,
               }
             : undefined,

@@ -88,7 +88,7 @@ export function displayNameFromFolder(folder: string): string {
     .join(' ');
 }
 
-/** Removes control characters and normalises whitespace. */
+/** Removes control characters and normalizes whitespace. */
 export function sanitizeText(value: string): string {
   return (
     value
@@ -116,7 +116,7 @@ export function parseDifficulty(value: string): Difficulty {
   throw new Error(`unknown difficulty "${value}"`);
 }
 
-/** Validates a problem URL; returns it normalised (https, no query, no trailing slash). */
+/** Validates a problem URL; returns it normalized (https, no query, no trailing slash). */
 export function parseProblemUrl(value: string): string {
   let url: URL;
   try {

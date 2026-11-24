@@ -19,7 +19,7 @@ export interface PreparationServiceDeps {
 
 /**
  * Job Role Preparation choices: a target role and saved plans. Plans are
- * lists of taxonomy term ids; job postings are analysed in the browser and
+ * lists of taxonomy term ids; job postings are analyzed in the browser and
  * never reach this service.
  */
 export class PreparationService {

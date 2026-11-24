@@ -28,7 +28,7 @@ export interface PublicManifest {
   readonly challenges: readonly ChallengeSummary[];
   readonly technologies: readonly (Technology & { readonly skillCount: number })[];
   /**
-   * Announced challenges that cannot be practised yet (Coming soon). Optional
+   * Announced challenges that cannot be practiced yet (Coming soon). Optional
    * so manifests from before this field still load.
    */
   readonly plannedChallenges?: readonly PlannedChallenge[];

@@ -85,7 +85,7 @@ export const ROLES: readonly JobRole[] = [
         id: 'sql-fundamentals',
         name: 'SQL fundamentals',
         description:
-          'Filtering, sorting, aggregating, joining and subqueries, practised on a real PostgreSQL database.',
+          'Filtering, sorting, aggregating, joining and subqueries, practiced on a real PostgreSQL database.',
         activities: skills(
           'pg-select-where',
           'pg-order-limit',
@@ -142,7 +142,7 @@ export const ROLES: readonly JobRole[] = [
         id: 'security',
         name: 'Application security',
         description:
-          'Authentication, authorisation and the common web vulnerabilities (OWASP Top 10).',
+          'Authentication, authorization and the common web vulnerabilities (OWASP Top 10).',
         activities: [
           ...skills('aspnet-security', 'eng-secure-coding'),
           challenge('secure-customer-api', 'csharp'),
@@ -394,7 +394,7 @@ export const ROLES: readonly JobRole[] = [
       {
         id: 'security',
         name: 'API security',
-        description: 'Authentication, authorisation, BOLA/IDOR and the OWASP Top 10 in code.',
+        description: 'Authentication, authorization, BOLA/IDOR and the OWASP Top 10 in code.',
         activities: [
           ...skills('aspnet-security', 'eng-secure-coding'),
           challenge('secure-customer-api', 'csharp'),
@@ -457,7 +457,7 @@ export const ROLES: readonly JobRole[] = [
       {
         id: 'design',
         name: 'Database design',
-        description: 'Keys, constraints, normalisation and data types.',
+        description: 'Keys, constraints, normalization and data types.',
         activities: skills('mssql-data-modeling'),
       },
       {

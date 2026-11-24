@@ -39,7 +39,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: ['.NET Core', 'dotnet', 'dot net'],
     practice: skills('cs-collections', 'cs-generics-methods', 'cs-delegates-events', 'cs-async'),
     tracks: ['csharp'],
-    note: 'Practised through C# (the C# track covers the .NET base class library: collections, generics, async).',
+    note: 'Practiced through C# (the C# track covers the .NET base class library: collections, generics, async).',
   },
   {
     id: 'dotnet-framework',
@@ -48,7 +48,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     aliases: ['Microsoft .NET Framework'],
     variants: ['.NET 4.8', '.NET Framework 4'],
     practice: [],
-    note: 'The legacy, Windows-only framework (4.x), distinct from modern .NET. PracStack practises modern C#; framework-only technologies such as Web Forms and WCF are not covered.',
+    note: 'The legacy, Windows-only framework (4.x), distinct from modern .NET. PracStack covers modern C#; framework-only technologies such as Web Forms and WCF are not covered.',
   },
   {
     id: 'typescript',
@@ -70,7 +70,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     matchCase: ['JS', 'ES6'],
     practice: [skill('ts-typeof-narrowing'), challenge('reverse-string', 'typescript')],
     tracks: ['typescript'],
-    note: 'Practised through TypeScript, a typed superset of JavaScript.',
+    note: 'Practiced through TypeScript, a typed superset of JavaScript.',
   },
   {
     id: 'java',
@@ -101,7 +101,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'pg-subqueries-basics',
     ),
     tracks: ['postgresql'],
-    note: 'General SQL is practised on PostgreSQL.',
+    note: 'General SQL is practiced on PostgreSQL.',
   },
 
   /* ---------------- Frameworks and libraries ---------------- */

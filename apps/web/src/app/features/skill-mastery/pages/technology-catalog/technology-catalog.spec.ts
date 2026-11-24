@@ -16,7 +16,7 @@ async function setup(api: FakeApiClient = new FakeApiClient()) {
 }
 
 const empty: ProgressResponse = { technologyId: 'typescript', skills: [] };
-const practised: ProgressResponse = {
+const practiced: ProgressResponse = {
   technologyId: 'typescript',
   skills: [
     {
@@ -45,9 +45,9 @@ describe('TechnologyCatalog', () => {
     expect(card.textContent).not.toContain('Types for JavaScript');
   });
 
-  it('shows real progress, and recently practised skills under Continue learning', async () => {
+  it('shows real progress, and recently practiced skills under Continue learning', async () => {
     const { el } = await setup(
-      new FakeApiClient().on('GET /skill-mastery/progress', () => practised),
+      new FakeApiClient().on('GET /skill-mastery/progress', () => practiced),
     );
     const card = el.querySelector('a.card[data-technology="typescript"]')!;
     expect(card.textContent).toContain('1 mastered');

@@ -2,8 +2,8 @@ import type { QuestionSource } from '@pracstack/content-model';
 import { tsqlChoiceFamily } from './builders';
 
 /*
- * SQL Server data modelling: keys (IDENTITY, SEQUENCE, GUIDs), foreign keys and
- * cascades, constraints, normalisation and data types. Reviewed by hand (no engine yet).
+ * SQL Server data modeling: keys (IDENTITY, SEQUENCE, GUIDs), foreign keys and
+ * cascades, constraints, normalization and data types. Reviewed by hand (no engine yet).
  */
 
 export const dataModelingFamilies: readonly QuestionSource[] = [
@@ -58,7 +58,7 @@ WHERE BatchId = @BatchId;`,
           '`IDENTITY` values are reused after a delete, so numbers can repeat',
           '`IDENTITY` cannot be used on a column that is part of a business key',
         ],
-        why: 'Identity values are allocated outside the transaction, so a rollback leaves a gap, and cached values can be lost on a restart. They are also not reused after deletes. Gap-free numbering needs its own design, for example a counter row updated in the same transaction (accepting that it serialises inserts).',
+        why: 'Identity values are allocated outside the transaction, so a rollback leaves a gap, and cached values can be lost on a restart. They are also not reused after deletes. Gap-free numbering needs its own design, for example a counter row updated in the same transaction (accepting that it serializes inserts).',
       },
     ],
   ),
@@ -239,7 +239,7 @@ VALUES (1, 7, NULL);`,
           'Store an empty string instead of NULL for missing tax numbers',
           "Add `CHECK (TaxNumber IS NULL OR TaxNumber <> '')` alongside the constraint",
         ],
-        why: 'In SQL Server, a `UNIQUE` constraint treats NULLs as equal, so only one NULL is allowed (unlike the ANSI behaviour in some other databases). A filtered unique index enforces uniqueness only for non-NULL values. A primary key forbids NULL entirely, and empty strings would collide just like NULLs.',
+        why: 'In SQL Server, a `UNIQUE` constraint treats NULLs as equal, so only one NULL is allowed (unlike the ANSI behavior in some other databases). A filtered unique index enforces uniqueness only for non-NULL values. A primary key forbids NULL entirely, and empty strings would collide just like NULLs.',
       },
       {
         key: 'untrusted',
@@ -277,7 +277,7 @@ CustomerId  Name  PhoneNumbers
         wrong: [
           'Second normal form only',
           'Third normal form only',
-          'None: storing comma-separated values is normalised',
+          'None: storing comma-separated values is normalized',
         ],
         why: '1NF requires each column to hold one atomic value. With a list, you cannot index, constrain or join individual numbers without splitting strings. Move phone numbers to a `CustomerPhones` table with one row per number.',
       },

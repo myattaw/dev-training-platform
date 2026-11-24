@@ -65,7 +65,7 @@ export const messagingFamilies: readonly QuestionSource[] = [
           'A FIFO queue with the same `MessageGroupId` on every message, so accounts are processed in parallel',
           'A standard queue with a delay of one second between messages',
         ],
-        why: 'In a FIFO queue, ordering is per message group: messages with the same group id are delivered in order, one batch at a time, while different groups can be consumed in parallel. One group id for everything would keep order but serialise all accounts. Standard queues only attempt ordering, and delays do not create it.',
+        why: 'In a FIFO queue, ordering is per message group: messages with the same group id are delivered in order, one batch at a time, while different groups can be consumed in parallel. One group id for everything would keep order but serialize all accounts. Standard queues only attempt ordering, and delays do not create it.',
       },
       {
         key: 'dedup-window',
@@ -232,7 +232,7 @@ export const messagingFamilies: readonly QuestionSource[] = [
           'detail `{ "status": "CANCELLED" }`',
           'detail `{ "orderId": "9001" }` (no status field)',
         ],
-        why: '`anything-but` matches any value except those listed, but the field still has to be present: an event without `status` does not match (use `exists` to test presence). Matching is case-sensitive, so lowercase `cancelled` is a different value and matches; normalise values in producers or use the `equals-ignore-case` operator when case should not matter.',
+        why: '`anything-but` matches any value except those listed, but the field still has to be present: an event without `status` does not match (use `exists` to test presence). Matching is case-sensitive, so lowercase `cancelled` is a different value and matches; normalize values in producers or use the `equals-ignore-case` operator when case should not matter.',
       },
     ],
   ),

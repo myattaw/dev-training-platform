@@ -9,7 +9,7 @@ import type { AccountStore } from '../store/account-store';
 import type { Caller } from '../auth';
 
 /*
- * Server-side authorisation for paid features.
+ * Server-side authorization for paid features.
  *
  * The plan comes only from server-side sources, in this order:
  *   1. ADMIN: membership of the `admins` group in the identity provider

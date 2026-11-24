@@ -55,7 +55,7 @@ export interface VerifiedJwtOptions {
  * the API Gateway JWT authorizer before the Lambda function runs, and the
  * function can only be invoked through that API. This authenticator reads the
  * verified claims the adapter passes on, and re-checks issuer, audience, token
- * use and expiry as defence in depth (a misconfigured authorizer fails closed).
+ * use and expiry as defense in depth (a misconfigured authorizer fails closed).
  */
 export class VerifiedJwtAuthenticator implements Authenticator {
   readonly kind = 'jwt';

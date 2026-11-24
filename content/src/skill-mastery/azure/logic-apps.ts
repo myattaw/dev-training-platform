@@ -36,7 +36,7 @@ export const logicAppsFamilies: readonly QuestionSource[] = [
       {
         key: 'trigger-and-actions',
         question:
-          'A workflow must start when a new email arrives in a shared mailbox, then save the attachment to SharePoint and post a Teams message. How is that modelled?',
+          'A workflow must start when a new email arrives in a shared mailbox, then save the attachment to SharePoint and post a Teams message. How is that modeled?',
         correct:
           'An Outlook “when a new email arrives” trigger, followed by a SharePoint action and a Teams action',
         wrong: [
@@ -56,7 +56,7 @@ export const logicAppsFamilies: readonly QuestionSource[] = [
           'An HTTP action at the start and a Terminate action at the end',
           'A Request trigger alone; the run history is returned to the caller',
         ],
-        why: 'The Request trigger gives the workflow an endpoint, and the Response action sends the reply to the waiting caller. Without a Response action the caller gets an acknowledgement, not the result. The HTTP action makes outbound calls.',
+        why: 'The Request trigger gives the workflow an endpoint, and the Response action sends the reply to the waiting caller. Without a Response action the caller gets an acknowledgment, not the result. The HTTP action makes outbound calls.',
       },
       {
         key: 'polling-trigger',
@@ -226,7 +226,7 @@ export const logicAppsFamilies: readonly QuestionSource[] = [
         'Add a retry policy to the Set variable action',
         'Increase the loop’s degree of parallelism',
       ],
-      why: 'Iterations run in parallel by default, so several of them read the same old total and overwrite each other. Running sequentially makes the read-modify-write safe; aggregating without shared state (for example with an expression over the array) avoids the problem. Variables can only be initialised at the top level of a workflow.',
+      why: 'Iterations run in parallel by default, so several of them read the same old total and overwrite each other. Running sequentially makes the read-modify-write safe; aggregating without shared state (for example with an expression over the array) avoids the problem. Variables can only be initialized at the top level of a workflow.',
     },
     {
       key: 'order-dependent-rows',
@@ -262,7 +262,7 @@ export const logicAppsFamilies: readonly QuestionSource[] = [
       {
         key: 'compute-heavy',
         question:
-          'Thousands of uploaded images per minute must be analysed with a custom C# library, and the team wants full control over the code and its tests. What fits best?',
+          'Thousands of uploaded images per minute must be analyzed with a custom C# library, and the team wants full control over the code and its tests. What fits best?',
         correct: 'Azure Functions running the custom code',
         wrong: [
           'A Logic Apps workflow with one action per image operation',

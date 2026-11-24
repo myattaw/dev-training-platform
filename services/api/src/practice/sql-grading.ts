@@ -17,7 +17,7 @@ export const PREVIEW_ROWS = 100;
 const GRADING_ROWS = 1000;
 
 /**
- * Grades SQL by behaviour: the learner's query and the reference query run
+ * Grades SQL by behavior: the learner's query and the reference query run
  * on the sample data and on every hidden dataset, and their results are
  * compared. SQL text is never compared.
  *

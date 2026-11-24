@@ -14,7 +14,7 @@ export type ActivityRef =
   | {
       readonly kind: 'challenge';
       readonly challengeId: string;
-      /** Practise it in this language (the workspace opens in it; "solved" counts only in it). */
+      /** Practice it in this language (the workspace opens in it; "solved" counts only in it). */
       readonly language?: LanguageId;
     }
   /** Reserved for Enterprise Scenarios; invalid until scenario ids are passed to the validators. */
@@ -174,7 +174,7 @@ export function validateRoles(
     if (role.description.trim() === '') error(path, 'description is required');
     const competencyIds = new Set<string>();
     const activityKeys = new Set<string>();
-    let practised = 0;
+    let practiced = 0;
     for (const competency of role.competencies) {
       const cPath = `${path}/${competency.id}`;
       if (!ID_PATTERN.test(competency.id)) {
@@ -184,7 +184,7 @@ export function validateRoles(
       competencyIds.add(competency.id);
       if (competency.name.trim() === '') error(cPath, 'name is required');
       if (competency.description.trim() === '') error(cPath, 'description is required');
-      if (competency.activities.length > 0) practised++;
+      if (competency.activities.length > 0) practiced++;
       competency.activities.forEach((ref, i) => {
         const problem = checkActivityRef(ref, context);
         if (problem) error(`${cPath}/activities[${i}]`, problem);
@@ -193,10 +193,10 @@ export function validateRoles(
         activityKeys.add(key);
       });
     }
-    if (practised < MIN_PRACTISED_COMPETENCIES) {
+    if (practiced < MIN_PRACTISED_COMPETENCIES) {
       error(
         path,
-        `an available role needs at least ${MIN_PRACTISED_COMPETENCIES} competencies with practice (has ${practised}); mark it coming-soon instead`,
+        `an available role needs at least ${MIN_PRACTISED_COMPETENCIES} competencies with practice (has ${practiced}); mark it coming-soon instead`,
       );
     }
   }

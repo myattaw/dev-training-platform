@@ -7,7 +7,7 @@
   ]"
 />
 
-<app-alert type="info" heading="Analysed in your browser; the text is not sent to PracStack">
+<app-alert type="info" heading="Analyzed in your browser; the text is not sent to PracStack">
   The posting is matched against a fixed list of technologies on this device. It is not uploaded,
   logged or stored, not even in this browser. Saving a plan stores only the list of detected
   technologies.
@@ -60,10 +60,10 @@
     @if (a.truncated) {
       <app-alert
         type="warning"
-        heading="Only the first {{ maxChars.toLocaleString('en') }} characters were analysed"
+        heading="Only the first {{ maxChars.toLocaleString('en') }} characters were analyzed"
       >
         The posting has {{ a.inputLength.toLocaleString('en') }} characters. Paste the requirements
-        section to analyse all of it.
+        section to analyze all of it.
       </app-alert>
     }
 
@@ -76,7 +76,7 @@
       </p>
       @if (a.terms.length === 0) {
         <p class="text-secondary">
-          No known technologies were found. The analyzer recognises a fixed list of names (for
+          No known technologies were found. The analyzer recognizes a fixed list of names (for
           example C#, SQL Server, Angular, Azure DevOps or Power Apps); see the documentation for
           the full list.
         </p>

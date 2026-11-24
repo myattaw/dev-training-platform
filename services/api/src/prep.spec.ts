@@ -125,7 +125,7 @@ describe('premium recommendations and entitlements', () => {
       ['premium-editor', 'pro', 'coming-soon', true],
     ]);
     expect(body.recommendations[0]).toMatchObject({
-      reason: 'Practises arithmetic.',
+      reason: 'Practices arithmetic.',
       competencies: ['arithmetic'],
       relatedQuestion: { id: 'lc-companywise:2296', title: 'Design a Text Editor' },
       solved: false,
@@ -445,7 +445,7 @@ describe('timed interview sessions', () => {
 });
 
 describe('profile and progress import', () => {
-  it('updates the display name, sanitised and limited', async () => {
+  it('updates the display name, sanitized and limited', async () => {
     const api = setup();
     const res = await api.call('PATCH', '/api/me', { displayName: '  Ada\u0007  Lovelace ' });
     expect((res.body as MeResponse).user.displayName).toBe('Ada Lovelace');

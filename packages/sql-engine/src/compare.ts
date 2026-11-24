@@ -21,7 +21,7 @@ export type Comparison =
 const NUMERIC_TOLERANCE = 1e-9;
 
 /**
- * Compares query results by behaviour, not SQL text. Numbers compare
+ * Compares query results by behavior, not SQL text. Numbers compare
  * numerically (so `2.50` from a `numeric` column equals `2.5`), and rows are
  * compared as a multiset unless order is required.
  */

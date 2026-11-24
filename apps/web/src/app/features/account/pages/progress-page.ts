@@ -47,7 +47,7 @@ import { AccountApi } from '../data-access/account-api';
               <dd>{{ p.xp }}</dd>
             </div>
             <div>
-              <dt><a routerLink="/skills">Skills practised</a></dt>
+              <dt><a routerLink="/skills">Skills practiced</a></dt>
               <dd>{{ p.skills.practiced }} ({{ p.skills.mastered }} mastered)</dd>
             </div>
             <div>

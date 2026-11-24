@@ -63,7 +63,7 @@ catalog.
 | Technology | Planned skill | Why it is not built yet |
 | --- | --- | --- |
 | Angular | Template control flow (`@if`, `@for`, `@switch`, `@defer`) | Needs the Angular template compiler in the content checks, to verify template snippets. |
-| Angular | Dependency injection in depth (providers, hierarchical injectors) | Behaviour is runtime-only; needs a test harness that boots an injector. |
+| Angular | Dependency injection in depth (providers, hierarchical injectors) | Behavior is runtime-only; needs a test harness that boots an injector. |
 | Angular | Forms (signal forms, reactive forms) | Needs runtime checks of form state. |
 | Angular | Routing (routes, guards, resolvers, input binding) | Needs a router test harness. |
 | Angular | HTTP and `resource()` | Needs mocked HTTP in the checks. |
@@ -77,7 +77,7 @@ catalog.
 | --- | --- | --- |
 | C# (`csharp`) | 15: value and reference types, nullable types, pattern matching, collections, OOP, records and immutability, methods and generics, delegates and events, LINQ, deferred execution, exceptions, async, unit testing and TDD, dependency injection and SOLID, refactoring | Every C# snippet is compiled, and every program run, by the real C# runner (`content/src/checks/csharp-snippets.spec.ts`) |
 | ASP.NET Core (`aspnet-core`) | 8: HTTP and REST, minimal APIs and routing, middleware, DI and configuration, validation and errors, security, EF Core, testing and architecture | C# compiled against the ASP.NET Core framework; HTTP, middleware, DI and authorization questions run a real app on loopback. EF Core and design questions are reviewed reasoning |
-| SQL Server (`sql-server`) | 7: querying, joins and aggregation, advanced queries, programming, transactions, performance, data modelling | Reviewed reasoning only: no SQL Server engine yet (see [enterprise-prep.md](enterprise-prep.md)) |
+| SQL Server (`sql-server`) | 7: querying, joins and aggregation, advanced queries, programming, transactions, performance, data modeling | Reviewed reasoning only: no SQL Server engine yet (see [enterprise-prep.md](enterprise-prep.md)) |
 | Azure (`azure`) | 5: identity and security, Functions, Service Bus, Logic Apps and integration, Azure DevOps pipelines | Reviewed reasoning with realistic artifacts; no Azure account is used |
 | Engineering practices (`engineering-practices`) | 5: Git, CI/CD, testing, agile and SDLC, secure coding | Reviewed reasoning; the C# test-double and security snippets are compiled and run |
 | Power Platform (`power-platform`) | 6: Power Apps, Power Automate, Dataverse, Dynamics 365, ALM and governance, Power BI | Reviewed reasoning; no Microsoft tenant is used |

@@ -5,7 +5,7 @@ import { DynamoAccountStore } from './dynamo-account';
 import { InMemoryProgressStore } from './memory-store';
 
 /*
- * One behavioural contract for account data, run against the in-memory store
+ * One behavioral contract for account data, run against the in-memory store
  * and the DynamoDB store (DynamoDB Local in Docker).
  */
 

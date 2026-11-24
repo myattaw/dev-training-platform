@@ -7,7 +7,7 @@ import type {
 import type { ParsedCompanyFile, RejectedRow } from './company-csv';
 
 /**
- * The normalised result of all imports: companies, problem references (each
+ * The normalized result of all imports: companies, problem references (each
  * stored once, however many companies list it) and the many-to-many
  * associations between them.
  *

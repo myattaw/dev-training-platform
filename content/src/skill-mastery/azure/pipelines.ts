@@ -160,7 +160,7 @@ steps:
           'By default, secrets are not made available to builds of pull requests from forks, because a fork can change the pipeline code to exfiltrate them',
         wrong: [
           'Secret variables are only available in scheduled builds',
-          'Fork PR builds run in a different Azure DevOps organisation',
+          'Fork PR builds run in a different Azure DevOps organization',
           'The secret is masked, which replaces its value with an empty string',
         ],
         why: 'A pull request from a fork runs code chosen by someone outside the project. Exposing secrets to it would let anyone steal them by opening a PR. Masking only hides values in logs; the value is still present for steps in trusted builds.',

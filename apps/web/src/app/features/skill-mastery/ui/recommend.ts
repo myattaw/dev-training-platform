@@ -12,7 +12,7 @@ export interface Recommendations {
 }
 
 /**
- * Picks what to practise in a technology, from the curriculum order, the
+ * Picks what to practice in a technology, from the curriculum order, the
  * skills' prerequisites and the learner's progress. Advisory only: every
  * skill stays open.
  */
@@ -42,7 +42,7 @@ export function recommend(
         ? 'A good place to start: it builds on nothing else.'
         : skill === byReady
           ? `You are past the basics of ${prerequisites.map(name).join(' and ')}, which it builds on.`
-          : `It builds on ${prerequisites.map(name).join(' and ')}; practising ${prerequisites.length > 1 ? 'those' : 'that'} first will help.`;
+          : `It builds on ${prerequisites.map(name).join(' and ')}; practicing ${prerequisites.length > 1 ? 'those' : 'that'} first will help.`;
     next = { skill, reason };
   }
   return { ...(resume ? { resume } : {}), ...(next ? { next } : {}) };

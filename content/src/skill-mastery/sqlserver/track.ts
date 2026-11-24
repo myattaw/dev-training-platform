@@ -8,7 +8,7 @@ import { transactionFamilies } from './transactions';
 
 /**
  * SQL Server (T-SQL). There is no SQL Server engine in PracStack yet (running one
- * needs Microsoft's licence terms accepted), so this track uses multiple-choice and
+ * needs Microsoft's license terms accepted), so this track uses multiple-choice and
  * fill-in-blank questions whose answer keys are reviewed by hand; nothing is executed.
  * See builders.ts.
  */
@@ -99,7 +99,7 @@ export const sqlServerTrack: TrackSource = {
           prerequisites: ['mssql-querying'],
           name: 'Keys, constraints and data types',
           description:
-            'Natural and surrogate keys, `IDENTITY`, `SEQUENCE` and GUIDs, foreign keys and cascades, `UNIQUE` and `CHECK` constraints, normalisation and data type choice.',
+            'Natural and surrogate keys, `IDENTITY`, `SEQUENCE` and GUIDs, foreign keys and cascades, `UNIQUE` and `CHECK` constraints, normalization and data type choice.',
           questions: dataModelingFamilies,
         },
       ],

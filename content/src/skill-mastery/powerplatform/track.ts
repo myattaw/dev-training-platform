@@ -14,7 +14,7 @@ export const powerPlatformTrack: TrackSource = {
   name: 'Power Platform',
   category: 'enterprise',
   description:
-    'Scenario-based assessments for Microsoft Power Platform: Power Apps and Power Fx, Power Automate cloud flows, Dataverse data modelling and security, ALM and governance, Dynamics 365 extensibility and Power BI modelling with DAX. You reason about formulas, flow definitions, designs and DAX shown in each question; nothing runs in a Microsoft environment. Hands-on labs would need a Microsoft tenant, which PracStack does not provide.',
+    'Scenario-based assessments for Microsoft Power Platform: Power Apps and Power Fx, Power Automate cloud flows, Dataverse data modeling and security, ALM and governance, Dynamics 365 extensibility and Power BI modeling with DAX. You reason about formulas, flow definitions, designs and DAX shown in each question; nothing runs in a Microsoft environment. Hands-on labs would need a Microsoft tenant, which PracStack does not provide.',
   topics: [
     {
       id: 'pp-apps-automation',
@@ -46,15 +46,15 @@ export const powerPlatformTrack: TrackSource = {
         {
           id: 'pp-dataverse',
           prerequisites: ['pp-power-apps'],
-          name: 'Dataverse data modelling and security',
+          name: 'Dataverse data modeling and security',
           description:
-            'Columns, choices, relationships and cascade behaviour, where business logic runs, security roles and access levels, teams, hierarchy and column security, environment roles and auditing.',
+            'Columns, choices, relationships and cascade behavior, where business logic runs, security roles and access levels, teams, hierarchy and column security, environment roles and auditing.',
           questions: [...dataverseFamilies, ...dataverseSelectFamilies],
         },
         {
           id: 'pp-dynamics-365',
           prerequisites: ['pp-dataverse'],
-          name: 'Dynamics 365 customisation and extensibility',
+          name: 'Dynamics 365 customization and extensibility',
           description:
             'Model-driven forms and business process flows, Sales and Customer Service concepts, plug-in stages and modes versus Power Automate, the Dataverse Web API and integration patterns.',
           questions: dynamicsFamilies,
@@ -84,7 +84,7 @@ export const powerPlatformTrack: TrackSource = {
       skills: [
         {
           id: 'pp-power-bi',
-          name: 'Power BI modelling and DAX',
+          name: 'Power BI modeling and DAX',
           description:
             'Star schemas, relationships and filter direction, measures versus calculated columns, SUMX, CALCULATE and context transition, time intelligence, storage modes and row-level security.',
           questions: [...powerBiFamilies, ...powerBiSelectFamilies],

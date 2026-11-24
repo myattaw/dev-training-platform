@@ -56,7 +56,7 @@ server never trusts them: every body is validated at runtime (`src/validation.ts
 
 Company Interview Prep, timed sessions, accounts and plans are described in
 [company-interview-prep.md](company-interview-prep.md), [job-roles.md](job-roles.md) (Job Role
-Preparation; job postings are analysed in the browser and never sent), [accounts-and-auth.md](accounts-and-auth.md)
+Preparation; job postings are analyzed in the browser and never sent), [accounts-and-auth.md](accounts-and-auth.md)
 and [monetization.md](monetization.md). Account data is stored by `AccountStore`
 (`src/store/account-store.ts`; DynamoDB layout at the top of `src/store/dynamo-account.ts`).
 
@@ -130,7 +130,7 @@ by user, and recording an answer is a single transaction. Implementations:
   token is never scored twice and stale mastery is rejected. Layout documented at the top of
   `src/store/dynamo-store.ts`.
 
-All stores pass the same behavioural contract (`src/store/progress-store.spec.ts`); the
+All stores pass the same behavioral contract (`src/store/progress-store.spec.ts`); the
 DynamoDB one runs against DynamoDB Local in Docker.
 
 ## Authentication

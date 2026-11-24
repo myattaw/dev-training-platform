@@ -43,7 +43,7 @@ export const awsTrack: TrackSource = {
           prerequisites: ['aws-iam-security'],
           name: 'AWS Lambda',
           description:
-            'The handler model and cold starts, timeouts and memory, concurrency, event sources and their retry and batch behaviour, idempotency, configuration and secrets, Lambda in a VPC and observability.',
+            'The handler model and cold starts, timeouts and memory, concurrency, event sources and their retry and batch behavior, idempotency, configuration and secrets, Lambda in a VPC and observability.',
           questions: lambdaFamilies,
         },
         {

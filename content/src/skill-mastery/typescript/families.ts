@@ -191,7 +191,7 @@ export const primitiveFamilies: readonly QuestionSource[] = [
         expression: 'city',
         correct: 'string',
         wrong: ["'Oslo'", 'String', 'any'],
-        why: '`let` variables get the widened primitive type, `string`. The capitalised `String` is the wrapper object type.',
+        why: '`let` variables get the widened primitive type, `string`. The capitalized `String` is the wrapper object type.',
       },
       {
         key: 'float',
@@ -207,7 +207,7 @@ export const primitiveFamilies: readonly QuestionSource[] = [
         expression: 'done',
         correct: 'boolean',
         wrong: ['false', 'Boolean', 'any'],
-        why: 'A `let` initialised with `false` can later hold `true`, so its type is `boolean`.',
+        why: 'A `let` initialized with `false` can later hold `true`, so its type is `boolean`.',
       },
     ],
   ),

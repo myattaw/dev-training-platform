@@ -181,7 +181,7 @@ public static class ProfileEndpoints
           'Reject it, because GUID primary keys are not supported by SQL Server',
         ],
         hint: 'Authorization asks “may this user access this object?”, not “could this user have guessed its id?”.',
-        why: 'Broken object-level authorization is fixed by checking, on every request, that the authenticated user may access the specific object. Unguessable ids only reduce one way of discovering ids; any id that is shared, logged or returned by another endpoint is then usable by anyone with a token. Defence in depth is fine, but not instead of the check.',
+        why: 'Broken object-level authorization is fixed by checking, on every request, that the authenticated user may access the specific object. Unguessable ids only reduce one way of discovering ids; any id that is shared, logged or returned by another endpoint is then usable by anyone with a token. Defense in depth is fine, but not instead of the check.',
       }),
     ),
     questionTask(

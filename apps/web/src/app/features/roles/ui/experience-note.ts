@@ -6,7 +6,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="text-secondary">
-      A preparation path helps you practise what a role asks for. Completing it shows practice on
+      A preparation path helps you practice what a role asks for. Completing it shows practice on
       PracStack; it is not professional experience and does not guarantee an interview or a job.
     </p>
   `,

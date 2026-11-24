@@ -93,10 +93,10 @@ learner's whole answer history. It is deterministic: the seed is
 2. Within that, prefer in order:
    1. a question from a **family** not seen yet (families group variants of one exercise);
    2. an unseen variant of a family not seen in the last few answers;
-   3. a question answered **wrongly** at least 3 answers ago (**review**, labelled as such);
+   3. a question answered **wrongly** at least 3 answers ago (**review**, labeled as such);
    4. any other unseen question.
 3. Only when every question has been answered: **repeat** the least recently seen one, never one
-   of the last two while another exists, labelled "Repeat" with a note that it earns reduced
+   of the last two while another exists, labeled "Repeat" with a note that it earns reduced
    credit.
 
 Reloading the page returns the same unanswered question (no rerolls).

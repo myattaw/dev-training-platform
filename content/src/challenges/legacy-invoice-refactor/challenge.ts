@@ -2,9 +2,9 @@ import { readFileSync } from 'node:fs';
 import { callTests, type ChallengeSource } from '@pracstack/content-model';
 
 /**
- * Enterprise challenge: refactor legacy C# without changing its behaviour, and
+ * Enterprise challenge: refactor legacy C# without changing its behavior, and
  * fix one documented bug. The starter (Legacy.cs) is the legacy code itself; the
- * hidden tests are characterisation tests that pin its current behaviour, plus
+ * hidden tests are characterization tests that pin its current behavior, plus
  * regression tests for the bug fix (INV-4521). Expected values were produced by
  * the legacy code and checked by hand; the only differences between the legacy
  * code and the reference are the INV-4521 cases.
@@ -31,7 +31,7 @@ export const source: ChallengeSource = {
       },
       {
         kind: 'paragraph',
-        text: 'Your task: refactor it into code a colleague could review and extend, keeping its behaviour exactly as it is today, and fix one bug that finance has confirmed.',
+        text: 'Your task: refactor it into code a colleague could review and extend, keeping its behavior exactly as it is today, and fix one bug that finance has confirmed.',
       },
       { kind: 'heading', text: 'The input format (unchanged)' },
       {
@@ -57,7 +57,7 @@ export const source: ChallengeSource = {
       { kind: 'heading', text: 'How it is graded' },
       {
         kind: 'paragraph',
-        text: 'Hidden characterisation tests compare your totals with the legacy totals for many invoices and runs, plus regression tests for INV-4521. They check behaviour, not code style: the refactoring itself is your craft (see the scenario questions).',
+        text: 'Hidden characterization tests compare your totals with the legacy totals for many invoices and runs, plus regression tests for INV-4521. They check behavior, not code style: the refactoring itself is your craft (see the scenario questions).',
       },
     ],
     languages: {

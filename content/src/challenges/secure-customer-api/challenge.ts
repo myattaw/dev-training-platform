@@ -84,7 +84,7 @@ export const source: ChallengeSource = {
           'Information leakage: errors must never contain exception types, messages or stack traces.',
         ],
       },
-      { kind: 'heading', text: 'Required behaviour' },
+      { kind: 'heading', text: 'Required behavior' },
       {
         kind: 'list',
         items: [

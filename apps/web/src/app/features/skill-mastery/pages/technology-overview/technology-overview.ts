@@ -80,7 +80,7 @@ export class TechnologyOverview {
     }));
   });
 
-  /** What to practise next; only once progress has loaded, so it reflects the learner. */
+  /** What to practice next; only once progress has loaded, so it reflects the learner. */
   protected readonly recommendations = computed(() => {
     const state = this.track.state();
     if (state.status !== 'ready' || !state.value || this.progress.state().status !== 'ready')

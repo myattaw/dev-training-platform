@@ -91,7 +91,7 @@ test.describe('Skill Mastery', () => {
       .filter({ has: page.locator('td.name > a', { hasText: /^Primitive types$/ }) });
     await expect(primitivesRow).toContainText('In progress');
     await page.goto('/');
-    // The TypeScript track card offers to continue a practised skill.
+    // The TypeScript track card offers to continue a practiced skill.
     const track = page.locator('[data-track="typescript"]');
     await expect(track).toContainText('skills mastered');
     await expect(track.getByRole('link', { name: 'Continue' })).toHaveAttribute(

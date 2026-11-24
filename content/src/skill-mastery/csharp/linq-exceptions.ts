@@ -233,7 +233,7 @@ Console.WriteLine(string.Join(",", orders.SelectMany(o => o.Lines, (o, line) => 
 
 record Order(int Id, string[] Lines);`,
         output: '3\n4\n1-pen,1-ink,3-pad,3-tape',
-        why: '`Select` maps each order to its array, giving a sequence of 3 arrays (one per order, including the empty one). `SelectMany` flattens them into the 4 lines. The overload with a result selector still sees the parent order, so each line can be labelled with its order id; order 2 contributes nothing.',
+        why: '`Select` maps each order to its array, giving a sequence of 3 arrays (one per order, including the empty one). `SelectMany` flattens them into the 4 lines. The overload with a result selector still sees the parent order, so each line can be labeled with its order id; order 2 contributes nothing.',
       },
       {
         key: 'join-and-group-join',
@@ -306,7 +306,7 @@ export const linqExecutionFamilies: readonly QuestionSource[] = [
     'cs-linq-deferred-source',
     1,
     [
-      'A LINQ query is a recipe, not a result: it reads the source when you enumerate it, unless you materialise it with `ToList()` or `ToArray()`.',
+      'A LINQ query is a recipe, not a result: it reads the source when you enumerate it, unless you materialize it with `ToList()` or `ToArray()`.',
     ],
     [
       {

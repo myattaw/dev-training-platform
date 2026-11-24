@@ -2,7 +2,7 @@
  * Contracts for Job Role Preparation: the learner's target role and saved
  * preparation plans. Types only; the server validates every request.
  *
- * Privacy: job postings are analysed in the browser and never sent. A saved
+ * Privacy: job postings are analyzed in the browser and never sent. A saved
  * plan holds only taxonomy term ids (and a title the learner chooses), so the
  * API has nowhere to put posting text, and it rejects any extra field.
  */
@@ -11,7 +11,7 @@
 export interface SavedPlan {
   /** UUID assigned by the server. */
   readonly id: string;
-  /** 1–80 characters, sanitised like display names. */
+  /** 1–80 characters, sanitized like display names. */
   readonly title: string;
   /** Taxonomy term ids (taxonomy.json); the path is rebuilt from them. */
   readonly termIds: readonly string[];

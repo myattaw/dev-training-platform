@@ -205,7 +205,7 @@
 
   <app-panel heading="Recommended practice" headingId="recs-heading" [flush]="true">
     <p class="panel-intro text-secondary">
-      Original PracStack challenges that practise related skills. They are not questions
+      Original PracStack challenges that practice related skills. They are not questions
       {{ c.company.displayName }} is known to ask.
     </p>
     @let recs = recommendations.state();
@@ -253,7 +253,7 @@
               <p class="rec-meta text-secondary">
                 {{ r.summary }}
                 @if (r.competencies.length > 0) {
-                  <br />Practises: {{ r.competencies.join(', ') }}.
+                  <br />Practices: {{ r.competencies.join(', ') }}.
                 }
                 @if (r.relatedQuestion) {
                   Related to “{{ r.relatedQuestion.title }}”.
@@ -267,7 +267,7 @@
                   <app-status-indicator type="success">Solved</app-status-indicator>
                 } @else {
                   <a class="btn btn--sm" [routerLink]="['/challenges', r.challengeId, 'workspace']">
-                    Practise
+                    Practice
                   </a>
                 }
               } @else {

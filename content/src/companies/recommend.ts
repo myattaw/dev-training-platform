@@ -134,7 +134,7 @@ export function recommend(input: RecommendInput): CompanyRecommendation[] {
       companyId: input.companyId,
       challengeId: match.challengeId,
       sourceProblemId: match.sourceProblemId,
-      reason: `Practises ${listLabels(match.sharedTags)}, like “${title}”.`,
+      reason: `Practices ${listLabels(match.sharedTags)}, like “${title}”.`,
       similarityTags: match.sharedTags,
       confidence: match.score >= 1.5 ? 'medium' : 'low',
       origin: 'computed',

@@ -94,7 +94,7 @@ const RECS: RecommendationsResponse = {
       summary: 'Build a buffer.',
       difficulty: 'medium',
       category: 'data-structures',
-      reason: 'Practises cursor state management.',
+      reason: 'Practices cursor state management.',
       competencies: ['cursor state management'],
       confidence: 'high',
       origin: 'curated',
@@ -109,7 +109,7 @@ const RECS: RecommendationsResponse = {
       summary: 'A planned challenge.',
       difficulty: 'hard',
       category: 'data-structures',
-      reason: 'Practises an efficient text buffer.',
+      reason: 'Practices an efficient text buffer.',
       competencies: [],
       confidence: 'medium',
       origin: 'curated',
@@ -201,7 +201,7 @@ describe('CompanyDetail', () => {
     expect(free?.querySelector('.rec-title a')?.textContent?.trim()).toBe(
       'Text Buffer with a Cursor',
     );
-    expect(text(free?.querySelector('.rec-status'))).toBe('Practise');
+    expect(text(free?.querySelector('.rec-status'))).toBe('Practice');
     expect(pro?.classList).toContain('locked');
     expect(pro?.querySelectorAll('a')).toHaveLength(0);
     expect(pro?.querySelectorAll('button')).toHaveLength(0);
