@@ -201,9 +201,7 @@ const PATH_PREVIEW = 25;
             }
           </span>
           <span class="item-flags">
-            <app-badge [color]="priorityColor(item)">{{
-              priorityLabel(item)
-            }}</app-badge>
+            <app-badge [color]="priorityColor(item)">{{ priorityLabel(item) }}</app-badge>
             @if (item.related) {
               <app-badge color="grey">Related practice</app-badge>
             }
