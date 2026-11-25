@@ -7,6 +7,7 @@ const MONOGRAMS: Readonly<Record<string, string>> = {
   angular: 'NG',
   postgresql: 'PG',
   'oracle-sql': 'ORA',
+  'oracle-plsql': 'PL',
   csharp: 'C#',
   'aspnet-core': 'ASP',
   'sql-server': 'SQL',

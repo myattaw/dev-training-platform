@@ -111,3 +111,13 @@ Required skills
 Preferred
 - AWS certification.
 - Experience with Docker.`;
+
+export const ORACLE_PLSQL_DEVELOPER_POSTING = `Oracle Database Developer
+
+Responsibilities
+- Develop and maintain Oracle stored procedures, functions, or PL/SQL packages.
+- Write and tune SQL for reporting and batch jobs.
+
+Qualifications
+- 3 years of experience with Oracle databases and PL/SQL.
+- Experience with Unix shell scripting is a plus.`;

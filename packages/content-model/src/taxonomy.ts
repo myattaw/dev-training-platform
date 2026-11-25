@@ -150,6 +150,7 @@ export interface TermGap {
 export const RESOURCE_HOSTS: readonly string[] = [
   'learn.microsoft.com',
   'docs.aws.amazon.com',
+  'docs.oracle.com',
   'git-scm.com',
   'docs.github.com',
   'kubernetes.io',

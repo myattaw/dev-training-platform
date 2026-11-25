@@ -252,10 +252,22 @@ export type SqlQuestionSource = Omit<
     readonly explanation: readonly InstructionBlock[];
   };
 
+/**
+ * Validation of PL/SQL code shown with a multiple-choice question, on Oracle
+ * Database Free (content/src/checks/plsql-snippets.ts). Never published.
+ * Without one, the code must run without error. `fails`: the code must fail
+ * with this error, e.g. `ORA-01403` or `compile` ("what is wrong here?").
+ */
+export interface PlsqlKeyCheck {
+  readonly kind: 'fails';
+  readonly error: string;
+}
+
 export type QuestionSource =
   | (Authored<MultipleChoiceQuestion, Extract<QuestionAnswer, { format: 'multiple-choice' }>> & {
       readonly typeCheck?: TypeScriptKeyCheck;
       readonly csharpCheck?: CSharpKeyCheck;
+      readonly plsqlCheck?: PlsqlKeyCheck;
     })
   | Authored<PredictOutputQuestion, Extract<QuestionAnswer, { format: 'predict-output' }>>
   | Authored<FillInBlankQuestion, Extract<QuestionAnswer, { format: 'fill-in-blank' }>>

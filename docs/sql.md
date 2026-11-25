@@ -164,6 +164,29 @@ by a fresh database per run as with PGlite); a query can list other datasets' _s
 
 All start Oracle in Docker (about 20 s); `PRACSTACK_SKIP_DOCKER_TESTS=1` skips them.
 
+## Oracle PL/SQL track
+
+A separate track (`content/src/skill-mastery/plsql/`, id `oracle-plsql`): blocks and
+variables, conditions and loops, cursors, exceptions, procedures and functions, packages,
+`BULK COLLECT`/`FORALL`, and triggers. Its questions are knowledge questions (predict the
+output, fill in the blank, multiple choice), so practicing needs no database and works on AWS.
+
+Every code sample is run on Oracle Database Free by
+`content/src/checks/plsql-snippets.spec.ts` (`runOracleScript` in
+`packages/sql-engine/src/oracle-script.ts`): each in a brand-new Oracle user holding the practice
+tables (`PLSQL_SETUP` in `plsql/builders.ts`), dropped afterwards.
+
+- predict-output: `DBMS_OUTPUT` must print exactly the answer;
+- fill-in-blank: the code must run with every accepted answer (answers are not case-sensitive);
+- code shown with a multiple-choice question must run, or, with `plsqlCheck: { kind: 'fails' }`,
+  fail with exactly the named error (`ORA-01422`, or `compile` when a CREATE compiles with errors;
+  anonymous blocks that do not compile fail with `ORA-06550`).
+
+Scripts are written SQL*Plus style: a PL/SQL unit ends with a line holding only `/`.
+
+Learners do not run their own PL/SQL yet: that needs an Oracle database reachable from AWS (see
+Oracle above). The job analyzer maps "PL/SQL" in postings to this track (`plsql` term).
+
 ## SQL Server (T-SQL)
 
 The SQL Server track's querying skills include runnable T-SQL questions

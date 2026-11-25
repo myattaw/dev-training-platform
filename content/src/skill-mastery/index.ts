@@ -6,6 +6,7 @@ import { azureTrack } from './azure/track';
 import { csharpTrack } from './csharp/track';
 import { engineeringTrack } from './engineering/track';
 import { oracleTrack } from './oracle/track';
+import { plsqlTrack } from './plsql/track';
 import { postgresqlTrack } from './postgresql/track';
 import { powerPlatformTrack } from './powerplatform/track';
 import { sqlServerTrack } from './sqlserver/track';
@@ -17,6 +18,7 @@ export const TRACKS: readonly TrackSource[] = [
   angularTrack,
   postgresqlTrack,
   oracleTrack,
+  plsqlTrack,
   csharpTrack,
   aspnetCoreTrack,
   sqlServerTrack,

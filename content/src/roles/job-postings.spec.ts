@@ -19,6 +19,7 @@ import {
   AWS_CLOUD_DEVELOPER_POSTING,
   ENTERPRISE_DOTNET_POSTING,
   JAVA_BACKEND_POSTING,
+  ORACLE_PLSQL_DEVELOPER_POSTING,
   POWER_PLATFORM_POSTING,
   SQL_SERVER_DEVELOPER_POSTING,
 } from './fixtures/job-postings';
@@ -179,6 +180,21 @@ describe('other postings', () => {
       expect(levelOf(a, id), id).toBe('responsibility');
     expect(levelOf(a, 'power-bi')).toBe('familiarity');
     expect(levelOf(a, 'azure-data-factory')).toBe('preferred');
+  });
+
+  it('Oracle developer: PL/SQL is found and practiced on the PL/SQL track', () => {
+    const a = analyze(ORACLE_PLSQL_DEVELOPER_POSTING);
+    expect(levelOf(a, 'plsql')).toBe('required');
+    expect(levelOf(a, 'oracle')).toBe('required');
+    expect(term(a, 'stored-procedures')).toBeDefined();
+    const plsql = TAXONOMY.find((t) => t.id === 'plsql');
+    expect(plsql?.tracks).toEqual(['oracle-plsql']);
+    // Every PL/SQL skill it recommends exists in the catalog.
+    const skillIds = new Set(
+      TRACKS.flatMap((t) => t.topics.flatMap((topic) => topic.skills.map((s) => s.id))),
+    );
+    for (const ref of plsql?.practice ?? [])
+      if (ref.kind === 'skill') expect(skillIds.has(ref.skillId), ref.skillId).toBe(true);
   });
 
   it('AWS cloud developer: TypeScript or Python; monitoring is a responsibility and a gap', () => {

@@ -402,7 +402,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
     label: 'Oracle Database',
     category: 'database',
     aliases: ['Oracle SQL', 'Oracle DB'],
-    variants: ['Oracle', 'PL/SQL'],
+    variants: ['Oracle'],
     practice: skills(
       'ora-row-limiting',
       'ora-nulls',
@@ -411,7 +411,34 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'ora-connect-by',
     ),
     tracks: ['oracle-sql'],
-    note: 'Oracle SQL is covered; PL/SQL programming (procedures, packages) is not.',
+    note: 'Oracle SQL queries; PL/SQL programming has its own track (see PL/SQL).',
+  },
+  {
+    id: 'plsql',
+    label: 'PL/SQL',
+    category: 'database',
+    aliases: ['Oracle PL/SQL', 'PLSQL', 'PL SQL'],
+    practice: skills(
+      'plsql-blocks',
+      'plsql-control',
+      'plsql-cursors',
+      'plsql-exceptions',
+      'plsql-subprograms',
+      'plsql-packages',
+      'plsql-bulk',
+      'plsql-triggers',
+    ),
+    tracks: ['oracle-plsql'],
+    gap: {
+      notCovered:
+        'You read, predict and complete PL/SQL (every sample is verified on a real Oracle database), but you do not run your own PL/SQL here yet.',
+      resources: [
+        {
+          label: 'Oracle Database PL/SQL Language Reference',
+          url: 'https://docs.oracle.com/en/database/oracle/oracle-database/23/lnpls/',
+        },
+      ],
+    },
   },
   {
     id: 'data-modeling',

@@ -75,6 +75,7 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'angular', skillCount: 2 }),
       expect.objectContaining({ id: 'postgresql', skillCount: 6 }),
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
+      expect.objectContaining({ id: 'oracle-plsql', skillCount: 8 }),
       expect.objectContaining({ id: 'csharp', skillCount: 15 }),
       expect.objectContaining({ id: 'aspnet-core', skillCount: 8 }),
       expect.objectContaining({ id: 'sql-server', skillCount: 9 }),
@@ -125,11 +126,12 @@ describe('the real content', { timeout: 120_000 }, () => {
     }
   });
 
-  it('never publishes build-time answer checks (typeCheck, csharpCheck)', () => {
+  it('never publishes build-time answer checks (typeCheck, csharpCheck, plsqlCheck)', () => {
     const files = JSON.stringify([...result.publicFiles.values(), ...result.privateFiles.values()]);
     expect(files).not.toContain('typeCheck');
     expect(files).not.toContain('options-compile');
     expect(files).not.toContain('csharpCheck');
+    expect(files).not.toContain('plsqlCheck');
   });
 
   it('publishes job roles and the taxonomy as public files referenced from the manifest', () => {

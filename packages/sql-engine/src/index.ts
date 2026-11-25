@@ -13,6 +13,8 @@ export {
 } from './invoked-engine';
 export type { SqlInvoke, SqlInvokeOutcome } from './invoked-engine';
 export { OracleSqlEngine, classifyError, dateValue, numberValue } from './oracle-engine';
+export { runOracleScript, splitScript } from './oracle-script';
+export type { OracleScriptResult } from './oracle-script';
 export type { OracleConnectionInfo, OracleEngineOptions } from './oracle-engine';
 export {
   LOCAL_CONTAINER,
