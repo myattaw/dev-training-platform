@@ -12,3 +12,6 @@ export * from './taxonomy';
 export * from './job-analysis';
 export * from './study-planner';
 export * from './scenario';
+export * from './web-challenge';
+export * from './web-grading';
+export * from './web-validate';

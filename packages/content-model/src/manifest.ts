@@ -4,6 +4,7 @@ import type { Technology } from './skill';
 import type { ROLES_FILE } from './roles';
 import type { SCENARIOS_FILE } from './scenario';
 import type { TAXONOMY_FILE } from './taxonomy';
+import type { WebChallengeSummary } from './web-challenge';
 
 /**
  * Layout of the generated public content, shared by the content build (which
@@ -42,6 +43,12 @@ export interface PublicManifest {
   };
   /** Enterprise Scenarios catalog. Optional so older manifests still load. */
   readonly scenariosFile?: typeof SCENARIOS_FILE;
+  /**
+   * Web Development Challenges catalog (summaries only; details, starter
+   * projects and tests are served by the API, which enforces access).
+   * Optional so older manifests still load.
+   */
+  readonly webChallenges?: readonly WebChallengeSummary[];
 }
 
 export const MANIFEST_FILE = 'manifest.json';
@@ -50,3 +57,14 @@ export const challengeFile = (id: string, version: number): string =>
   `challenges/${id}@${version}.json`;
 
 export const trackFile = (technologyId: string): string => `skill-mastery/${technologyId}.json`;
+
+/**
+ * Private layout of a web challenge (served by the API, never by the web app):
+ *   web-challenges/<id>@<version>.json          { challenge, projects } (access-controlled)
+ *   web-challenges/<id>@<version>.grading.json  WebChallengeGrading (never served)
+ */
+export const webChallengeFile = (id: string, version: number): string =>
+  `web-challenges/${id}@${version}.json`;
+
+export const webChallengeGradingFile = (id: string, version: number): string =>
+  `web-challenges/${id}@${version}.grading.json`;

@@ -17,6 +17,7 @@
     "@pracstack/sql-engine": "*"
   },
   "devDependencies": {
-    "@pracstack/code-runner": "*"
+    "@pracstack/code-runner": "*",
+    "@pracstack/web-runner": "*"
   }
 }

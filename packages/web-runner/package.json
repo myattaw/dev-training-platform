@@ -10,5 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p .",
     "build-images": "tsx scripts/build-images.ts"
+  },
+  "dependencies": {
+    "@pracstack/content-model": "*"
   }
 }

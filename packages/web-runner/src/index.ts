@@ -21,3 +21,5 @@ export {
 } from './files';
 export type { FileLimits, FileValidation } from './files';
 export * from './protocol';
+export { runWebTests, toProbeRequests } from './run-tests';
+export type { WebTestRun } from './run-tests';
