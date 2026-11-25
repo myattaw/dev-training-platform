@@ -116,7 +116,7 @@ var c = Counter()
 c.increment()
 print(c.value)`,
         compiles: false,
-        why: 'In a non-mutating struct method, `self` is immutable, so `value += 1` fails ("left side of mutating operator isn\'t mutable: \'self\' is immutable"). Mark the method `mutating func increment()`.',
+        why: "In a non-mutating struct method, `self` is immutable, so `value += 1` fails (\"left side of mutating operator isn't mutable: 'self' is immutable\"). Mark the method `mutating func increment()`.",
       },
       {
         key: 'let-instance',
@@ -171,7 +171,8 @@ for var item in cart {
     item.qty += 1
 }
 print(cart.map { $0.qty })`,
-        correct: 'Modify the elements through the array, for example `for i in cart.indices { cart[i].qty += 1 }`',
+        correct:
+          'Modify the elements through the array, for example `for i in cart.indices { cart[i].qty += 1 }`',
         wrong: [
           'Change `for var item` to `for let item`',
           'Mark `qty` as `mutating`',
@@ -500,9 +501,7 @@ print(Weekday.allCases.map(\.rawValue))`,
   ...b.output(
     'swift-associated-values',
     2,
-    [
-      'Each case can carry its own associated values; a `switch` extracts them with `let`.',
-    ],
+    ['Each case can carry its own associated values; a `switch` extracts them with `let`.'],
     [
       {
         key: 'payment',
@@ -618,7 +617,8 @@ for code in codes {
 }
 print(names)`,
         error: 'Fatal error: Unexpectedly found nil while unwrapping an Optional value',
-        correct: 'Handle unknown codes, for example `Level(rawValue: code).map { "\\($0)" } ?? "unknown"`',
+        correct:
+          'Handle unknown codes, for example `Level(rawValue: code).map { "\\($0)" } ?? "unknown"`',
         wrong: [
           'Add `case warning` without a value; it automatically gets `30`',
           'Use `Level(code)` instead of `Level(rawValue: code)`',
@@ -711,7 +711,8 @@ print(render(.loaded([])), render(.failed("offline")))`,
       },
       {
         key: 'result-shape',
-        question: 'A teammate proposes adding a `.refreshing([String])` case. What happens to `render`?',
+        question:
+          'A teammate proposes adding a `.refreshing([String])` case. What happens to `render`?',
         code: sw`enum FeedState {
     case loading
     case loaded([String])
@@ -725,7 +726,8 @@ func render(_ state: FeedState) -> String {
     }
 }
 print(render(.loaded(["a", "b"])))`,
-        correct: 'It stops compiling until `render` handles `.refreshing`, because the `switch` has no `default`',
+        correct:
+          'It stops compiling until `render` handles `.refreshing`, because the `switch` has no `default`',
         wrong: [
           'It keeps compiling, and `.refreshing` is rendered as `"spinner"`',
           'It crashes at run time when a `.refreshing` value reaches the `switch`',
@@ -786,7 +788,7 @@ print(pick(.dark), pick(nil))`,
 let e = Expr.add(.number(1), .number(2))
 print(e)`,
         compiles: false,
-        why: 'A value of `Expr` would have to contain two `Expr` values inline, which has no finite size. The compiler reports "recursive enum \'Expr\' is not marked \'indirect\'". Mark the case or the enum `indirect` to store the payload in a box.',
+        why: "A value of `Expr` would have to contain two `Expr` values inline, which has no finite size. The compiler reports \"recursive enum 'Expr' is not marked 'indirect'\". Mark the case or the enum `indirect` to store the payload in a box.",
       },
       {
         key: 'indirect',
@@ -846,7 +848,7 @@ struct Book: Describable {
 }
 print(Book(title: "Dune").title)`,
         compiles: false,
-        why: '`Book` does not implement `summary()`, so it does not conform ("type \'Book\' does not conform to protocol \'Describable\'"). Add the method, or give the protocol a default implementation in an extension.',
+        why: "`Book` does not implement `summary()`, so it does not conform (\"type 'Book' does not conform to protocol 'Describable'\"). Add the method, or give the protocol a default implementation in an extension.",
       },
       {
         key: 'get-with-let',
@@ -1075,7 +1077,11 @@ struct Cat: Animal {
 let pet: any Animal = Cat()
 print(pet.sound(), pet.describe(), Cat().describe())`,
         correct: 'meow generic animal a cat',
-        wrong: ['meow a cat a cat', '... generic animal a cat', 'meow generic animal generic animal'],
+        wrong: [
+          'meow a cat a cat',
+          '... generic animal a cat',
+          'meow generic animal generic animal',
+        ],
         why: '`sound()` is a requirement, so the call through `any Animal` uses `Cat`’s version. `describe()` exists only in the extension, so through the protocol type the call is resolved statically to the extension’s version; `Cat().describe()` on the concrete type uses `Cat`’s. Declare `describe()` in the protocol to make it overridable.',
       },
       {
@@ -1263,7 +1269,7 @@ print(b.value, type(of: b))`,
   ...b.whichCompile(
     'swift-generic-constraint-fixes',
     3,
-    'The compiler error "requires that \'T\' conform to \'Equatable\'" is fixed by constraining `T`, either in angle brackets or in a `where` clause.',
+    "The compiler error \"requires that 'T' conform to 'Equatable'\" is fixed by constraining `T`, either in angle brackets or in a `where` clause.",
     [
       {
         key: 'contains',
@@ -1298,7 +1304,11 @@ extension Sequence where Element == String {
           'print(["a", "b"].lines())',
           'print([1, 2].lines())',
         ],
-        correct: ['print([1, 2, 3].total())', 'print([1.5, 2.5].total())', 'print(["a", "b"].lines())'],
+        correct: [
+          'print([1, 2, 3].total())',
+          'print([1.5, 2.5].total())',
+          'print(["a", "b"].lines())',
+        ],
         why: 'A constrained extension only adds methods to the types that meet its `where` clause. `total()` exists on arrays of numbers (`Int`, `Double`), and `lines()` only on sequences of `String`.',
       },
     ],

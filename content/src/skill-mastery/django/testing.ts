@@ -227,7 +227,8 @@ print(profile(request).content)`),
       {
         key: 'no-session',
         question: 'Calling the view with a factory request fails. Why?',
-        code: djangoProgram(`from django.contrib.auth.models import AnonymousUser
+        code: djangoProgram(
+          `from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse
 from django.test import RequestFactory
 
@@ -237,7 +238,9 @@ def add_to_cart(request):
 
 request = RequestFactory().post("/cart/")
 request.user = AnonymousUser()
-print(add_to_cart(request).content)`, { apps: ['django.contrib.contenttypes', 'django.contrib.auth'] }),
+print(add_to_cart(request).content)`,
+          { apps: ['django.contrib.contenttypes', 'django.contrib.auth'] },
+        ),
         error: 'AttributeError',
         correct:
           'No `SessionMiddleware` ran, so `request.session` does not exist; attach a session in the test or use the test client.',

@@ -25,7 +25,8 @@ data = {"active": True, "manager": None, "tags": ("a", "b"), "score": 9.5}
 text = json.dumps(data)
 print(text)
 print(json.loads(text)["tags"])`,
-        output: '{"active": true, "manager": null, "tags": ["a", "b"], "score": 9.5}\n[\'a\', \'b\']',
+        output:
+          '{"active": true, "manager": null, "tags": ["a", "b"], "score": 9.5}\n[\'a\', \'b\']',
         why: '`True` becomes `true`, `None` becomes `null` and a tuple becomes a JSON array. Parsing it back gives a list, not a tuple: a round trip does not preserve every Python type.',
       },
       {
@@ -131,7 +132,8 @@ print(text.splitlines().count("ok"))`,
     [
       {
         key: 'single-quotes',
-        question: 'A config value was copied from Python code into a JSON parser. Why does it fail?',
+        question:
+          'A config value was copied from Python code into a JSON parser. Why does it fail?',
         code: `import json
 
 raw = "{'retries': 3, 'debug': False}"
@@ -338,7 +340,8 @@ print(parse_quantity(" 3 "))`,
       },
       {
         key: 'nested-get',
-        question: 'An API sometimes omits `shipping` or sets it to `null`. Which lookup is safe and still reports missing data clearly?',
+        question:
+          'An API sometimes omits `shipping` or sets it to `null`. Which lookup is safe and still reports missing data clearly?',
         code: `def shipping_city(order):
     shipping = order.get("shipping") or {}
     city = shipping.get("city")

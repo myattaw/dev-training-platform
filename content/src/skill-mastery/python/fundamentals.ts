@@ -269,8 +269,7 @@ print(total == 0.3, math.isclose(total, 0.3))`,
         code: `days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 today = 0
 print(days[(today - 3) % 7])`,
-        correct:
-          'It prints `Fri`: `-3 % 7` is `4` in Python, so no fix is needed',
+        correct: 'It prints `Fri`: `-3 % 7` is `4` in Python, so no fix is needed',
         wrong: [
           'It prints `Thu` because `-3 % 7` is `-3` and `days[-3]` counts from the end',
           'It raises `IndexError` because the index is negative',
@@ -283,8 +282,7 @@ print(days[(today - 3) % 7])`,
         question: 'What does `divmod(-17, 5)` return, and why?',
         code: `q, r = divmod(-17, 5)
 print(q, r, q * 5 + r)`,
-        correct:
-          '`(-4, 3)`: the quotient is floored, and `q * 5 + r` gets back `-17`',
+        correct: '`(-4, 3)`: the quotient is floored, and `q * 5 + r` gets back `-17`',
         wrong: [
           '`(-3, -2)`: the quotient is truncated toward zero',
           '`(-3, 2)`: the remainder is always the absolute value',
@@ -364,14 +362,10 @@ export const conditionalsFamilies: readonly QuestionSource[] = [
       },
     ],
   ),
-  ...b.outputChoice(
-    'py-elif-order',
-    1,
-    'Only the first branch whose condition is true runs.',
-    [
-      {
-        key: 'grades',
-        code: `score = 92
+  ...b.outputChoice('py-elif-order', 1, 'Only the first branch whose condition is true runs.', [
+    {
+      key: 'grades',
+      code: `score = 92
 if score >= 60:
     grade = "D"
 elif score >= 90:
@@ -379,25 +373,24 @@ elif score >= 90:
 else:
     grade = "F"
 print(grade)`,
-        correct: 'D',
-        wrong: ['A', 'F', 'DA'],
-        why: '`if`/`elif` stops at the first true condition. `92 >= 60` is true, so `grade` is `"D"` and the `elif` is never tested. Order the conditions from the most specific (highest threshold) down.',
-      },
-      {
-        key: 'separate-ifs',
-        code: `temp = 35
+      correct: 'D',
+      wrong: ['A', 'F', 'DA'],
+      why: '`if`/`elif` stops at the first true condition. `92 >= 60` is true, so `grade` is `"D"` and the `elif` is never tested. Order the conditions from the most specific (highest threshold) down.',
+    },
+    {
+      key: 'separate-ifs',
+      code: `temp = 35
 label = "cold"
 if temp > 20:
     label = "warm"
 if temp > 30:
     label = "hot"
 print(label)`,
-        correct: 'hot',
-        wrong: ['warm', 'cold', 'warmhot'],
-        why: 'These are two independent `if` statements, not an `if`/`elif` chain, so both run. The second assignment overwrites the first and the result is `"hot"`.',
-      },
-    ],
-  ),
+      correct: 'hot',
+      wrong: ['warm', 'cold', 'warmhot'],
+      why: 'These are two independent `if` statements, not an `if`/`elif` chain, so both run. The second assignment overwrites the first and the result is `"hot"`.',
+    },
+  ]),
   ...b.blank(
     'py-conditional-expression',
     2,
@@ -703,7 +696,7 @@ print(word)`,
           'Single characters must be assigned with `word[0:1]`, the slice form works',
           'It works and prints `Python`',
         ],
-        why: 'A `str` object can never change. Item and slice assignment both raise `TypeError: \'str\' object does not support item assignment`. Every string method (`upper`, `replace`, `capitalize`) returns a new string.',
+        why: "A `str` object can never change. Item and slice assignment both raise `TypeError: 'str' object does not support item assignment`. Every string method (`upper`, `replace`, `capitalize`) returns a new string.",
       },
       {
         key: 'append',
@@ -829,44 +822,39 @@ print(f"{user!r} has {count=}")`,
       },
     ],
   ),
-  ...b.fails(
-    'py-join-non-strings',
-    3,
-    '`str.join` accepts only an iterable of strings.',
-    [
-      {
-        key: 'ints',
-        question: 'Why does this program fail?',
-        code: `ids = [101, 102, 103]
+  ...b.fails('py-join-non-strings', 3, '`str.join` accepts only an iterable of strings.', [
+    {
+      key: 'ints',
+      question: 'Why does this program fail?',
+      code: `ids = [101, 102, 103]
 print(", ".join(ids))`,
-        error: 'TypeError',
-        correct:
-          '`join` requires strings and the items are ints, so it raises `TypeError`; convert them: `", ".join(str(i) for i in ids)`',
-        wrong: [
-          'The separator must be a single character',
-          '`join` must be called on the list: `ids.join(", ")`',
-          'It works and prints `101, 102, 103`',
-        ],
-        why: '`str.join` never converts its items; the error is `TypeError: sequence item 0: expected str instance, int found`. `join` is a method of the separator string, not of the list (lists have no `join`).',
-      },
-      {
-        key: 'none-in-list',
-        question: 'The report builder fails on some records. What is the cause?',
-        code: `record = {"first": "Grace", "middle": None, "last": "Hopper"}
+      error: 'TypeError',
+      correct:
+        '`join` requires strings and the items are ints, so it raises `TypeError`; convert them: `", ".join(str(i) for i in ids)`',
+      wrong: [
+        'The separator must be a single character',
+        '`join` must be called on the list: `ids.join(", ")`',
+        'It works and prints `101, 102, 103`',
+      ],
+      why: '`str.join` never converts its items; the error is `TypeError: sequence item 0: expected str instance, int found`. `join` is a method of the separator string, not of the list (lists have no `join`).',
+    },
+    {
+      key: 'none-in-list',
+      question: 'The report builder fails on some records. What is the cause?',
+      code: `record = {"first": "Grace", "middle": None, "last": "Hopper"}
 parts = [record["first"], record["middle"], record["last"]]
 print(" ".join(parts))`,
-        error: 'TypeError',
-        correct:
-          '`record["middle"]` is `None`, and `join` raises `TypeError` on a non-string item; filter it out, for example `" ".join(p for p in parts if p)`',
-        wrong: [
-          'The dict has no key `"middle"`, so it raises `KeyError`',
-          '`join` cannot be used with a list built from dict values',
-          '`None` is joined as the text `None`, so the output is just ugly, not an error',
-        ],
-        why: 'The key exists but its value is `None`. `join` does not call `str()` on items, so `None` makes it raise `TypeError: sequence item 1: expected str instance, NoneType found`.',
-      },
-    ],
-  ),
+      error: 'TypeError',
+      correct:
+        '`record["middle"]` is `None`, and `join` raises `TypeError` on a non-string item; filter it out, for example `" ".join(p for p in parts if p)`',
+      wrong: [
+        'The dict has no key `"middle"`, so it raises `KeyError`',
+        '`join` cannot be used with a list built from dict values',
+        '`None` is joined as the text `None`, so the output is just ugly, not an error',
+      ],
+      why: 'The key exists but its value is `None`. `join` does not call `str()` on items, so `None` makes it raise `TypeError: sequence item 1: expected str instance, NoneType found`.',
+    },
+  ]),
   ...b.codeChoice(
     'py-strip-character-set',
     4,
@@ -874,7 +862,8 @@ print(" ".join(parts))`,
     [
       {
         key: 'rstrip-extension',
-        question: 'This code should remove the `.csv` extension. What does it print, and what is the right fix?',
+        question:
+          'This code should remove the `.csv` extension. What does it print, and what is the right fix?',
         code: `filename = "stats.csv"
 print(filename.rstrip(".csv"))
 print(filename.removesuffix(".csv"))`,
@@ -892,7 +881,8 @@ print(filename.removesuffix(".csv"))`,
         question: 'What does this print?',
         code: `url = "https://shop.example.com"
 print(url.lstrip("https://"))`,
-        correct: '`op.example.com`: the characters `h`, `t`, `p`, `s`, `:` and `/` are stripped from the left until another character appears',
+        correct:
+          '`op.example.com`: the characters `h`, `t`, `p`, `s`, `:` and `/` are stripped from the left until another character appears',
         wrong: [
           '`shop.example.com`: the prefix is removed exactly once',
           '`https://shop.example.com`: the prefix is longer than one character, so nothing happens',

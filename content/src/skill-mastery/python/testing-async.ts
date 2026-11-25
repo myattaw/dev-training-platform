@@ -49,7 +49,8 @@ print(apply_discount(80, 150))`,
       },
       {
         key: 'tuple-trap',
-        question: 'A developer wrapped the assert in parentheses to split it over lines. What happens?',
+        question:
+          'A developer wrapped the assert in parentheses to split it over lines. What happens?',
         code: `total = 10
 assert total == 10, "total ok"
 assert (total > 0)
@@ -309,14 +310,16 @@ with patch("__main__.basename", return_value="PATCHED"):
     [
       {
         key: 'none-from-sort',
-        question: 'The traceback ends with `TypeError: \'NoneType\' object is not subscriptable` on the `return` line. What is the bug?',
+        question:
+          "The traceback ends with `TypeError: 'NoneType' object is not subscriptable` on the `return` line. What is the bug?",
         code: `def top_scores(scores):
     ranked = scores.sort(reverse=True)
     return ranked[:3]
 
 print(top_scores([50, 90, 70, 80]))`,
         error: "TypeError: 'NoneType' object is not subscriptable",
-        correct: '`list.sort()` returns `None`, so `ranked` is `None`; use `ranked = sorted(scores, reverse=True)`',
+        correct:
+          '`list.sort()` returns `None`, so `ranked` is `None`; use `ranked = sorted(scores, reverse=True)`',
         wrong: [
           'Slicing with `[:3]` is not allowed on lists of ints',
           '`scores` is `None` because it was passed incorrectly',
@@ -345,7 +348,8 @@ print(pairs(["a", "b", "c"]))`,
       },
       {
         key: 'attribute-on-str',
-        question: 'The traceback shows `AttributeError: \'str\' object has no attribute \'get\'`. What is the cause?',
+        question:
+          "The traceback shows `AttributeError: 'str' object has no attribute 'get'`. What is the cause?",
         code: `import json
 
 payload = json.dumps({"user": {"name": "ana"}})
@@ -371,7 +375,8 @@ print(user.get("name"))`,
     [
       {
         key: 'setupclass',
-        question: 'Tests need an expensive, read-only reference dataset and a fresh shopping cart each. Where should each be created in a `unittest.TestCase`?',
+        question:
+          'Tests need an expensive, read-only reference dataset and a fresh shopping cart each. Where should each be created in a `unittest.TestCase`?',
         correct:
           'Load the read-only dataset once in `setUpClass` and create the cart in `setUp`, so tests never share mutable state',
         wrong: [
@@ -383,7 +388,8 @@ print(user.get("name"))`,
       },
       {
         key: 'pytest-fixture',
-        question: 'What does a pytest fixture with `yield` provide that a plain helper function does not?',
+        question:
+          'What does a pytest fixture with `yield` provide that a plain helper function does not?',
         correct:
           'Setup before the `yield`, the yielded value injected into tests that name it as a parameter, and teardown after the `yield` even when the test fails',
         wrong: [
@@ -528,7 +534,7 @@ async def main():
 
 asyncio.run(main())`,
         correct: 'coroutine []',
-        wrong: ['bool [\'saved\']', 'coroutine [\'saved\']', 'bool []'],
+        wrong: ["bool ['saved']", "coroutine ['saved']", 'bool []'],
         why: 'Without `await`, `save(log)` only creates a coroutine object; its body never runs, so nothing is appended. Python warns "coroutine was never awaited" for such objects (the example closes it to stay quiet).',
       },
       {
@@ -592,7 +598,7 @@ async def main():
     print([r if not isinstance(r, Exception) else repr(r) for r in results])
 
 asyncio.run(main())`,
-        output: "[10, \"ValueError('bad 2')\", 30]",
+        output: '[10, "ValueError(\'bad 2\')", 30]',
         why: 'With `return_exceptions=True`, a failing awaitable’s exception is placed in the results list instead of being raised, so the other results are still available.',
       },
     ],
@@ -682,7 +688,8 @@ asyncio.run(main())`,
       },
       {
         key: 'cpu-bound',
-        question: 'A coroutine computes a large report with a pure Python loop for several seconds. What is the best way to keep the server responsive?',
+        question:
+          'A coroutine computes a large report with a pure Python loop for several seconds. What is the best way to keep the server responsive?',
         code: `import asyncio
 
 def build_report(n):

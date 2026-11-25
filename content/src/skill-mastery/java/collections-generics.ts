@@ -77,14 +77,16 @@ public class Main {
     [
       {
         key: 'unique-ordered',
-        question: 'An import must remove duplicate email addresses but keep the first-seen order for the report. Which collection fits best?',
+        question:
+          'An import must remove duplicate email addresses but keep the first-seen order for the report. Which collection fits best?',
         correct: '`LinkedHashSet<String>`',
         wrong: ['`HashSet<String>`', '`TreeSet<String>`', '`ArrayList<String>`'],
         why: '`LinkedHashSet` rejects duplicates and iterates in insertion order. `HashSet` makes no ordering promise, `TreeSet` sorts alphabetically (losing the first-seen order), and `ArrayList` keeps duplicates unless you check `contains`, which is a linear scan each time.',
       },
       {
         key: 'sorted-lookup',
-        question: 'A pricing service looks up the tax rate for a date range: it needs “the entry with the greatest start date not after this date”. Which collection fits best?',
+        question:
+          'A pricing service looks up the tax rate for a date range: it needs “the entry with the greatest start date not after this date”. Which collection fits best?',
         correct: '`TreeMap<LocalDate, BigDecimal>` with `floorEntry(date)`',
         wrong: [
           '`HashMap<LocalDate, BigDecimal>` with `get(date)`',
@@ -95,7 +97,8 @@ public class Main {
       },
       {
         key: 'fifo',
-        question: 'A background worker processes jobs in the order they arrive, adding at the tail and taking from the head. Which collection fits best for a single thread?',
+        question:
+          'A background worker processes jobs in the order they arrive, adding at the tail and taking from the head. Which collection fits best for a single thread?',
         correct: '`ArrayDeque<Job>` used as a `Queue` (`offer` and `poll`)',
         wrong: [
           '`ArrayList<Job>` with `remove(0)`',
@@ -403,7 +406,8 @@ public class Main {
     }
 }`,
         error: 'ConcurrentModificationException',
-        correct: 'The list is structurally modified during the for-each loop, so the iterator fails fast on its next step; use `sessions.removeIf(s -> s.endsWith("expired"))` or `Iterator.remove()`.',
+        correct:
+          'The list is structurally modified during the for-each loop, so the iterator fails fast on its next step; use `sessions.removeIf(s -> s.endsWith("expired"))` or `Iterator.remove()`.',
         wrong: [
           'Another thread changed the list; wrap it with `Collections.synchronizedList`.',
           '`remove(Object)` cannot be used on an `ArrayList` created from `List.of`.',
@@ -427,7 +431,8 @@ public class Main {
     }
 }`,
         error: 'ConcurrentModificationException',
-        correct: 'Removing from the map while iterating its `keySet()` invalidates the iterator; use `ages.values().removeIf(age -> age > 60)` or `ages.entrySet().removeIf(...)`.',
+        correct:
+          'Removing from the map while iterating its `keySet()` invalidates the iterator; use `ages.values().removeIf(age -> age > 60)` or `ages.entrySet().removeIf(...)`.',
         wrong: [
           '`TreeMap` does not support `remove`; use a `HashMap`.',
           '`keySet()` returns a copy, so the removal affects the wrong map.',
@@ -451,7 +456,8 @@ public class Main {
     }
 }`,
         error: 'ConcurrentModificationException',
-        correct: 'Adding to the list during the for-each loop is also a structural modification; collect the new lines in a separate list and call `addAll` after the loop.',
+        correct:
+          'Adding to the list during the for-each loop is also a structural modification; collect the new lines in a separate list and call `addAll` after the loop.',
         wrong: [
           'Only `remove` causes this exception; the problem is that `"pen"` is compared with `equals`.',
           '`ArrayList` has a fixed capacity, so `add` fails when the list is full.',
@@ -569,7 +575,8 @@ public class Main {
     }
 }`,
         error: 'UnsupportedOperationException',
-        correct: '`List.of` returns an unmodifiable list, so `add` throws; copy it into a mutable list (`new ArrayList<>(roles)`) before changing it.',
+        correct:
+          '`List.of` returns an unmodifiable list, so `add` throws; copy it into a mutable list (`new ArrayList<>(roles)`) before changing it.',
         wrong: [
           '`List.of` returns a fixed-size array view; `set` would also throw `ArrayIndexOutOfBoundsException`.',
           'Lists returned from a method are read-only in Java.',
@@ -593,7 +600,8 @@ public class Main {
     }
 }`,
         error: 'UnsupportedOperationException',
-        correct: '`Arrays.asList` returns a fixed-size list backed by the array: `set` writes through to the array (it printed `Z`), but `add` and `remove` throw.',
+        correct:
+          '`Arrays.asList` returns a fixed-size list backed by the array: `set` writes through to the array (it printed `Z`), but `add` and `remove` throw.',
         wrong: [
           '`Arrays.asList` copies the array into an unmodifiable list, so `set` should also have thrown.',
           '`add` throws `ArrayIndexOutOfBoundsException` because the array is full.',
@@ -619,7 +627,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: 'The immutable lists from `List.of` reject `null` everywhere, including `contains(null)`, which throws; check for `null` before calling it.',
+        correct:
+          'The immutable lists from `List.of` reject `null` everywhere, including `contains(null)`, which throws; check for `null` before calling it.',
         wrong: [
           '`contains` throws for any value that is not in the list.',
           'Static final lists cannot be read from a static method.',
@@ -1014,7 +1023,8 @@ record Invoice(int total) {}`,
     [
       {
         key: 'max-by',
-        prompt: 'Complete the declaration so that `maxOf` works for any type whose elements can be compared with each other.',
+        prompt:
+          'Complete the declaration so that `maxOf` works for any type whose elements can be compared with each other.',
         template: `import java.util.List;
 
 public class Main {
@@ -1038,7 +1048,8 @@ public class Main {
       },
       {
         key: 'copy',
-        prompt: 'Complete the parameter types so that `copyInto` can copy a `List<Integer>` into a `List<Number>` (producer extends, consumer super).',
+        prompt:
+          'Complete the parameter types so that `copyInto` can copy a `List<Integer>` into a `List<Number>` (producer extends, consumer super).',
         template: `import java.util.ArrayList;
 import java.util.List;
 
@@ -1117,7 +1128,8 @@ import java.util.List;`,
     [
       {
         key: 'legacy-helper',
-        question: 'A legacy helper with a raw `List` parameter is called from new code. Where and why does it fail?',
+        question:
+          'A legacy helper with a raw `List` parameter is called from new code. Where and why does it fail?',
         code: `import java.util.ArrayList;
 import java.util.List;
 
@@ -1137,7 +1149,8 @@ public class Main {
     }
 }`,
         error: 'ClassCastException',
-        correct: 'The raw `List` lets an `Integer` into a `List<String>` without any check; the failure appears later, where the loop casts the element to `String`.',
+        correct:
+          'The raw `List` lets an `Integer` into a `List<String>` without any check; the failure appears later, where the loop casts the element to `String`.',
         wrong: [
           '`codes.add(404)` throws immediately because the list knows it holds strings.',
           '`404` is converted to `"404"` when it is added to a `List<String>`.',
@@ -1169,7 +1182,8 @@ public class Main {
     }
 }`,
         error: 'ClassCastException',
-        correct: 'The cast `(T)` is unchecked (erased), so `get` returns the `List<Integer>` as a `List<String>`; the real cast to `String` happens only when an element is read.',
+        correct:
+          'The cast `(T)` is unchecked (erased), so `get` returns the `List<Integer>` as a `List<String>`; the real cast to `String` happens only when an element is read.',
         wrong: [
           '`(T)` checks the type at run time, but `List.of` lists are immutable.',
           '`ids.size()` throws first because the list type is wrong.',

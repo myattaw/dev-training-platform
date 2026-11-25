@@ -303,7 +303,7 @@ print(roll())`,
           '`roll` takes no arguments, so `wrapper(*args)` fails',
           'A decorator factory must be a class',
         ],
-        why: '`@repeat` means `roll = repeat(roll)`, which is the inner `decorator` function. Calling it with no arguments raises `TypeError: missing 1 required positional argument: \'fn\'`. Use `@repeat(2)`.',
+        why: "`@repeat` means `roll = repeat(roll)`, which is the inner `decorator` function. Calling it with no arguments raises `TypeError: missing 1 required positional argument: 'fn'`. Use `@repeat(2)`.",
       },
     ],
   ),
@@ -335,7 +335,8 @@ assert fetch_orders.__name__ == "fetch_orders"`,
       },
       {
         key: 'counter',
-        prompt: 'Complete the call-counting decorator: return the wrapper and keep the original metadata.',
+        prompt:
+          'Complete the call-counting decorator: return the wrapper and keep the original metadata.',
         template: `from functools import wraps
 
 def count_calls(fn):

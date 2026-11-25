@@ -81,7 +81,14 @@ export class Dashboard {
           const summary = summaries.find((s) => s.id === p.challengeId);
           const framework = p.frameworksAttempted[0] ?? summary?.frameworks[0];
           return summary && framework
-            ? [{ id: summary.id, title: summary.title, framework, frameworkLabel: WEB_FRAMEWORK_LABELS[framework] }]
+            ? [
+                {
+                  id: summary.id,
+                  title: summary.title,
+                  framework,
+                  frameworkLabel: WEB_FRAMEWORK_LABELS[framework],
+                },
+              ]
             : [];
         });
     },

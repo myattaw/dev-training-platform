@@ -165,7 +165,8 @@ record OrderLine(String product, int quantity) {
     }
 }`,
         error: 'IllegalArgumentException: quantity must be positive: -1',
-        correct: 'The compact constructor validates every new `OrderLine`, so an invalid line is rejected at creation and the rest of the code can rely on positive quantities.',
+        correct:
+          'The compact constructor validates every new `OrderLine`, so an invalid line is rejected at creation and the rest of the code can rely on positive quantities.',
         wrong: [
           'Records cannot throw exceptions from constructors; the exception comes from `println`.',
           'The validation only runs for the first record created from a class.',
@@ -192,7 +193,8 @@ record Customer(String id, String name) {
     }
 }`,
         error: 'NullPointerException: name',
-        correct: '`Objects.requireNonNull(name, "name")` throws `NullPointerException` with the message `name`, because the second customer has no name.',
+        correct:
+          '`Objects.requireNonNull(name, "name")` throws `NullPointerException` with the message `name`, because the second customer has no name.',
         wrong: [
           'Record components cannot be `null`; the JVM rejects `null` for every record field.',
           '`toString` throws because it cannot print a `null` component.',
@@ -364,7 +366,8 @@ enum Region { LOCAL, NATIONAL, INTERNATIONAL }`,
 
 enum OrderStatus { NEW, PAID, SHIPPED }`,
         error: 'IllegalArgumentException: No enum constant OrderStatus.paid',
-        correct: '`valueOf` is case-sensitive and throws `IllegalArgumentException` for any name that is not exactly a constant; normalize the input (`toUpperCase()`) and handle invalid values.',
+        correct:
+          '`valueOf` is case-sensitive and throws `IllegalArgumentException` for any name that is not exactly a constant; normalize the input (`toUpperCase()`) and handle invalid values.',
         wrong: [
           '`valueOf` returns `null` for unknown names, and `println(null)` throws.',
           'Enums can only be created with `new OrderStatus("paid")`.',
@@ -386,7 +389,8 @@ enum OrderStatus { NEW, PAID, SHIPPED }`,
 
 enum OrderStatus { NEW, PAID }`,
         error: 'NullPointerException',
-        correct: 'The second value is `null`, and `valueOf(null)` throws `NullPointerException` (“Name is null”); handle empty cells before converting.',
+        correct:
+          'The second value is `null`, and `valueOf(null)` throws `NullPointerException` (“Name is null”); handle empty cells before converting.',
         wrong: [
           '`valueOf(null)` returns the first constant, `NEW`.',
           '`valueOf(null)` throws `IllegalArgumentException: No enum constant OrderStatus.null`.',
@@ -608,7 +612,11 @@ public class Main {
 
 record Batch(String id, int[] quantities) {}`,
         correct: 'false',
-        wrong: ['true', 'It does not compile: records cannot have array components', 'ClassCastException'],
+        wrong: [
+          'true',
+          'It does not compile: records cannot have array components',
+          'ClassCastException',
+        ],
         why: 'The generated `equals` compares each component with its `equals` method, and arrays use identity equality. Two batches with equal array contents are not equal. Use a `List<Integer>` component, or override `equals`/`hashCode` with `Arrays.equals`/`Arrays.hashCode`.',
       },
       {
@@ -1183,7 +1191,8 @@ record Box(Integer value) {}`,
     [
       {
         key: 'new-constant',
-        question: 'A new `REFUNDED` status was added last sprint, and now invoices fail. What is the best fix?',
+        question:
+          'A new `REFUNDED` status was added last sprint, and now invoices fail. What is the best fix?',
         code: `public class Main {
     static String invoiceLabel(Status s) {
         return switch (s) {
@@ -1201,7 +1210,8 @@ record Box(Integer value) {}`,
 
 enum Status { NEW, PAID, REFUNDED }`,
         error: 'IllegalStateException: Unexpected status: REFUNDED',
-        correct: 'Handle `REFUNDED` and remove the `default` branch, so that the compiler reports every switch expression that misses a newly added constant.',
+        correct:
+          'Handle `REFUNDED` and remove the `default` branch, so that the compiler reports every switch expression that misses a newly added constant.',
         wrong: [
           'Change the `default` branch to return `"Paid"`, so that no exception is thrown.',
           'Catch `IllegalStateException` in `main` and print an empty label.',
@@ -1236,7 +1246,8 @@ record Charge(long cents) {}
 record Refund(long cents) {}
 record Chargeback(long cents) {}`,
         error: 'IllegalArgumentException: Unknown event Chargeback',
-        correct: 'The switch takes `Object`, so new event types reach `default` at run time; model events as a sealed interface and switch over it without `default` to get a compile-time error instead.',
+        correct:
+          'The switch takes `Object`, so new event types reach `default` at run time; model events as a sealed interface and switch over it without `default` to get a compile-time error instead.',
         wrong: [
           '`switch` cannot match records, so every event reaches `default`.',
           '`List.of` changed the type of the third element.',

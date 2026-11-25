@@ -544,7 +544,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: 'The lambda reads `config.allowedDomain` only when `test` is called, and the field is still `null` then; `endsWith(null)` throws.',
+        correct:
+          'The lambda reads `config.allowedDomain` only when `test` is called, and the field is still `null` then; `endsWith(null)` throws.',
         wrong: [
           'Lambdas cannot read fields of captured objects; copy the value into a local variable first.',
           '`config` is not effectively final, so the lambda sees `null` instead of the object.',
@@ -570,7 +571,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: '`countryByCity.get("Oslo")` returns `null`, and the next function in the chain calls `toLowerCase()` on it.',
+        correct:
+          '`countryByCity.get("Oslo")` returns `null`, and the next function in the chain calls `toLowerCase()` on it.',
         wrong: [
           '`Map::get` cannot be used as a method reference because it takes `Object`.',
           '`andThen` skips the second function when the first returns `null`, so `println(null)` throws.',
@@ -846,7 +848,8 @@ public class Main {
     [
       {
         key: 'duplicate-key',
-        question: 'Building a lookup map from imported customers fails. What is the cause and the fix?',
+        question:
+          'Building a lookup map from imported customers fails. What is the cause and the fix?',
         code: `import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -865,7 +868,8 @@ public class Main {
 
 record Customer(String email, String name) {}`,
         error: 'IllegalStateException: Duplicate key ada@example.com',
-        correct: 'Two customers share an email, and two-argument `toMap` throws on a duplicate key; decide which wins with a merge function, for example `toMap(Customer::email, Customer::name, (first, second) -> second)`.',
+        correct:
+          'Two customers share an email, and two-argument `toMap` throws on a duplicate key; decide which wins with a merge function, for example `toMap(Customer::email, Customer::name, (first, second) -> second)`.',
         wrong: [
           '`toMap` keeps the last value for each key, so the exception comes from `size()`.',
           'Records cannot be used as stream elements with `toMap`; use `groupingBy`.',
@@ -891,7 +895,8 @@ public class Main {
 
 record User(String id, String nickname) {}`,
         error: 'NullPointerException',
-        correct: '`Collectors.toMap` does not accept `null` values (it uses `Map.merge` internally), so the user without a nickname makes it throw; filter those users out or map `null` to a default.',
+        correct:
+          '`Collectors.toMap` does not accept `null` values (it uses `Map.merge` internally), so the user without a nickname makes it throw; filter those users out or map `null` to a default.',
         wrong: [
           '`HashMap` cannot store `null` values.',
           'Records with `null` components cannot be created.',
@@ -920,7 +925,8 @@ public class Main {
     }
 }`,
         error: 'IllegalStateException: stream has already been operated upon or closed',
-        correct: 'A stream can be consumed only once; `count()` consumed it, so create a new stream for the sum (or collect to a list first and reuse the list).',
+        correct:
+          'A stream can be consumed only once; `count()` consumed it, so create a new stream for the sum (or collect to a list first and reuse the list).',
         wrong: [
           '`count()` removes the elements from the source list, so the sum has nothing left.',
           '`filter` returns a new stream each time it is read, so the sum sees unfiltered data.',
@@ -954,7 +960,8 @@ class ProductCatalog {
     }
 }`,
         error: 'IllegalStateException',
-        correct: 'The field holds one stream, which the first call consumes; store the `List` and call `stream()` in each method call.',
+        correct:
+          'The field holds one stream, which the first call consumes; store the `List` and call `stream()` in each method call.',
         wrong: [
           'The `final` field prevents the stream from being filtered twice; remove `final`.',
           '`filter` on a field is not thread-safe, so the second call is rejected.',
@@ -1116,7 +1123,8 @@ public class Main {
         System.out.println(large);
     }
 }`,
-        correct: '`List<Integer> large = totals.stream().filter(t -> t > 100).toList();` because the stream should produce the result instead of mutating an external list, which also breaks if the stream is ever made parallel.',
+        correct:
+          '`List<Integer> large = totals.stream().filter(t -> t > 100).toList();` because the stream should produce the result instead of mutating an external list, which also breaks if the stream is ever made parallel.',
         wrong: [
           'Keep `forEach`, but use `parallelStream()` to make the external `add` calls faster.',
           'Replace `forEach` with `peek(large::add)`, which is the intended way to collect into a list.',
@@ -1126,7 +1134,8 @@ public class Main {
       },
       {
         key: 'counter',
-        question: 'This code needs the number of failed payments. What is the problem and the best fix?',
+        question:
+          'This code needs the number of failed payments. What is the problem and the best fix?',
         code: `import java.util.List;
 
 public class Main {
@@ -1140,7 +1149,8 @@ public class Main {
         System.out.println(failures);
     }
 }`,
-        correct: 'It uses a static field as a hidden accumulator; compute it directly with `results.stream().filter("FAILED"::equals).count()`.',
+        correct:
+          'It uses a static field as a hidden accumulator; compute it directly with `results.stream().filter("FAILED"::equals).count()`.',
         wrong: [
           'The lambda cannot modify `failures`, so the program prints `0`.',
           '`map` runs after `forEach`, so the comparison is made against uppercase strings.',
@@ -1348,15 +1358,12 @@ record Customer(String name, String phone) {}`,
       },
     ],
   ),
-  ...b.fails(
-    'java-optional-failures',
-    2,
-    'Which `Optional` methods throw, and for what input?',
-    [
-      {
-        key: 'get-empty',
-        question: 'This order lookup throws for an unknown id. Why, and what is the better way to write it?',
-        code: `import java.util.Map;
+  ...b.fails('java-optional-failures', 2, 'Which `Optional` methods throw, and for what input?', [
+    {
+      key: 'get-empty',
+      question:
+        'This order lookup throws for an unknown id. Why, and what is the better way to write it?',
+      code: `import java.util.Map;
 import java.util.Optional;
 
 public class Main {
@@ -1371,19 +1378,20 @@ public class Main {
         System.out.println(findTotal("o-2").get());
     }
 }`,
-        error: 'NoSuchElementException: No value present',
-        correct: '`get()` on an empty `Optional` throws `NoSuchElementException`; use `orElseThrow(() -> new OrderNotFoundException(id))`, `orElse` or `ifPresent` to handle the empty case explicitly.',
-        wrong: [
-          '`get()` returns `null` for an empty `Optional`, and `println(null)` throws.',
-          '`Optional.ofNullable` throws for a missing key, so use `Optional.of`.',
-          'Optionals cannot hold `Integer` values; use `OptionalInt`.',
-        ],
-        why: '`get()` (like the no-argument `orElseThrow()`) throws `NoSuchElementException: No value present` when empty. Calling it without checking defeats the purpose of `Optional`. Prefer methods that force you to say what happens when the value is missing.',
-      },
-      {
-        key: 'of-null',
-        question: 'A refactoring introduced `Optional`, and now this code throws. Why?',
-        code: `import java.util.Map;
+      error: 'NoSuchElementException: No value present',
+      correct:
+        '`get()` on an empty `Optional` throws `NoSuchElementException`; use `orElseThrow(() -> new OrderNotFoundException(id))`, `orElse` or `ifPresent` to handle the empty case explicitly.',
+      wrong: [
+        '`get()` returns `null` for an empty `Optional`, and `println(null)` throws.',
+        '`Optional.ofNullable` throws for a missing key, so use `Optional.of`.',
+        'Optionals cannot hold `Integer` values; use `OptionalInt`.',
+      ],
+      why: '`get()` (like the no-argument `orElseThrow()`) throws `NoSuchElementException: No value present` when empty. Calling it without checking defeats the purpose of `Optional`. Prefer methods that force you to say what happens when the value is missing.',
+    },
+    {
+      key: 'of-null',
+      question: 'A refactoring introduced `Optional`, and now this code throws. Why?',
+      code: `import java.util.Map;
 import java.util.Optional;
 
 public class Main {
@@ -1398,19 +1406,20 @@ public class Main {
         System.out.println(cityOf("linus").orElse("unknown"));
     }
 }`,
-        error: 'NullPointerException',
-        correct: '`Optional.of` requires a non-null value; `CITIES.get("linus")` is `null`, so use `Optional.ofNullable`.',
-        wrong: [
-          '`orElse` throws when the `Optional` is empty.',
-          '`Map.of` throws `NullPointerException` for a missing key.',
-          'An `Optional` returned from a static method cannot be empty.',
-        ],
-        why: '`Optional.of(null)` throws `NullPointerException` immediately: `of` is for values you know are present. `ofNullable` maps `null` to `Optional.empty()`. `orElse` never throws.',
-      },
-      {
-        key: 'or-else-throw',
-        question: 'What does this program report, and is it a good use of `Optional`?',
-        code: `import java.util.List;
+      error: 'NullPointerException',
+      correct:
+        '`Optional.of` requires a non-null value; `CITIES.get("linus")` is `null`, so use `Optional.ofNullable`.',
+      wrong: [
+        '`orElse` throws when the `Optional` is empty.',
+        '`Map.of` throws `NullPointerException` for a missing key.',
+        'An `Optional` returned from a static method cannot be empty.',
+      ],
+      why: '`Optional.of(null)` throws `NullPointerException` immediately: `of` is for values you know are present. `ofNullable` maps `null` to `Optional.empty()`. `orElse` never throws.',
+    },
+    {
+      key: 'or-else-throw',
+      question: 'What does this program report, and is it a good use of `Optional`?',
+      code: `import java.util.List;
 import java.util.Optional;
 
 public class Main {
@@ -1427,17 +1436,17 @@ public class Main {
         System.out.println(user);
     }
 }`,
-        error: 'IllegalArgumentException: No active user ada@example.com',
-        correct: 'The only user is inactive, so the `Optional` is empty and `orElseThrow` throws the specified exception with a clear message; this is a good use when a missing value is an error for this caller.',
-        wrong: [
-          '`orElseThrow` always throws `NoSuchElementException`, whatever supplier is passed.',
-          '`findFirst` returns `null` when nothing matches, so `orElseThrow` is never reached.',
-          'It prints `null`, because `orElseThrow` only throws for `Optional.of(null)`.',
-        ],
-        why: '`orElseThrow(supplier)` throws the exception the supplier creates, so the caller can choose a meaningful, domain-specific exception. `findFirst` returns an empty `Optional`, never `null`.',
-      },
-    ],
-  ),
+      error: 'IllegalArgumentException: No active user ada@example.com',
+      correct:
+        'The only user is inactive, so the `Optional` is empty and `orElseThrow` throws the specified exception with a clear message; this is a good use when a missing value is an error for this caller.',
+      wrong: [
+        '`orElseThrow` always throws `NoSuchElementException`, whatever supplier is passed.',
+        '`findFirst` returns `null` when nothing matches, so `orElseThrow` is never reached.',
+        'It prints `null`, because `orElseThrow` only throws for `Optional.of(null)`.',
+      ],
+      why: '`orElseThrow(supplier)` throws the exception the supplier creates, so the caller can choose a meaningful, domain-specific exception. `findFirst` returns an empty `Optional`, never `null`.',
+    },
+  ]),
   ...b.output(
     'java-orelse-vs-orelseget',
     3,
@@ -1594,7 +1603,8 @@ public class Main {
     [
       {
         key: 'field',
-        question: 'A team stores an optional middle name like this. What is the recommended design?',
+        question:
+          'A team stores an optional middle name like this. What is the recommended design?',
         code: `import java.util.Optional;
 
 public class Main {
@@ -1615,7 +1625,8 @@ class Person {
 
     Optional<String> middleName() { return middleName; }
 }`,
-        correct: 'Store a nullable `String` field and pass a plain `String` (or `null`) to the constructor; return `Optional.ofNullable(middleName)` from the getter.',
+        correct:
+          'Store a nullable `String` field and pass a plain `String` (or `null`) to the constructor; return `Optional.ofNullable(middleName)` from the getter.',
         wrong: [
           'Keep the `Optional` field and also make the getter return `Optional<Optional<String>>` for full safety.',
           'Replace `Optional<String>` with `Optional<Object>` so any value can be stored.',
@@ -1625,7 +1636,8 @@ class Person {
       },
       {
         key: 'collection',
-        question: 'A repository method returns `Optional<List<Order>>` for “orders of a customer”. What should it return instead?',
+        question:
+          'A repository method returns `Optional<List<Order>>` for “orders of a customer”. What should it return instead?',
         code: `import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1641,7 +1653,8 @@ public class Main {
         System.out.println(ordersOf("linus").map(List::size).orElse(0));
     }
 }`,
-        correct: 'A plain `List<String>` that is empty when there are no orders, for example `ORDERS.getOrDefault(customer, List.of())`.',
+        correct:
+          'A plain `List<String>` that is empty when there are no orders, for example `ORDERS.getOrDefault(customer, List.of())`.',
         wrong: [
           '`Optional<Optional<List<String>>>`, to distinguish “no customer” from “no orders”.',
           '`null` when there are no orders, because an empty list wastes memory.',
@@ -1781,7 +1794,11 @@ public class Main {
     }
 }`,
         correct: 'London, unknown, unknown, unknown',
-        wrong: ['London, unknown,  , unknown', 'London, null, unknown, unknown', 'NullPointerException'],
+        wrong: [
+          'London, unknown,  , unknown',
+          'London, null, unknown, unknown',
+          'NullPointerException',
+        ],
         why: 'The chain replaces nested `null` checks: a `null` order, a missing address or a `null` city all end as an empty `Optional`, because `map` turns a `null` result into `Optional.empty()` instead of throwing. `filter` also empties the blank city, so every case without a usable city falls back to `unknown`.',
       },
       {
@@ -1814,7 +1831,11 @@ public class Main {
     }
 }`,
         correct: 'CACHED-C1 DB-D2 missing-x3 5',
-        wrong: ['CACHED-C1 DB-D2 MISSING-X3 6', 'CACHED-C1 DB-D2 missing-x3 6', 'cached-c1 db-d2 missing-x3 5'],
+        wrong: [
+          'CACHED-C1 DB-D2 MISSING-X3 6',
+          'CACHED-C1 DB-D2 missing-x3 6',
+          'cached-c1 db-d2 missing-x3 5',
+        ],
         why: '`or` calls the database only when the cache is empty, so `c1` costs one lookup and `d2` and `x3` two each: 5 in total. `map` runs only on a present value, so the fallback from `orElseGet` is not uppercased.',
       },
       {

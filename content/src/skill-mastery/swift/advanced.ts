@@ -84,48 +84,45 @@ print(next, afterFirstError.distance(from: afterFirstError.startIndex, to: next)
       },
     ],
   ),
-  ...b.fails(
-    'swift-slice-index-crash',
-    5,
-    'Slices do not re-number their elements from zero.',
-    [
-      {
-        key: 'drop-first',
-        question: 'This program crashes. What is the bug?',
-        code: sw`let lines = ["header", "ann,31", "bob,25"]
+  ...b.fails('swift-slice-index-crash', 5, 'Slices do not re-number their elements from zero.', [
+    {
+      key: 'drop-first',
+      question: 'This program crashes. What is the bug?',
+      code: sw`let lines = ["header", "ann,31", "bob,25"]
 let rows = lines.dropFirst()
 print(rows.count)
 print(rows[0])`,
-        error: 'Fatal error',
-        correct: '`rows` is an `ArraySlice` whose indices start at 1, so index 0 is out of bounds; use `rows.first` or `Array(lines.dropFirst())`',
-        wrong: [
-          '`dropFirst()` returns an Optional that must be unwrapped first',
-          '`dropFirst()` mutates `lines`, which is a `let` constant',
-          'Slices cannot be subscripted at all, only iterated',
-        ],
-        why: '`dropFirst()` on an array returns an `ArraySlice` sharing the original indices `1..<3`. Subscripting with `0` traps. Converting to `Array` re-indexes from zero, or you can use `first`, `indices` or iteration.',
-      },
-      {
-        key: 'page-loop',
-        question: 'This program crashes. What is the bug?',
-        code: sw`let items = Array(1...10)
+      error: 'Fatal error',
+      correct:
+        '`rows` is an `ArraySlice` whose indices start at 1, so index 0 is out of bounds; use `rows.first` or `Array(lines.dropFirst())`',
+      wrong: [
+        '`dropFirst()` returns an Optional that must be unwrapped first',
+        '`dropFirst()` mutates `lines`, which is a `let` constant',
+        'Slices cannot be subscripted at all, only iterated',
+      ],
+      why: '`dropFirst()` on an array returns an `ArraySlice` sharing the original indices `1..<3`. Subscripting with `0` traps. Converting to `Array` re-indexes from zero, or you can use `first`, `indices` or iteration.',
+    },
+    {
+      key: 'page-loop',
+      question: 'This program crashes. What is the bug?',
+      code: sw`let items = Array(1...10)
 let page = items[3..<6]
 var shown: [Int] = []
 for i in 0..<page.count {
     shown.append(page[i])
 }
 print(shown)`,
-        error: 'Fatal error',
-        correct: '`page` has indices `3..<6`, so `page[0]` is out of bounds; loop over `page.indices` or the elements themselves',
-        wrong: [
-          '`3..<6` is empty because ranges in subscripts are inclusive',
-          '`page.count` is `6`, one past the end',
-          '`shown.append` cannot be used inside a `for` loop over a range',
-        ],
-        why: 'The slice keeps indices 3, 4 and 5 from `items`. A loop over `0..<page.count` assumes zero-based indices and traps on the first access. `for value in page` or `for i in page.indices` is always correct.',
-      },
-    ],
-  ),
+      error: 'Fatal error',
+      correct:
+        '`page` has indices `3..<6`, so `page[0]` is out of bounds; loop over `page.indices` or the elements themselves',
+      wrong: [
+        '`3..<6` is empty because ranges in subscripts are inclusive',
+        '`page.count` is `6`, one past the end',
+        '`shown.append` cannot be used inside a `for` loop over a range',
+      ],
+      why: 'The slice keeps indices 3, 4 and 5 from `items`. A loop over `0..<page.count` assumes zero-based indices and traps on the first access. `for value in page` or `for i in page.indices` is always correct.',
+    },
+  ]),
 ];
 
 // ---------------------------------------------------------------- Control flow

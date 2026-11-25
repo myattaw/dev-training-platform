@@ -122,7 +122,8 @@ class Customer {
         return name;
     }
 }`,
-        correct: 'The parameter `name` shadows the field, so `name = name` assigns the parameter to itself; write `this.name = name`.',
+        correct:
+          'The parameter `name` shadows the field, so `name = name` assigns the parameter to itself; write `this.name = name`.',
         wrong: [
           'Private fields cannot be assigned in a constructor; make the field `public`.',
           'Strings must be copied with `new String(name)` before they are stored.',
@@ -155,7 +156,8 @@ class PriceRule {
         return discount;
     }
 }`,
-        correct: 'Inside `setDiscount`, `discount` always means the parameter, so the assignment changes the parameter, not the field; use `this.discount = checked`.',
+        correct:
+          'Inside `setDiscount`, `discount` always means the parameter, so the assignment changes the parameter, not the field; use `this.discount = checked`.',
         wrong: [
           'A method and a field cannot have the same name, so `discount()` returns the method’s default.',
           '`int` parameters are passed by reference, so the assignment is undone when the method returns.',
@@ -541,7 +543,8 @@ class Box {
     [
       {
         key: 'getter',
-        question: 'An `Order` must never contain more than 3 lines. How can a caller break that rule, and what is the fix?',
+        question:
+          'An `Order` must never contain more than 3 lines. How can a caller break that rule, and what is the fix?',
         code: `import java.util.ArrayList;
 import java.util.List;
 
@@ -568,7 +571,8 @@ class Order {
         return lines;
     }
 }`,
-        correct: 'The getter returns the internal list, so callers can add lines without going through `addLine`; return `List.copyOf(lines)` or `Collections.unmodifiableList(lines)`.',
+        correct:
+          'The getter returns the internal list, so callers can add lines without going through `addLine`; return `List.copyOf(lines)` or `Collections.unmodifiableList(lines)`.',
         wrong: [
           'The field is not `private` enough; making it `private static` prevents changes.',
           'The `final` keyword makes the list immutable, so the caller cannot add lines; the rule holds.',
@@ -602,7 +606,8 @@ class Team {
         return members.size();
     }
 }`,
-        correct: 'The constructor stores the caller’s list, so the caller can still change it; store a defensive copy such as `List.copyOf(members)`.',
+        correct:
+          'The constructor stores the caller’s list, so the caller can still change it; store a defensive copy such as `List.copyOf(members)`.',
         wrong: [
           '`names.clear()` clears every list in the program that contains the same strings.',
           'Final fields are re-read from the constructor argument on each access.',
@@ -1187,7 +1192,8 @@ class CountingSet<E> {
     [
       {
         key: 'stack-list',
-        question: 'A team implemented an undo history by extending `ArrayList`. Which statement describes the design problem and a better approach?',
+        question:
+          'A team implemented an undo history by extending `ArrayList`. Which statement describes the design problem and a better approach?',
         code: `import java.util.ArrayList;
 
 public class Main {
@@ -1204,7 +1210,8 @@ class UndoHistory extends ArrayList<String> {
     void push(String action) { add(action); }
     String pop() { return remove(size() - 1); }
 }`,
-        correct: 'Callers can use every `ArrayList` method (`add(0, ...)`, `set`, `clear`) and break the stack discipline; hold a private `Deque<String>` field and expose only `push` and `pop`.',
+        correct:
+          'Callers can use every `ArrayList` method (`add(0, ...)`, `set`, `clear`) and break the stack discipline; hold a private `Deque<String>` field and expose only `push` and `pop`.',
         wrong: [
           '`ArrayList` is `final`, so the class should extend `LinkedList` instead.',
           'Inheritance is fine; the problem is only that `pop` should be `synchronized`.',
@@ -1214,7 +1221,8 @@ class UndoHistory extends ArrayList<String> {
       },
       {
         key: 'reuse',
-        question: 'A `PremiumCustomer extends EmailSender` so that it can reuse the `send` method. What is the best refactoring?',
+        question:
+          'A `PremiumCustomer extends EmailSender` so that it can reuse the `send` method. What is the best refactoring?',
         code: `public class Main {
     public static void main(String[] args) {
         PremiumCustomer c = new PremiumCustomer("ada@example.com");
@@ -1233,7 +1241,8 @@ class PremiumCustomer extends EmailSender {
     PremiumCustomer(String email) { this.email = email; }
     void welcome() { send(email, "Welcome!"); }
 }`,
-        correct: 'A customer is not an email sender; give the class (or better, a service) an `EmailSender` field, injected through the constructor, and call `sender.send(...)`.',
+        correct:
+          'A customer is not an email sender; give the class (or better, a service) an `EmailSender` field, injected through the constructor, and call `sender.send(...)`.',
         wrong: [
           'Make `send` `static` so that inheritance is no longer needed, and keep the `extends`.',
           'Make `EmailSender` abstract so `PremiumCustomer` must implement `send`.',
@@ -1266,7 +1275,8 @@ class PremiumCustomer extends EmailSender {
       },
       {
         key: 'choose',
-        question: 'You are designing a `PaymentGateway` abstraction for a Spring service with Stripe and in-memory test implementations. Select every statement that is a good reason for your choice.',
+        question:
+          'You are designing a `PaymentGateway` abstraction for a Spring service with Stripe and in-memory test implementations. Select every statement that is a good reason for your choice.',
         correct: [
           'An interface lets an implementation extend some other class it needs.',
           'An interface makes it easy to create a fake or a mock for tests.',
@@ -1308,7 +1318,8 @@ class CardPayment implements Payment {
 
 class BankTransfer implements Payment {}`,
         error: 'ClassCastException',
-        correct: 'The second element is a `BankTransfer`, and casting it to `CardPayment` fails at run time; use `if (p instanceof CardPayment card)` or a polymorphic method on `Payment`.',
+        correct:
+          'The second element is a `BankTransfer`, and casting it to `CardPayment` fails at run time; use `if (p instanceof CardPayment card)` or a polymorphic method on `Payment`.',
         wrong: [
           'Casting from an interface to a class is never allowed; the code does not compile.',
           '`List.of` returns an immutable list, so the elements cannot be cast.',
@@ -1335,7 +1346,8 @@ public class Main {
     }
 }`,
         error: 'ClassCastException',
-        correct: 'The second cell is an `Integer`, so the cast to `String` throws; a `List<Object>` gives up type checking, so check the type (or model the row with a record).',
+        correct:
+          'The second cell is an `Integer`, so the cast to `String` throws; a `List<Object>` gives up type checking, so check the type (or model the row with a record).',
         wrong: [
           'Adding an `int` to a `List<Object>` does not compile.',
           '`(String) cell` converts `42` to `"42"`, so the total is `5`.',
@@ -1498,7 +1510,11 @@ class PdfPrinter extends Printer {
     String print(String s) { return "PdfPrinter.string"; }
 }`,
         correct: 'Printer.object',
-        wrong: ['PdfPrinter.string', 'It does not compile: the call is ambiguous', 'ClassCastException'],
+        wrong: [
+          'PdfPrinter.string',
+          'It does not compile: the call is ambiguous',
+          'ClassCastException',
+        ],
         why: 'The compiler only sees `Printer`’s methods through `p`, so it selects `print(Object)`. `PdfPrinter.print(String)` has a different parameter type: it is an overload, not an override, so dynamic dispatch never reaches it. `@Override` on it would have turned this into a compile error.',
       },
     ],
@@ -1698,7 +1714,11 @@ class JsonParser extends Parser {
     static String kind() { return "json"; }
 }`,
         correct: 'generic json',
-        wrong: ['json json', 'generic generic', 'It does not compile: static methods cannot be redeclared'],
+        wrong: [
+          'json json',
+          'generic generic',
+          'It does not compile: static methods cannot be redeclared',
+        ],
         why: 'Static methods are hidden, not overridden. `parser.kind()` is resolved at compile time from the declared type `Parser` (calling a static method through an instance is legal but misleading). `JsonParser.kind()` names the subclass method explicitly.',
       },
       {
@@ -1756,7 +1776,8 @@ class FromConfig extends Rule {
     int apply(int price) { return price - price * percent / 100; }
 }`,
         error: 'NullPointerException',
-        correct: '`FromConfig.percent` is never set, so unboxing the `null` `Integer` in `apply` throws; initialize it (for example through the constructor) or use an `int`.',
+        correct:
+          '`FromConfig.percent` is never set, so unboxing the `null` `Integer` in `apply` throws; initialize it (for example through the constructor) or use an `int`.',
         wrong: [
           'Abstract methods cannot be called through a `List<Rule>`; cast to the subclass first.',
           '`Fixed` does not use `@Override`, so its `apply` is never called and the price stays `null`.',
@@ -1791,7 +1812,8 @@ class XmlExporter extends Exporter {
     String export(Object data) { return "<v>" + data + "</v>"; }
 }`,
         error: 'UnsupportedOperationException: export not implemented for XmlExporter',
-        correct: '`XmlExporter.export(Object)` overloads instead of overriding `export(String)`, so the base method runs and throws; change the parameter to `String` and add `@Override`.',
+        correct:
+          '`XmlExporter.export(Object)` overloads instead of overriding `export(String)`, so the base method runs and throws; change the parameter to `String` and add `@Override`.',
         wrong: [
           '`XmlExporter` must call `super.export(data)` first.',
           'Dynamic dispatch picks the method with the most general parameter type, which is the base method.',
@@ -1968,7 +1990,11 @@ class SmsNotifier extends Notifier {
     String send(Object message) { return "Sms.object"; }
 }`,
         correct: 'Sms.object / Notifier.string',
-        wrong: ['Sms.object / Sms.object', 'Notifier.string / Notifier.string', 'Notifier.object / Notifier.string'],
+        wrong: [
+          'Sms.object / Sms.object',
+          'Notifier.string / Notifier.string',
+          'Notifier.object / Notifier.string',
+        ],
         why: 'Two decisions happen in two phases. At compile time, the static argument type selects the signature: `send(Object)` for `message`, `send(String)` for the literal. At run time, the chosen signature is dispatched on the receiver: `SmsNotifier` overrides `send(Object)` but not `send(String)`, so the first call runs the subclass and the second the inherited `Notifier.send(String)`.',
       },
     ],

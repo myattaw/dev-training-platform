@@ -63,7 +63,11 @@ form = TagForm({"tag": "framework"})
 form.is_valid()
 print(form.errors["tag"][0])`),
         correct: 'Ensure this value has at most 5 characters (it has 9).',
-        wrong: ['This field is required.', 'Enter a valid value.', 'Value too long for type character varying(5).'],
+        wrong: [
+          'This field is required.',
+          'Enter a valid value.',
+          'Value too long for type character varying(5).',
+        ],
         why: '`max_length` on a form field adds a `MaxLengthValidator` with this message. It is checked in the form, before anything reaches the database; the last option is a PostgreSQL error you would get only by skipping validation.',
       },
       {
@@ -259,7 +263,7 @@ form = PasswordForm({"password": "abc12345", "confirm": "abc1234"})
 print(form.is_valid())
 print(form.non_field_errors()[0])
 print(list(form.errors))`),
-        output: 'False\nPasswords do not match.\n[\'__all__\']',
+        output: "False\nPasswords do not match.\n['__all__']",
         why: 'An error raised in `clean()` belongs to no single field, so it is stored under `__all__` and returned by `non_field_errors()`. Templates usually show these above the form.',
       },
       {
@@ -286,34 +290,30 @@ print(b.is_valid(), sorted(b.errors))`),
       },
     ],
   ),
-  ...b.fails(
-    'dj-form-cleaned-data-too-early',
-    2,
-    '`cleaned_data` is created by validation.',
-    [
-      {
-        key: 'before-is-valid',
-        question: 'A view reads the form’s data and fails. Why?',
-        code: djangoProgram(`from django import forms
+  ...b.fails('dj-form-cleaned-data-too-early', 2, '`cleaned_data` is created by validation.', [
+    {
+      key: 'before-is-valid',
+      question: 'A view reads the form’s data and fails. Why?',
+      code: djangoProgram(`from django import forms
 
 class ContactForm(forms.Form):
     email = forms.EmailField()
 
 form = ContactForm({"email": "ada@example.com"})
 print(form.cleaned_data["email"])`),
-        error: 'AttributeError',
-        correct: '`cleaned_data` only exists after `is_valid()` (or `full_clean()`) has run.',
-        wrong: [
-          '`cleaned_data` is a method: call `form.cleaned_data()`.',
-          'The email is invalid, so the key is missing and a `KeyError` follows.',
-          'Forms must be bound with `request.POST`, not a dictionary.',
-        ],
-        why: 'Validation builds `cleaned_data`; before `is_valid()` the attribute does not exist (`AttributeError: \'ContactForm\' object has no attribute \'cleaned_data\'`). The usual pattern is `if form.is_valid(): use form.cleaned_data`. Any dictionary-like object can bind a form.',
-      },
-      {
-        key: 'invalid-field-key',
-        question: 'This code fails although it calls `is_valid()`. Why?',
-        code: djangoProgram(`from django import forms
+      error: 'AttributeError',
+      correct: '`cleaned_data` only exists after `is_valid()` (or `full_clean()`) has run.',
+      wrong: [
+        '`cleaned_data` is a method: call `form.cleaned_data()`.',
+        'The email is invalid, so the key is missing and a `KeyError` follows.',
+        'Forms must be bound with `request.POST`, not a dictionary.',
+      ],
+      why: "Validation builds `cleaned_data`; before `is_valid()` the attribute does not exist (`AttributeError: 'ContactForm' object has no attribute 'cleaned_data'`). The usual pattern is `if form.is_valid(): use form.cleaned_data`. Any dictionary-like object can bind a form.",
+    },
+    {
+      key: 'invalid-field-key',
+      question: 'This code fails although it calls `is_valid()`. Why?',
+      code: djangoProgram(`from django import forms
 
 class ContactForm(forms.Form):
     email = forms.EmailField()
@@ -321,17 +321,17 @@ class ContactForm(forms.Form):
 form = ContactForm({"email": "ada"})
 form.is_valid()
 print(form.cleaned_data["email"])`),
-        error: 'KeyError',
-        correct: 'The email is invalid, so it is not in `cleaned_data`; use the data only when `is_valid()` returned `True`.',
-        wrong: [
-          '`is_valid()` must be called twice to fill `cleaned_data`.',
-          '`cleaned_data` uses the field label, not the field name, as the key.',
-          '`EmailField` stores its value under `cleaned_data["email_address"]`.',
-        ],
-        why: 'Fields that fail validation are left out of `cleaned_data`. Ignoring the result of `is_valid()` turns a validation error into a crash (500) instead of a re-rendered form with the message.',
-      },
-    ],
-  ),
+      error: 'KeyError',
+      correct:
+        'The email is invalid, so it is not in `cleaned_data`; use the data only when `is_valid()` returned `True`.',
+      wrong: [
+        '`is_valid()` must be called twice to fill `cleaned_data`.',
+        '`cleaned_data` uses the field label, not the field name, as the key.',
+        '`EmailField` stores its value under `cleaned_data["email_address"]`.',
+      ],
+      why: 'Fields that fail validation are left out of `cleaned_data`. Ignoring the result of `is_valid()` turns a validation error into a crash (500) instead of a re-rendered form with the message.',
+    },
+  ]),
   ...b.output(
     'dj-form-modelform',
     4,
@@ -399,16 +399,12 @@ print(Note.objects.values_list("text", "owner").get())`),
       },
     ],
   ),
-  ...b.codeChoice(
-    'dj-form-mass-assignment',
-    5,
-    'Which fields can the submitted data set?',
-    [
-      {
-        key: 'all-fields',
-        question:
-          'A profile page lets users edit their own profile with this form. A user submits the extra field shown. What is the problem, and the fix?',
-        code: dbProgram(`from django import forms
+  ...b.codeChoice('dj-form-mass-assignment', 5, 'Which fields can the submitted data set?', [
+    {
+      key: 'all-fields',
+      question:
+        'A profile page lets users edit their own profile with this form. A user submits the extra field shown. What is the problem, and the fix?',
+      code: dbProgram(`from django import forms
 from django.db import connection, models
 
 class Profile(models.Model):
@@ -431,20 +427,20 @@ form = ProfileForm({"display_name": "Ada L.", "is_moderator": "on"}, instance=pr
 form.is_valid()
 form.save()
 print(Profile.objects.get().is_moderator)`),
-        correct:
-          '`fields = "__all__"` exposes `is_moderator`, so users can promote themselves (the program prints `True`); list only the editable fields, `fields = ["display_name"]`.',
-        wrong: [
-          'There is no problem: the form ignores fields that are not rendered in the template.',
-          'The problem is the missing CSRF token; with it, the extra field is rejected.',
-          'Use `exclude = []` instead of `"__all__"`, which skips Boolean fields.',
-        ],
-        why: 'A ModelForm validates and saves every field in its `fields`, whatever the HTML shows; attackers can post any field name. An explicit allow list is the safe default (it is why Django requires `fields` or `exclude`). CSRF protection stops cross-site submissions, not a logged-in user editing their own request.',
-      },
-      {
-        key: 'exclude-new-field',
-        question:
-          'The form uses `exclude`. Later a developer adds `is_verified` to the model. What happens?',
-        code: dbProgram(`from django import forms
+      correct:
+        '`fields = "__all__"` exposes `is_moderator`, so users can promote themselves (the program prints `True`); list only the editable fields, `fields = ["display_name"]`.',
+      wrong: [
+        'There is no problem: the form ignores fields that are not rendered in the template.',
+        'The problem is the missing CSRF token; with it, the extra field is rejected.',
+        'Use `exclude = []` instead of `"__all__"`, which skips Boolean fields.',
+      ],
+      why: 'A ModelForm validates and saves every field in its `fields`, whatever the HTML shows; attackers can post any field name. An explicit allow list is the safe default (it is why Django requires `fields` or `exclude`). CSRF protection stops cross-site submissions, not a logged-in user editing their own request.',
+    },
+    {
+      key: 'exclude-new-field',
+      question:
+        'The form uses `exclude`. Later a developer adds `is_verified` to the model. What happens?',
+      code: dbProgram(`from django import forms
 from django.db import connection, models
 
 class Seller(models.Model):
@@ -460,15 +456,14 @@ class SellerForm(forms.ModelForm):
         exclude = []
 
 print(list(SellerForm().fields))`),
-        correct:
-          'The new field is editable through the form automatically, because `exclude` only removes the fields it lists; prefer an explicit `fields` list.',
-        wrong: [
-          'New model fields are never added to an existing ModelForm until it is regenerated.',
-          'The form raises `ImproperlyConfigured` because `exclude` is empty.',
-          'Boolean fields are always excluded from ModelForms.',
-        ],
-        why: 'The program prints `[\'shop_name\', \'is_verified\']`. With `exclude`, every new model field becomes user-editable without anyone touching the form, which is how sensitive flags leak. `fields = [...]` keeps new fields out until someone deliberately adds them.',
-      },
-    ],
-  ),
+      correct:
+        'The new field is editable through the form automatically, because `exclude` only removes the fields it lists; prefer an explicit `fields` list.',
+      wrong: [
+        'New model fields are never added to an existing ModelForm until it is regenerated.',
+        'The form raises `ImproperlyConfigured` because `exclude` is empty.',
+        'Boolean fields are always excluded from ModelForms.',
+      ],
+      why: "The program prints `['shop_name', 'is_verified']`. With `exclude`, every new model field becomes user-editable without anyone touching the form, which is how sensitive flags leak. `fields = [...]` keeps new fields out until someone deliberately adds them.",
+    },
+  ]),
 ];

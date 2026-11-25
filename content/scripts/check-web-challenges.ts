@@ -26,7 +26,9 @@ if (!status.ok) {
 }
 let entries: readonly WebChallengeEntry[] = WEB_CHALLENGES;
 if (challengeId && !WEB_CHALLENGES.some((e) => e.source.challenge.id === challengeId)) {
-  const mod = (await import(`../src/web-challenges/${challengeId}/challenge.ts`)) as WebChallengeEntry;
+  const mod = (await import(
+    `../src/web-challenges/${challengeId}/challenge.ts`
+  )) as WebChallengeEntry;
   const issues = validateWebChallenges([mod.source]);
   for (const i of issues) console.log(`✗ ${i.path}: ${i.message}`);
   if (issues.length > 0) process.exit(1);

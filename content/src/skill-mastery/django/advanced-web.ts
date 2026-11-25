@@ -368,7 +368,7 @@ with connection.schema_editor() as editor:
           '`apps.get_model()` cannot be used in the same migration that creates the model.',
           'Data migrations may not set integer fields.',
         ],
-        why: 'Operations run in order, and `apps.get_model()` returns the model as the state stands at that operation, so `Page(views=10)` fails with `TypeError: Page() got unexpected keyword arguments: \'views\'`. That ordering is exactly what makes historical models safe: the code matches the schema at that moment.',
+        why: "Operations run in order, and `apps.get_model()` returns the model as the state stands at that operation, so `Page(views=10)` fails with `TypeError: Page() got unexpected keyword arguments: 'views'`. That ordering is exactly what makes historical models safe: the code matches the schema at that moment.",
       },
     ],
   ),
@@ -413,4 +413,3 @@ print(acc.name, Account.objects.get().name)`),
     ],
   ),
 ];
-

@@ -76,7 +76,7 @@ export const stringsArraysFamilies: readonly QuestionSource[] = [
     }
 }`,
         output: '2024\n0042',
-        why: '`substring(4, 8)` returns the characters at indexes 4 to 7: `2024`. `lastIndexOf(\'-\')` is `8`, so `substring(9)` returns the rest of the string from index 9: `0042`.',
+        why: "`substring(4, 8)` returns the characters at indexes 4 to 7: `2024`. `lastIndexOf('-')` is `8`, so `substring(9)` returns the rest of the string from index 9: `0042`.",
       },
       {
         key: 'index-of',
@@ -90,7 +90,7 @@ export const stringsArraysFamilies: readonly QuestionSource[] = [
     }
 }`,
         output: 'ada\n-1\ntrue',
-        why: '`indexOf(\'@\')` is `3`, so `substring(0, 3)` is `ada`. A missing character gives `-1` (no exception), and `contains` checks for a substring.',
+        why: "`indexOf('@')` is `3`, so `substring(0, 3)` is `ada`. A missing character gives `-1` (no exception), and `contains` checks for a substring.",
       },
       {
         key: 'join-repeat',
@@ -204,7 +204,11 @@ public class Main {
     }
 }`,
         correct: 'true',
-        wrong: ['false', 'It does not compile: == cannot compare strings', 'It depends on the garbage collector'],
+        wrong: [
+          'false',
+          'It does not compile: == cannot compare strings',
+          'It depends on the garbage collector',
+        ],
         why: 'A `final` local initialized with a literal is a constant variable, so `prefix + "er"` is a compile-time constant expression. The compiler folds it into the literal `"order"`, which is interned. This is why `==` on strings sometimes seems to work, and why it must never be relied on.',
       },
     ],
@@ -216,7 +220,8 @@ public class Main {
     [
       {
         key: 'loop-concat',
-        question: 'This method builds a CSV line for an export with tens of thousands of values. Which change is the best refactoring?',
+        question:
+          'This method builds a CSV line for an export with tens of thousands of values. Which change is the best refactoring?',
         code: `import java.util.List;
 
 public class Main {
@@ -233,7 +238,8 @@ public class Main {
         System.out.println(toCsv(List.of("a", "b", "c")));
     }
 }`,
-        correct: 'Replace the loop with `String.join(",", values)` (or a `StringBuilder`), which builds the result once instead of copying the growing string on every `+=`.',
+        correct:
+          'Replace the loop with `String.join(",", values)` (or a `StringBuilder`), which builds the result once instead of copying the growing string on every `+=`.',
         wrong: [
           'Replace `line += x` with `line.concat(x)`, which appends in place without copying.',
           'Declare `line` as `final` so the compiler can optimize the concatenation.',
@@ -243,7 +249,8 @@ public class Main {
       },
       {
         key: 'builder-in-loop',
-        question: 'A colleague “optimized” this report with `StringBuilder`. What is wrong with it?',
+        question:
+          'A colleague “optimized” this report with `StringBuilder`. What is wrong with it?',
         code: `import java.util.List;
 
 public class Main {
@@ -259,11 +266,12 @@ public class Main {
         System.out.print(report(List.of("one", "two")));
     }
 }`,
-        correct: 'It creates a new `StringBuilder` and a new `String` on every iteration, so it still copies the whole result each time; create one builder before the loop and call `toString()` once at the end.',
+        correct:
+          'It creates a new `StringBuilder` and a new `String` on every iteration, so it still copies the whole result each time; create one builder before the loop and call `toString()` once at the end.',
         wrong: [
           'Nothing: `StringBuilder` always makes string building linear.',
           '`StringBuilder` is not thread-safe, so the method must use `StringBuffer`.',
-          '`append(\'\\n\')` appends the number 10 instead of a newline.',
+          "`append('\\n')` appends the number 10 instead of a newline.",
         ],
         why: 'The benefit of `StringBuilder` comes from appending to the same mutable buffer. Copying `result` into a fresh builder each time and converting back is as wasteful as `+=`. Thread safety is irrelevant for a local variable, and `append(char)` appends the character.',
       },
@@ -389,7 +397,8 @@ public class Main {
     }
 }`,
         error: 'ArrayIndexOutOfBoundsException',
-        correct: 'Use `i < totals.length`: with `<=` the loop reads `totals[3]`, one past the last index.',
+        correct:
+          'Use `i < totals.length`: with `<=` the loop reads `totals[3]`, one past the last index.',
         wrong: [
           'Start at `i = 1`, because Java arrays are 1-based.',
           'Use `totals.length()`, because `length` is a method.',
@@ -411,7 +420,8 @@ public class Main {
     }
 }`,
         error: 'StringIndexOutOfBoundsException',
-        correct: 'For `"123"`, `card.length() - 4` is `-1`, and `substring` throws for a negative begin index; validate the length first.',
+        correct:
+          'For `"123"`, `card.length() - 4` is `-1`, and `substring` throws for a negative begin index; validate the length first.',
         wrong: [
           '`substring` with one argument needs an end index too.',
           '`substring` returns `null` for short strings, and the concatenation fails.',
@@ -433,7 +443,8 @@ public class Main {
     }
 }`,
         error: 'ArrayIndexOutOfBoundsException',
-        correct: 'The second batch is empty, so `batch.length - 1` is `-1`, which is not a valid index.',
+        correct:
+          'The second batch is empty, so `batch.length - 1` is `-1`, which is not a valid index.',
         wrong: [
           '`new int[0]` is not allowed; arrays must have at least one element.',
           '`new int[0]` creates `null`, so the method throws `NullPointerException`.',
@@ -462,7 +473,11 @@ public class Main {
     }
 }`,
         correct: '[42, 7, 19]\n[0, 0, 7, 19, 42]',
-        wrong: ['[7, 19, 42]\n[7, 19, 42, 0, 0]', '[42, 7, 19]\n[7, 19, 42, 0, 0]', '[42, 7, 19]\n[7, 19, 42]'],
+        wrong: [
+          '[7, 19, 42]\n[7, 19, 42, 0, 0]',
+          '[42, 7, 19]\n[7, 19, 42, 0, 0]',
+          '[42, 7, 19]\n[7, 19, 42]',
+        ],
         why: '`Arrays.copyOf` makes a new array; a larger length pads it with default values (`0`). `Arrays.sort` sorts that copy in place, so the padding zeros move to the front. The original `ids` is untouched.',
       },
       {
@@ -480,7 +495,7 @@ public class Main {
 }`,
         correct: '.XX..\n[X, .]',
         wrong: ['.XXX.\n[X, ., .]', '.XX..\n[X, ., .]', 'XXX..\n[X, .]'],
-        why: 'Range methods in `Arrays` use a half-open range: `fill(seats, 1, 3, \'X\')` sets indexes 1 and 2, and `copyOfRange(seats, 2, 4)` copies indexes 2 and 3.',
+        why: "Range methods in `Arrays` use a half-open range: `fill(seats, 1, 3, 'X')` sets indexes 1 and 2, and `copyOfRange(seats, 2, 4)` copies indexes 2 and 3.",
       },
       {
         key: 'binary-search',
@@ -576,7 +591,8 @@ public class Main {
     }
 }`,
         error: 'ArrayStoreException',
-        correct: 'The runtime array is a `String[]`; storing an `Integer` into it is checked at run time and throws `ArrayStoreException`, even though the static type is `Object[]`.',
+        correct:
+          'The runtime array is a `String[]`; storing an `Integer` into it is checked at run time and throws `ArrayStoreException`, even though the static type is `Object[]`.',
         wrong: [
           'Passing a `String[]` as an `Object[]` throws `ClassCastException` at the call.',
           'Autoboxing `0` inside an `Object[]` is not allowed, so it throws `IllegalArgumentException`.',
@@ -596,7 +612,8 @@ public class Main {
     }
 }`,
         error: 'ArrayStoreException',
-        correct: '`numbers` refers to an `Integer[]`, so storing a `Double` fails the run-time element type check.',
+        correct:
+          '`numbers` refers to an `Integer[]`, so storing a `Double` fails the run-time element type check.',
         wrong: [
           '`Integer[]` cannot be assigned to `Number[]`; this is a compile error.',
           '`1.5` is narrowed to `1` before it is stored, so the program prints `1`.',

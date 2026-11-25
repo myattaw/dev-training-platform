@@ -76,9 +76,11 @@ if (!sqlServerEngine) {
   );
 }
 const stop = () => {
-  void Promise.allSettled([sqlEngine.close(), webService?.shutdown(), webRunner?.stopAll()]).finally(() =>
-    process.exit(0),
-  );
+  void Promise.allSettled([
+    sqlEngine.close(),
+    webService?.shutdown(),
+    webRunner?.stopAll(),
+  ]).finally(() => process.exit(0));
 };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
@@ -102,7 +104,9 @@ if (webRunner) {
   void webRunner.removeLeftovers();
   void webRunner.check().then((status) => {
     if (!status.ok) {
-      console.warn(`Web runner unavailable: ${status.message} Web challenge runs will report an infrastructure error.`);
+      console.warn(
+        `Web runner unavailable: ${status.message} Web challenge runs will report an infrastructure error.`,
+      );
     }
   });
 }
@@ -135,7 +139,10 @@ const api = createApi({
   webStore: store.web,
   ...(webRunner ? { webRunner } : {}),
   webPolicy: {
-    executionsPerDay: { free: Number(args['web-per-day']), pro: Math.max(200, Number(args['web-per-day'])) },
+    executionsPerDay: {
+      free: Number(args['web-per-day']),
+      pro: Math.max(200, Number(args['web-per-day'])),
+    },
     concurrentPerUser: 1,
     sessionLifetimeMs: 10 * 60_000,
     sessionIdleMs: 3 * 60_000,

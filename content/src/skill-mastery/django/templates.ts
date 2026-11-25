@@ -200,11 +200,7 @@ export const templatesFamilies: readonly QuestionSource[] = [
         key: 'escaped',
         code: render('<p>{{ comment }}</p>', '{"comment": "<script>alert(1)</script>"}'),
         correct: '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>',
-        wrong: [
-          '<p><script>alert(1)</script></p>',
-          '<p>alert(1)</p>',
-          '<p></p>',
-        ],
+        wrong: ['<p><script>alert(1)</script></p>', '<p>alert(1)</p>', '<p></p>'],
         why: 'Auto-escaping converts `<`, `>`, `&`, `"` and `\'` in variable output to HTML entities, so the comment is displayed as text instead of running as a script. That is Django’s main defense against cross-site scripting (XSS). Tags are not stripped; they are escaped.',
       },
       {
@@ -233,7 +229,11 @@ export const templatesFamilies: readonly QuestionSource[] = [
           'from django.utils.safestring import mark_safe',
         ),
         correct: '&lt;i&gt;x&lt;/i&gt; <i>y</i>',
-        wrong: ['<i>x</i> <i>y</i>', '&lt;i&gt;x&lt;/i&gt; &lt;i&gt;y&lt;/i&gt;', '<i>x</i> &lt;i&gt;y&lt;/i&gt;'],
+        wrong: [
+          '<i>x</i> <i>y</i>',
+          '&lt;i&gt;x&lt;/i&gt; &lt;i&gt;y&lt;/i&gt;',
+          '<i>x</i> &lt;i&gt;y&lt;/i&gt;',
+        ],
         why: '`mark_safe()` in Python has the same effect as `|safe` in the template: the value is inserted as is. Ordinary strings are still escaped.',
       },
     ],
@@ -264,8 +264,7 @@ print(user_link(7, "<img src=x onerror=steal()>"))`),
       },
       {
         key: 'json-script',
-        question:
-          'A template must pass user data to JavaScript. Which approach is safe?',
+        question: 'A template must pass user data to JavaScript. Which approach is safe?',
         code: render(
           '{{ profile|json_script:"profile-data" }}',
           '{"profile": {"bio": "</script><script>steal()</script>"}}',
@@ -297,7 +296,7 @@ print(user_link(7, "<img src=x onerror=steal()>"))`),
           'Loop variables must be declared with `{% with %}` first.',
           'Block tags must each be on their own line.',
         ],
-        why: 'Compiling the template fails with `TemplateSyntaxError: Unclosed tag ... \'for\'. Looking for one of: empty, endfor.` Any iterable works for the loop, and tags do not need their own lines.',
+        why: "Compiling the template fails with `TemplateSyntaxError: Unclosed tag ... 'for'. Looking for one of: empty, endfor.` Any iterable works for the loop, and tags do not need their own lines.",
       },
       {
         key: 'unknown-filter',
@@ -311,7 +310,7 @@ print(user_link(7, "<img src=x onerror=steal()>"))`),
           'Filters need parentheses: `{{ price|currency() }}`.',
           'An unknown filter renders as an empty string, so the error comes from `price`.',
         ],
-        why: 'An unknown filter is a syntax error (`Invalid filter: \'currency\'`), unlike a missing variable. Custom filters live in a `templatetags` module and are made available with `{% load your_library %}`.',
+        why: "An unknown filter is a syntax error (`Invalid filter: 'currency'`), unlike a missing variable. Custom filters live in a `templatetags` module and are made available with `{% load your_library %}`.",
       },
       {
         key: 'extends-not-first',
@@ -319,7 +318,8 @@ print(user_link(7, "<img src=x onerror=steal()>"))`),
         code: renderFiles(
           {
             'base.html': '{% block body %}{% endblock %}',
-            'page.html': '{% load static %}{% block body %}x{% endblock %}{% extends "base.html" %}',
+            'page.html':
+              '{% load static %}{% block body %}x{% endblock %}{% extends "base.html" %}',
           },
           'page.html',
           '{}',

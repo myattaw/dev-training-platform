@@ -550,115 +550,106 @@ print(unique, ordered)`,
       },
     ],
   ),
-  ...b.fails(
-    'swift-collection-crash',
-    3,
-    'Arrays check every index at run time.',
-    [
-      {
-        key: 'closed-range',
-        question: 'This program crashes. What is the bug?',
-        code: sw`let temps = [18, 21, 19]
+  ...b.fails('swift-collection-crash', 3, 'Arrays check every index at run time.', [
+    {
+      key: 'closed-range',
+      question: 'This program crashes. What is the bug?',
+      code: sw`let temps = [18, 21, 19]
 var total = 0
 for i in 0...temps.count {
     total += temps[i]
 }
 print(total)`,
-        error: 'Fatal error: Index out of range',
-        correct: '`0...temps.count` includes `3`, one past the last index; use `0..<temps.count` or iterate `temps` directly',
-        wrong: [
-          'Arrays are one-based in Swift, so `temps[0]` is out of range',
-          '`total` overflows after three additions',
-          '`temps.count` is an Optional and must be unwrapped',
-        ],
-        why: 'Valid indices are `0..<count`. The closed range `...` adds `count` itself, and reading `temps[3]` traps. Prefer `for t in temps` or `temps.indices` so the bounds are always right.',
-      },
-      {
-        key: 'remove-first',
-        question: 'This program crashes. What is the cause?',
-        code: sw`var jobs = ["build", "test"]
+      error: 'Fatal error: Index out of range',
+      correct:
+        '`0...temps.count` includes `3`, one past the last index; use `0..<temps.count` or iterate `temps` directly',
+      wrong: [
+        'Arrays are one-based in Swift, so `temps[0]` is out of range',
+        '`total` overflows after three additions',
+        '`temps.count` is an Optional and must be unwrapped',
+      ],
+      why: 'Valid indices are `0..<count`. The closed range `...` adds `count` itself, and reading `temps[3]` traps. Prefer `for t in temps` or `temps.indices` so the bounds are always right.',
+    },
+    {
+      key: 'remove-first',
+      question: 'This program crashes. What is the cause?',
+      code: sw`var jobs = ["build", "test"]
 for _ in 0..<3 {
     let job = jobs.removeFirst()
     print("running \(job)")
 }`,
-        error: "Fatal error: Can't remove first element from an empty collection",
-        correct: 'The third iteration calls `removeFirst()` on an empty array, which traps',
-        wrong: [
-          '`removeFirst()` returns an Optional that must be unwrapped',
-          'You cannot modify an array inside a `for` loop',
-          '`jobs` is a constant because it is used in a loop',
-        ],
-        why: '`removeFirst()` requires a non-empty collection. Use `popFirst()` on a slice or check `isEmpty`, or loop with `while let job = jobs.first` style code. (`popLast()` returns an Optional for arrays.)',
-      },
-      {
-        key: 'stale-index',
-        question: 'This program crashes. What is the bug?',
-        code: sw`var values = [5, -1, 7, -2]
+      error: "Fatal error: Can't remove first element from an empty collection",
+      correct: 'The third iteration calls `removeFirst()` on an empty array, which traps',
+      wrong: [
+        '`removeFirst()` returns an Optional that must be unwrapped',
+        'You cannot modify an array inside a `for` loop',
+        '`jobs` is a constant because it is used in a loop',
+      ],
+      why: '`removeFirst()` requires a non-empty collection. Use `popFirst()` on a slice or check `isEmpty`, or loop with `while let job = jobs.first` style code. (`popLast()` returns an Optional for arrays.)',
+    },
+    {
+      key: 'stale-index',
+      question: 'This program crashes. What is the bug?',
+      code: sw`var values = [5, -1, 7, -2]
 for i in values.indices {
     if values[i] < 0 {
         values.remove(at: i)
     }
 }
 print(values)`,
-        error: 'Fatal error: Index out of range',
-        correct:
-          '`values.indices` was computed before the loop, so after removals the later indices no longer exist; use `values.removeAll { $0 < 0 }`',
-        wrong: [
-          'Removing elements from an array is never allowed while it is a `var`',
-          '`values.indices` is recomputed every iteration and skips elements',
-          '`remove(at:)` returns `nil` for negative values',
-        ],
-        why: 'The range `0..<4` is fixed when the loop starts. After removing one element the array has 3 elements, and index 3 is out of range. `removeAll(where:)` (or `filter`) removes matching elements safely.',
-      },
-    ],
-  ),
-  ...b.multi(
-    'swift-dictionary-order',
-    4,
-    'Think about which collections promise an order.',
-    [
-      {
-        key: 'statements',
-        question: 'Select every true statement about this program and Swift dictionaries.',
-        code: sw`let stock = ["pear": 4, "apple": 7, "fig": 1]
+      error: 'Fatal error: Index out of range',
+      correct:
+        '`values.indices` was computed before the loop, so after removals the later indices no longer exist; use `values.removeAll { $0 < 0 }`',
+      wrong: [
+        'Removing elements from an array is never allowed while it is a `var`',
+        '`values.indices` is recomputed every iteration and skips elements',
+        '`remove(at:)` returns `nil` for negative values',
+      ],
+      why: 'The range `0..<4` is fixed when the loop starts. After removing one element the array has 3 elements, and index 3 is out of range. `removeAll(where:)` (or `filter`) removes matching elements safely.',
+    },
+  ]),
+  ...b.multi('swift-dictionary-order', 4, 'Think about which collections promise an order.', [
+    {
+      key: 'statements',
+      question: 'Select every true statement about this program and Swift dictionaries.',
+      code: sw`let stock = ["pear": 4, "apple": 7, "fig": 1]
 for (name, count) in stock.sorted(by: { $0.key < $1.key }) {
     print(name, count)
 }
 print(stock.values.reduce(0, +))`,
-        correct: [
-          'Without `sorted`, the loop could print the entries in a different order on another run',
-          'The sum printed on the last line does not depend on iteration order',
-          '`sorted(by:)` on a dictionary returns an array of `(key, value)` tuples',
-        ],
-        wrong: [
-          'Swift dictionaries keep keys in insertion order, so `sorted` is only for readability',
-          'Swift dictionaries keep keys in alphabetical order automatically',
-          'Iterating a dictionary directly is a compile error; it must be sorted first',
-        ],
-        why: '`Dictionary` makes no ordering promise, and Swift randomizes hashing per process, so the order can differ between runs. Sorting gives a stable order and produces an array of `(key: String, value: Int)` tuples. Order-independent operations such as summing are safe without sorting.',
-      },
-      {
-        key: 'grouping',
-        question: 'Select every true statement about this program.',
-        code: sw`let names = ["ann", "bob", "amy", "ben", "cy"]
+      correct: [
+        'Without `sorted`, the loop could print the entries in a different order on another run',
+        'The sum printed on the last line does not depend on iteration order',
+        '`sorted(by:)` on a dictionary returns an array of `(key, value)` tuples',
+      ],
+      wrong: [
+        'Swift dictionaries keep keys in insertion order, so `sorted` is only for readability',
+        'Swift dictionaries keep keys in alphabetical order automatically',
+        'Iterating a dictionary directly is a compile error; it must be sorted first',
+      ],
+      why: '`Dictionary` makes no ordering promise, and Swift randomizes hashing per process, so the order can differ between runs. Sorting gives a stable order and produces an array of `(key: String, value: Int)` tuples. Order-independent operations such as summing are safe without sorting.',
+    },
+    {
+      key: 'grouping',
+      question: 'Select every true statement about this program.',
+      code: sw`let names = ["ann", "bob", "amy", "ben", "cy"]
 let byInitial = Dictionary(grouping: names, by: { $0.first! })
 for key in byInitial.keys.sorted() {
     print(key, byInitial[key]!)
 }`,
-        correct: [
-          'It prints `a ["ann", "amy"]` first, because keys are sorted',
-          'Within each group, names keep the order they had in `names`',
-          '`byInitial` has type `[Character: [String]]`',
-        ],
-        wrong: [
-          'It prints the groups in the order the initials first appear in `names`, without needing `sorted`',
-          '`byInitial[key]!` can crash because `key` may not be in the dictionary',
-          '`Dictionary(grouping:by:)` sorts the names inside each group',
-        ],
-        why: '`Dictionary(grouping:by:)` keeps each group in the original sequence order, and the key type is whatever the closure returns, here `Character`. The keys come from the dictionary itself, so the force unwrap is safe. Only sorting the keys makes the group order stable.',
-      },
-    ],
-  ),
+      correct: [
+        'It prints `a ["ann", "amy"]` first, because keys are sorted',
+        'Within each group, names keep the order they had in `names`',
+        '`byInitial` has type `[Character: [String]]`',
+      ],
+      wrong: [
+        'It prints the groups in the order the initials first appear in `names`, without needing `sorted`',
+        '`byInitial[key]!` can crash because `key` may not be in the dictionary',
+        '`Dictionary(grouping:by:)` sorts the names inside each group',
+      ],
+      why: '`Dictionary(grouping:by:)` keeps each group in the original sequence order, and the key type is whatever the closure returns, here `Character`. The keys come from the dictionary itself, so the force unwrap is safe. Only sorting the keys makes the group order stable.',
+    },
+  ]),
   ...b.fails(
     'swift-duplicate-keys',
     5,
@@ -666,7 +657,8 @@ for key in byInitial.keys.sorted() {
     [
       {
         key: 'unique-keys',
-        question: 'This program crashes. Which change fixes it while keeping the last price for each SKU?',
+        question:
+          'This program crashes. Which change fixes it while keeping the last price for each SKU?',
         code: sw`let rows = [("A1", 10), ("B2", 5), ("A1", 12)]
 let prices = Dictionary(uniqueKeysWithValues: rows)
 print(prices["A1"]!)`,

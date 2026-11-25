@@ -113,7 +113,7 @@ class Tag(models.Model):
           'Models need a database configured before the class can be defined.',
           '`CharField` requires `null=True` outside a project.',
         ],
-        why: 'Creating a model class registers it with the app registry, which must be populated first by `django.setup()` (done for you by `manage.py` and the WSGI/ASGI handlers). The error is `AppRegistryNotReady: Apps aren\'t loaded yet.` An explicit `app_label` is enough even when the app is not installed, and no database is touched when a class is defined.',
+        why: "Creating a model class registers it with the app registry, which must be populated first by `django.setup()` (done for you by `manage.py` and the WSGI/ASGI handlers). The error is `AppRegistryNotReady: Apps aren't loaded yet.` An explicit `app_label` is enough even when the app is not installed, and no database is touched when a class is defined.",
       },
       {
         key: 'lowercase-setting',
@@ -161,8 +161,7 @@ django.setup()`,
       },
       {
         key: 'settings-module',
-        question:
-          'How do `manage.py`, `wsgi.py` and `asgi.py` know which settings to use?',
+        question: 'How do `manage.py`, `wsgi.py` and `asgi.py` know which settings to use?',
         correct:
           'Each sets the `DJANGO_SETTINGS_MODULE` environment variable (with `os.environ.setdefault`) to a dotted module path such as `shop.settings`.',
         wrong: [
@@ -211,7 +210,8 @@ print(apps.get_app_config("blog").verbose_name)
       },
       {
         key: 'default-auto-field',
-        question: 'The app config chooses the primary key type for its models. What does this program print?',
+        question:
+          'The app config chooses the primary key type for its models. What does this program print?',
         code: `import django
 from django.apps import AppConfig
 from django.conf import settings
@@ -289,7 +289,10 @@ print(User._meta.db_table)`,
   ...b.output(
     'dj-fund-request-lifecycle',
     4,
-    ['Middleware wraps the whole URL resolution and view call.', 'Code after get_response() runs on the way back out.'],
+    [
+      'Middleware wraps the whole URL resolution and view call.',
+      'Code after get_response() runs on the way back out.',
+    ],
     [
       {
         key: 'converter-order',

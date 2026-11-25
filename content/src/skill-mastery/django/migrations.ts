@@ -17,37 +17,32 @@ const MIGRATION_IMPORTS = `from django.db import connection, migrations, models
 from django.db.migrations.state import ProjectState`;
 
 export const migrationsFamilies: readonly QuestionSource[] = [
-  ...b.concept(
-    'dj-mig-workflow',
-    1,
-    'One command writes files, the other changes the database.',
-    [
-      {
-        key: 'two-commands',
-        question: 'You added a field to a model. Which sequence updates the database schema?',
-        correct:
-          'Run `python manage.py makemigrations` to write a migration file from the model change, commit it, then run `python manage.py migrate` to apply it.',
-        wrong: [
-          'Run `python manage.py migrate`; it detects model changes and alters the tables directly.',
-          'Run `python manage.py makemigrations`; it writes the file and applies it.',
-          'Restart the server; Django synchronizes tables with models at startup.',
-        ],
-        why: '`makemigrations` compares the models with the state recorded in existing migrations and writes new migration files; it does not touch the database. `migrate` applies unapplied migrations and records them in the `django_migrations` table. Nothing happens at server startup.',
-      },
-      {
-        key: 'commit-migrations',
-        question: 'Should migration files be committed to version control?',
-        correct:
-          'Yes. They are part of the code: every environment must apply the same migrations in the same order.',
-        wrong: [
-          'No. Each developer and server should run `makemigrations` to generate its own.',
-          'Only the initial migration; later ones are regenerated on deployment.',
-          'No. They contain database passwords.',
-        ],
-        why: 'Generating migrations separately per environment produces different files, names and data migrations, and the histories diverge. Migration files contain schema operations, never credentials.',
-      },
-    ],
-  ),
+  ...b.concept('dj-mig-workflow', 1, 'One command writes files, the other changes the database.', [
+    {
+      key: 'two-commands',
+      question: 'You added a field to a model. Which sequence updates the database schema?',
+      correct:
+        'Run `python manage.py makemigrations` to write a migration file from the model change, commit it, then run `python manage.py migrate` to apply it.',
+      wrong: [
+        'Run `python manage.py migrate`; it detects model changes and alters the tables directly.',
+        'Run `python manage.py makemigrations`; it writes the file and applies it.',
+        'Restart the server; Django synchronizes tables with models at startup.',
+      ],
+      why: '`makemigrations` compares the models with the state recorded in existing migrations and writes new migration files; it does not touch the database. `migrate` applies unapplied migrations and records them in the `django_migrations` table. Nothing happens at server startup.',
+    },
+    {
+      key: 'commit-migrations',
+      question: 'Should migration files be committed to version control?',
+      correct:
+        'Yes. They are part of the code: every environment must apply the same migrations in the same order.',
+      wrong: [
+        'No. Each developer and server should run `makemigrations` to generate its own.',
+        'Only the initial migration; later ones are regenerated on deployment.',
+        'No. They contain database passwords.',
+      ],
+      why: 'Generating migrations separately per environment produces different files, names and data migrations, and the histories diverge. Migration files contain schema operations, never credentials.',
+    },
+  ]),
   ...b.output(
     'dj-mig-makemigrations',
     2,
@@ -105,14 +100,10 @@ call_command("makemigrations", "blog", "--dry-run", "--name", "create_post")`,
       },
     ],
   ),
-  ...b.outputChoice(
-    'dj-mig-operations',
-    2,
-    'Each operation describes one schema or data change.',
-    [
-      {
-        key: 'describe',
-        code: djangoProgram(`from django.db import migrations, models
+  ...b.outputChoice('dj-mig-operations', 2, 'Each operation describes one schema or data change.', [
+    {
+      key: 'describe',
+      code: djangoProgram(`from django.db import migrations, models
 
 ops = [
     migrations.AddField("product", "sku", models.CharField(max_length=20, default="")),
@@ -120,17 +111,18 @@ ops = [
     migrations.DeleteModel("Coupon"),
 ]
 print(" | ".join(op.describe() for op in ops))`),
-        correct: 'Add field sku to product | Rename field title on product to name | Delete model Coupon',
-        wrong: [
-          'AddField | RenameField | DeleteModel',
-          'Add field sku to product | Remove field title from product | Delete model Coupon',
-          'Alter table product | Alter table product | Drop table coupon',
-        ],
-        why: '`describe()` is the text `makemigrations` and `migrate --plan` print. A rename is its own operation (`RenameField`), which keeps the data; if the autodetector instead produced a remove and an add, the column’s data would be lost, so always read generated migrations.',
-      },
-      {
-        key: 'reversible',
-        code: djangoProgram(`from django.db import migrations, models
+      correct:
+        'Add field sku to product | Rename field title on product to name | Delete model Coupon',
+      wrong: [
+        'AddField | RenameField | DeleteModel',
+        'Add field sku to product | Remove field title from product | Delete model Coupon',
+        'Alter table product | Alter table product | Drop table coupon',
+      ],
+      why: '`describe()` is the text `makemigrations` and `migrate --plan` print. A rename is its own operation (`RenameField`), which keeps the data; if the autodetector instead produced a remove and an add, the column’s data would be lost, so always read generated migrations.',
+    },
+    {
+      key: 'reversible',
+      code: djangoProgram(`from django.db import migrations, models
 
 def forwards(apps, schema_editor):
     pass
@@ -141,12 +133,11 @@ print(
     migrations.RunPython(forwards, migrations.RunPython.noop).reversible,
     migrations.AddIndex("product", index).reversible,
 )`),
-        correct: 'False True True',
-        wrong: ['True True True', 'False False True', 'False True False'],
-        why: '`RunPython` is only reversible with a `reverse_code`; `RunPython.noop` declares that undoing needs no work. Schema operations such as `AddIndex` know their own inverse.',
-      },
-    ],
-  ),
+      correct: 'False True True',
+      wrong: ['True True True', 'False False True', 'False True False'],
+      why: '`RunPython` is only reversible with a `reverse_code`; `RunPython.noop` declares that undoing needs no work. Schema operations such as `AddIndex` know their own inverse.',
+    },
+  ]),
   ...b.output(
     'dj-mig-run-migration',
     3,
@@ -157,8 +148,7 @@ print(
     [
       {
         key: 'data-migration',
-        question:
-          'The script applies a migration the way `migrate` does. What does it print?',
+        question: 'The script applies a migration the way `migrate` does. What does it print?',
         code: dbProgram(`${MIGRATION_IMPORTS}
 
 def add_pages(apps, schema_editor):
@@ -216,8 +206,7 @@ print(connection.introspection.table_names())`),
     [
       {
         key: 'runpython-no-reverse',
-        question:
-          'Reversing this data migration fails. What is the fix?',
+        question: 'Reversing this data migration fails. What is the fix?',
         code: dbProgram(`${MIGRATION_IMPORTS}
 
 def normalize_emails(apps, schema_editor):
@@ -314,17 +303,13 @@ ${APPLY}`),
       },
     ],
   ),
-  ...b.concept(
-    'dj-mig-reading',
-    3,
-    'Read the dependencies and each operation in order.',
-    [
-      {
-        key: 'preserve-default',
-        question: 'What does `preserve_default=False` mean in this generated migration?',
-        snippet: {
-          language: 'python',
-          source: `from django.db import migrations, models
+  ...b.concept('dj-mig-reading', 3, 'Read the dependencies and each operation in order.', [
+    {
+      key: 'preserve-default',
+      question: 'What does `preserve_default=False` mean in this generated migration?',
+      snippet: {
+        language: 'python',
+        source: `from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
@@ -339,22 +324,22 @@ class Migration(migrations.Migration):
         ),
     ]
 `,
-        },
-        correct:
-          'The default `"UNKNOWN"` was a one-off value typed at the `makemigrations` prompt: it fills existing rows, but the field itself keeps no default.',
-        wrong: [
-          'Existing rows are left NULL and only new rows get `"UNKNOWN"`.',
-          'The migration only runs if the table is empty.',
-          'Every future product without a SKU is saved as `"UNKNOWN"`.',
-        ],
-        why: 'When you add a non-null field without a default, `makemigrations` asks for a one-off default to fill existing rows. With `preserve_default=False` that value is used during the migration only; afterwards the model has no default, so new code must always provide a SKU.',
       },
-      {
-        key: 'dependencies',
-        question: 'What does the `dependencies` list in this migration guarantee?',
-        snippet: {
-          language: 'python',
-          source: `from django.db import migrations, models
+      correct:
+        'The default `"UNKNOWN"` was a one-off value typed at the `makemigrations` prompt: it fills existing rows, but the field itself keeps no default.',
+      wrong: [
+        'Existing rows are left NULL and only new rows get `"UNKNOWN"`.',
+        'The migration only runs if the table is empty.',
+        'Every future product without a SKU is saved as `"UNKNOWN"`.',
+      ],
+      why: 'When you add a non-null field without a default, `makemigrations` asks for a one-off default to fill existing rows. With `preserve_default=False` that value is used during the migration only; afterwards the model has no default, so new code must always provide a SKU.',
+    },
+    {
+      key: 'dependencies',
+      question: 'What does the `dependencies` list in this migration guarantee?',
+      snippet: {
+        language: 'python',
+        source: `from django.db import migrations, models
 import django.db.models.deletion
 
 
@@ -376,18 +361,17 @@ class Migration(migrations.Migration):
         ),
     ]
 `,
-        },
-        correct:
-          'Both listed migrations are applied before this one, so the `accounts.Customer` table exists when the foreign key is created.',
-        wrong: [
-          'Applying this migration also unapplies `0004_product_sku`.',
-          'The two migrations are merged into this file when it runs.',
-          'It only documents the history; Django applies migrations in file-name order regardless.',
-        ],
-        why: 'Migrations form a graph. Cross-app dependencies (like `accounts.0002_customer`) are added automatically when a relation points to another app, so `migrate` applies them in a valid order. File names only order migrations within one app’s chain.',
       },
-    ],
-  ),
+      correct:
+        'Both listed migrations are applied before this one, so the `accounts.Customer` table exists when the foreign key is created.',
+      wrong: [
+        'Applying this migration also unapplies `0004_product_sku`.',
+        'The two migrations are merged into this file when it runs.',
+        'It only documents the history; Django applies migrations in file-name order regardless.',
+      ],
+      why: 'Migrations form a graph. Cross-app dependencies (like `accounts.0002_customer`) are added automatically when a relation points to another app, so `migrate` applies them in a valid order. File names only order migrations within one app’s chain.',
+    },
+  ]),
   ...b.concept(
     'dj-mig-troubleshooting',
     4,

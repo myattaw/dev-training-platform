@@ -97,7 +97,11 @@ export const typesOperatorsFamilies: readonly QuestionSource[] = [
     }
 }`,
         correct: '500654080',
-        wrong: ['86400000000', '-2147483648', 'It does not compile: the value is too large for an int'],
+        wrong: [
+          '86400000000',
+          '-2147483648',
+          'It does not compile: the value is too large for an int',
+        ],
         why: 'Every literal is an `int`, so the whole product is computed in `int` arithmetic and overflows before it is widened to `long` for the assignment. The compiler does not reject it because the constant expression is a valid (wrapped) `int`. Writing `24L * 60 * ...` makes the first operand a `long`, so the product is computed in `long` and prints `86400000000`.',
       },
       {
@@ -440,7 +444,8 @@ public class Main {
     [
       {
         key: 'empty-average',
-        question: 'This report crashes when there are no orders. What is the cause and the right fix?',
+        question:
+          'This report crashes when there are no orders. What is the cause and the right fix?',
         code: `import java.util.List;
 
 public class Main {
@@ -456,7 +461,8 @@ public class Main {
     }
 }`,
         error: 'ArithmeticException',
-        correct: 'Integer division by zero throws `ArithmeticException: / by zero`; handle the empty list explicitly (for example return `0` or an `OptionalDouble`).',
+        correct:
+          'Integer division by zero throws `ArithmeticException: / by zero`; handle the empty list explicitly (for example return `0` or an `OptionalDouble`).',
         wrong: [
           'The loop throws `NoSuchElementException` on an empty list; check `hasNext()` first.',
           'Division by zero returns `Infinity`; compare the result with `Double.POSITIVE_INFINITY`.',
@@ -466,7 +472,8 @@ public class Main {
       },
       {
         key: 'to-int-exact',
-        question: 'A batch job fails when it converts a file size. What does the exception tell you?',
+        question:
+          'A batch job fails when it converts a file size. What does the exception tell you?',
         code: `public class Main {
     public static void main(String[] args) {
         long bytes = 3_000_000_000L;
@@ -475,7 +482,8 @@ public class Main {
     }
 }`,
         error: 'ArithmeticException: integer overflow',
-        correct: '`3_000_000_000` does not fit in an `int`; `Math.toIntExact` detects the overflow and throws instead of silently wrapping, so keep the value as a `long`.',
+        correct:
+          '`3_000_000_000` does not fit in an `int`; `Math.toIntExact` detects the overflow and throws instead of silently wrapping, so keep the value as a `long`.',
         wrong: [
           '`Math.toIntExact` rounds the value; use `(int) bytes` to get the exact result.',
           'The literal needs a `D` suffix to be stored as a large number.',
@@ -494,7 +502,8 @@ public class Main {
     }
 }`,
         error: 'NumberFormatException',
-        correct: '`Integer.parseInt` accepts only an optional sign and digits; the grouping comma makes it throw `NumberFormatException`, so strip or parse the separator explicitly.',
+        correct:
+          '`Integer.parseInt` accepts only an optional sign and digits; the grouping comma makes it throw `NumberFormatException`, so strip or parse the separator explicitly.',
         wrong: [
           '`parseInt` returns `0` for invalid input, so the program prints `0`.',
           '`parseInt` reads the digits before the comma and returns `1`.',
@@ -824,7 +833,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: '`stock.get("notebook")` returns `null` for a missing key, and unboxing `null` into an `int` throws `NullPointerException`; use `getOrDefault("notebook", 0)`.',
+        correct:
+          '`stock.get("notebook")` returns `null` for a missing key, and unboxing `null` into an `int` throws `NullPointerException`; use `getOrDefault("notebook", 0)`.',
         wrong: [
           '`Map.get` throws `NoSuchElementException` for a missing key; check `containsKey` first.',
           'An `int` cannot hold a value from a `Map<String, Integer>`; declare `notebooks` as `long`.',
@@ -851,7 +861,8 @@ class Customer {
     Customer(String tier) { this.tier = tier; }
 }`,
         error: 'NullPointerException',
-        correct: 'The second customer has a `null` tier, and calling `.equals` on `null` throws; write `"VIP".equals(c.tier)` or `Objects.equals(c.tier, "VIP")`.',
+        correct:
+          'The second customer has a `null` tier, and calling `.equals` on `null` throws; write `"VIP".equals(c.tier)` or `Objects.equals(c.tier, "VIP")`.',
         wrong: [
           '`equals` cannot compare a field with a literal; use `c.tier == "VIP"`.',
           '`String.equals(null)` throws; the argument must not be `null`.',
@@ -877,7 +888,8 @@ class Customer {
     }
 }`,
         error: 'NullPointerException',
-        correct: 'A `switch` on a `null` value throws `NullPointerException` before any label is checked; `default` does not cover `null` (in Java 21 add an explicit `case null` or check first).',
+        correct:
+          'A `switch` on a `null` value throws `NullPointerException` before any label is checked; `default` does not cover `null` (in Java 21 add an explicit `case null` or check first).',
         wrong: [
           '`null` is handled by `default`, so the exception must come from `println`.',
           'A `switch` on strings compares with `==`, which fails for `null`.',
@@ -987,7 +999,8 @@ public class Main {
         System.out.println(Objects.requireNonNullElse(region, "EU"));
     }
 }`,
-        question: 'This program runs without an exception. Select every statement that is true about it.',
+        question:
+          'This program runs without an exception. Select every statement that is true about it.',
         correct: [
           'It prints `false` on the first line, because `"EU".equals(null)` is false.',
           'It prints `true` on the second line.',
@@ -1008,7 +1021,8 @@ public class Main {
     [
       {
         key: 'discount',
-        question: 'Why does this pricing code throw, even though `discount` is only used for VIP customers?',
+        question:
+          'Why does this pricing code throw, even though `discount` is only used for VIP customers?',
         code: `public class Main {
     static Integer loadDiscount(String customer) {
         return null; // not configured yet
@@ -1022,7 +1036,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: 'With an `Integer` and an `int` branch, the conditional expression has type `int`, so `discount` is unboxed (and throws) even though the result is assigned to an `Integer`.',
+        correct:
+          'With an `Integer` and an `int` branch, the conditional expression has type `int`, so `discount` is unboxed (and throws) even though the result is assigned to an `Integer`.',
         wrong: [
           'Assigning `null` to an `Integer` variable throws `NullPointerException`.',
           '`println` cannot print a `null` `Integer`.',
@@ -1045,7 +1060,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: '`quotas.get("bob")` is `null`, and because the other branch is the `int` literal `5`, the conditional unboxes the `null`.',
+        correct:
+          '`quotas.get("bob")` is `null`, and because the other branch is the `int` literal `5`, the conditional unboxes the `null`.',
         wrong: [
           '`Map.of` maps throw `NullPointerException` from `get` for a missing key.',
           '`Map.of` maps cannot be read with `get`; use `getOrDefault`.',

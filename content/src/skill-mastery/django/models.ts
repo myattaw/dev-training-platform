@@ -372,7 +372,11 @@ Comment.objects.create(post=p)
 Comment.objects.create(post=p)
 print(p.delete())`),
         correct: "(3, {'blog.Comment': 2, 'blog.Post': 1})",
-        wrong: ["(1, {'blog.Post': 1})", "(3, {'blog.Post': 1, 'blog.Comment': 2})", 'IntegrityError'],
+        wrong: [
+          "(1, {'blog.Post': 1})",
+          "(3, {'blog.Post': 1, 'blog.Comment': 2})",
+          'IntegrityError',
+        ],
         why: '`CASCADE` deletes the comments along with the post. `delete()` returns the total number of deleted rows and a count per model; Django collects and deletes dependent rows first, which is why `blog.Comment` comes before `blog.Post`.',
       },
       {

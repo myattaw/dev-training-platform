@@ -69,7 +69,7 @@ func run() async {
 }
 await run()`,
         compiles: false,
-        why: 'Calling an `async` function requires `await` ("expression is \'async\' but is not marked with \'await\'"). The keyword makes every possible suspension point visible.',
+        why: "Calling an `async` function requires `await` (\"expression is 'async' but is not marked with 'await'\"). The keyword makes every possible suspension point visible.",
       },
       {
         key: 'sync-context',
@@ -100,9 +100,7 @@ print(size)`,
   ...b.output(
     'swift-async-let',
     3,
-    [
-      '`async let` starts a child task immediately; you `await` the value when you need it.',
-    ],
+    ['`async let` starts a child task immediately; you `await` the value when you need it.'],
     [
       {
         key: 'parallel-prices',
@@ -410,7 +408,7 @@ print(describe())`,
 struct Point: Sendable { var x = 0, y = 0 }
 print(Stats().hits, Point().x)`,
         compiles: false,
-        why: 'Swift 6 reports "stored property \'hits\' of \'Sendable\'-conforming class \'Stats\' is mutable". A class instance is shared by reference, so a `Sendable` class must be `final` with only immutable, `Sendable` stored properties. `Point` is fine: sending a struct copies it, so `var` properties are safe there.',
+        why: "Swift 6 reports \"stored property 'hits' of 'Sendable'-conforming class 'Stats' is mutable\". A class instance is shared by reference, so a `Sendable` class must be `final` with only immutable, `Sendable` stored properties. `Point` is fine: sending a struct copies it, so `var` properties are safe there.",
       },
       {
         key: 'sending-value',
@@ -485,7 +483,8 @@ print(a == b, await cache.downloads)`,
       },
       {
         key: 'balance-check',
-        question: 'Why is this `withdraw` unsafe if `approve` is ever called concurrently, even though `Wallet` is an actor?',
+        question:
+          'Why is this `withdraw` unsafe if `approve` is ever called concurrently, even though `Wallet` is an actor?',
         code: sw`func approve(_ amount: Int) async -> Bool { amount < 1_000 }
 actor Wallet {
     private(set) var balance = 100
@@ -747,7 +746,8 @@ error: cannot assign to property: 'self' is immutable`),
 }
 
 error: missing return in global function expected to return 'String'`),
-        correct: 'When `score` is 50 or less, the function reaches its end without returning a `String`',
+        correct:
+          'When `score` is 50 or less, the function reaches its end without returning a `String`',
         wrong: [
           'The `return` statement must be outside the `if`',
           'Functions returning `String` must use string interpolation',

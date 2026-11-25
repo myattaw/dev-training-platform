@@ -6,11 +6,7 @@ import { exceptionsFamilies } from './exceptions';
 import { equalityControlFamilies, typesOperatorsFamilies } from './fundamentals';
 import { lambdasFamilies, optionalFamilies, streamsFamilies } from './functional';
 import { patternMatchingFamilies, recordsEnumsFamilies } from './modern';
-import {
-  classesObjectsFamilies,
-  inheritanceInterfacesFamilies,
-  polymorphismFamilies,
-} from './oop';
+import { classesObjectsFamilies, inheritanceInterfacesFamilies, polymorphismFamilies } from './oop';
 import { stringsArraysFamilies } from './strings-arrays';
 import { testingFamilies } from './testing';
 

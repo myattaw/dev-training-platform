@@ -342,23 +342,32 @@ export function createApi(deps: ApiDeps): ApiHandler {
   async function routeWeb(request: ApiRequest, user: Caller): Promise<ApiResponse | undefined> {
     const { method, path } = request;
     const challengeId = (value: string | undefined) => segment(value, 'challengeId');
-    if (method === 'GET' && path === '/api/web-challenges/progress') return ok(await web.progress(user));
+    if (method === 'GET' && path === '/api/web-challenges/progress')
+      return ok(await web.progress(user));
     if (method === 'GET' && path === '/api/me/web-usage') return ok(await web.usage(user));
     const detail = /^\/api\/web-challenges\/([^/]+)$/.exec(path);
     if (method === 'GET' && detail) return ok(await web.detail(user, challengeId(detail[1])));
     const project = /^\/api\/web-challenges\/([^/]+)\/frameworks\/([^/]+)\/project$/.exec(path);
     if (method === 'GET' && project) {
-      return ok(await web.project(user, challengeId(project[1]), parseFramework(decodeURIComponent(project[2] ?? ''))));
+      return ok(
+        await web.project(
+          user,
+          challengeId(project[1]),
+          parseFramework(decodeURIComponent(project[2] ?? '')),
+        ),
+      );
     }
     const sub = /^\/api\/web-challenges\/([^/]+)\/(runs|submissions)$/.exec(path);
-    if (sub && method === 'GET' && sub[2] === 'submissions') return ok(await web.history(user, challengeId(sub[1])));
+    if (sub && method === 'GET' && sub[2] === 'submissions')
+      return ok(await web.history(user, challengeId(sub[1])));
     if (sub && method === 'POST' && sub[2] === 'runs') {
       const body = parseCreateWebRun(request.body);
       await limit(webRateLimiter, user.id);
       return ok(await web.createRun(user, challengeId(sub[1]), body));
     }
     const run = /^\/api\/web-runs\/([^/]+)$/.exec(path);
-    if (method === 'GET' && run) return ok(web.getRun(user, parseUuid(decodeURIComponent(run[1] ?? ''), 'runId')));
+    if (method === 'GET' && run)
+      return ok(web.getRun(user, parseUuid(decodeURIComponent(run[1] ?? ''), 'runId')));
     if (method === 'POST' && path === '/api/web-sessions') {
       const body = parseCreateWebSession(request.body);
       await limit(webRateLimiter, user.id);
@@ -369,14 +378,16 @@ export function createApi(deps: ApiDeps): ApiHandler {
       const id = parseUuid(decodeURIComponent(session[1] ?? ''), 'sessionId');
       if (method === 'GET' && !session[2]) return ok(web.getSession(user, id));
       if (method === 'DELETE' && !session[2]) return ok(await web.stopSession(user, id));
-      if (method === 'POST' && session[2]) return ok(await web.sendRequest(user, id, parseWebHttpRequest(request.body)));
+      if (method === 'POST' && session[2])
+        return ok(await web.sendRequest(user, id, parseWebHttpRequest(request.body)));
     }
     const draft = /^\/api\/me\/web-drafts\/([^/]+)\/([^/]+)$/.exec(path);
     if (draft) {
       const id = challengeId(draft[1]);
       const framework = parseFramework(decodeURIComponent(draft[2] ?? ''));
       if (method === 'GET') return ok(await web.getDraft(user, id, framework));
-      if (method === 'PUT') return ok(await web.saveDraft(user, id, framework, parseSaveWebDraft(request.body)));
+      if (method === 'PUT')
+        return ok(await web.saveDraft(user, id, framework, parseSaveWebDraft(request.body)));
       if (method === 'DELETE') return ok(await web.deleteDraft(user, id, framework));
     }
     if (method === 'POST' && path === '/api/web-timed-sessions') {
@@ -403,10 +414,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
         const response = await routeMe(request, raw, user);
         if (response) return response;
       }
-      if (
-        path.startsWith('/api/web-') ||
-        path.startsWith('/api/me/web-')
-      ) {
+      if (path.startsWith('/api/web-') || path.startsWith('/api/me/web-')) {
         const response = await routeWeb(request, user);
         if (response) return response;
       }

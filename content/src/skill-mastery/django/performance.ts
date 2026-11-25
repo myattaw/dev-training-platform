@@ -161,7 +161,7 @@ print(len(ctx.captured_queries))`),
           '`select_related` must come after `all()`.',
           'Related names cannot be used in queries.',
         ],
-        why: 'Django raises `FieldError: Invalid field name(s) given in select_related: \'books\'. Choices are: (none)`. A JOIN can only fetch one related row per row; multi-valued relations need `prefetch_related`.',
+        why: "Django raises `FieldError: Invalid field name(s) given in select_related: 'books'. Choices are: (none)`. A JOIN can only fetch one related row per row; multi-valued relations need `prefetch_related`.",
       },
       {
         key: 'typo',
@@ -200,7 +200,8 @@ print(len(ctx.captured_queries))`),
         code: library(`with CaptureQueriesContext(connection) as ctx:
     rows = list(Book.objects.order_by("id").values("title", "author__name")[:2])
 print(len(ctx.captured_queries), rows)`),
-        output: "1 [{'title': 'Ada I', 'author__name': 'Ada'}, {'title': 'Ada II', 'author__name': 'Ada'}]",
+        output:
+          "1 [{'title': 'Ada I', 'author__name': 'Ada'}, {'title': 'Ada II', 'author__name': 'Ada'}]",
         why: '`values()` selects exactly the named columns (joining the author for `author__name`) and returns dictionaries, which is cheaper than model instances for read-only exports and reports. The slice becomes `LIMIT 2`.',
       },
     ],
@@ -358,41 +359,35 @@ with transaction.atomic():
           'The `IntegrityError` must be re-raised, or Django raises it again on the next query.',
           'Unique constraints are checked at commit time, so the second insert is the duplicate.',
         ],
-        why: 'Django raises `TransactionManagementError: An error occurred in the current transaction. You can\'t execute queries until the end of the \'atomic\' block.` Catching a database error inside `atomic()` without a savepoint leaves the transaction broken. `with transaction.atomic(): Account.objects.create(...)` inside the `try` fixes it.',
+        why: "Django raises `TransactionManagementError: An error occurred in the current transaction. You can't execute queries until the end of the 'atomic' block.` Catching a database error inside `atomic()` without a savepoint leaves the transaction broken. `with transaction.atomic(): Account.objects.create(...)` inside the `try` fixes it.",
       },
     ],
   ),
-  ...b.concept(
-    'dj-perf-strategy',
-    4,
-    'Measure first, then fix the biggest cost.',
-    [
-      {
-        key: 'diagnose',
-        question:
-          'An order list page became slow as data grew. What is the best first step?',
-        correct:
-          'Measure the queries the page runs (Django Debug Toolbar, `assertNumQueries`, or database logs) and look for N+1 patterns and slow queries before changing code.',
-        wrong: [
-          'Add a cache in front of every view.',
-          'Replace the ORM with raw SQL everywhere.',
-          'Add a database index on every column.',
-        ],
-        why: 'Most ORM slowdowns are query counts (N+1) or missing indexes for specific filters, and both show up when you measure. Blanket caching hides problems and adds invalidation bugs, raw SQL rarely helps by itself, and indexes on every column slow down writes.',
-      },
-      {
-        key: 'index',
-        question:
-          'Queries filter orders by `status` and sort by `created_at` on a table with millions of rows. Which model change targets that query?',
-        correct:
-          'Add `models.Index(fields=["status", "created_at"], name="order_status_created_idx")` to `Meta.indexes` and migrate.',
-        wrong: [
-          'Add `db_index=True` to the primary key.',
-          'Set `ordering = ["created_at"]` in `Meta`, which creates an index.',
-          'Use `select_related("status")`.',
-        ],
-        why: 'A composite index matching the filter then the sort lets the database find and order rows without scanning the table. Primary keys are always indexed, `Meta.ordering` only adds `ORDER BY` (it can even add cost), and `select_related` is for relations.',
-      },
-    ],
-  ),
+  ...b.concept('dj-perf-strategy', 4, 'Measure first, then fix the biggest cost.', [
+    {
+      key: 'diagnose',
+      question: 'An order list page became slow as data grew. What is the best first step?',
+      correct:
+        'Measure the queries the page runs (Django Debug Toolbar, `assertNumQueries`, or database logs) and look for N+1 patterns and slow queries before changing code.',
+      wrong: [
+        'Add a cache in front of every view.',
+        'Replace the ORM with raw SQL everywhere.',
+        'Add a database index on every column.',
+      ],
+      why: 'Most ORM slowdowns are query counts (N+1) or missing indexes for specific filters, and both show up when you measure. Blanket caching hides problems and adds invalidation bugs, raw SQL rarely helps by itself, and indexes on every column slow down writes.',
+    },
+    {
+      key: 'index',
+      question:
+        'Queries filter orders by `status` and sort by `created_at` on a table with millions of rows. Which model change targets that query?',
+      correct:
+        'Add `models.Index(fields=["status", "created_at"], name="order_status_created_idx")` to `Meta.indexes` and migrate.',
+      wrong: [
+        'Add `db_index=True` to the primary key.',
+        'Set `ordering = ["created_at"]` in `Meta`, which creates an index.',
+        'Use `select_related("status")`.',
+      ],
+      why: 'A composite index matching the filter then the sort lets the database find and order rows without scanning the table. Primary keys are always indexed, `Meta.ordering` only adds `ORDER BY` (it can even add cost), and `select_related` is for relations.',
+    },
+  ]),
 ];

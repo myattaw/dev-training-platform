@@ -24,9 +24,7 @@ export const routes: Routes = [
   {
     path: 'web-challenges',
     loadChildren: () =>
-      import('./features/web-challenges/web-challenges.routes').then(
-        (m) => m.WEB_CHALLENGE_ROUTES,
-      ),
+      import('./features/web-challenges/web-challenges.routes').then((m) => m.WEB_CHALLENGE_ROUTES),
   },
   {
     path: 'scenarios',

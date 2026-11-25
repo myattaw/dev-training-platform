@@ -75,84 +75,74 @@ print(c.get("/", HTTP_HOST="shop.example.com").content.decode(),
       },
     ],
   ),
-  ...b.outputChoice(
-    'dj-ops-env-config',
-    3,
-    'Environment variables are always strings.',
-    [
-      {
-        key: 'debug-string',
-        code: djangoProgram(`import os
+  ...b.outputChoice('dj-ops-env-config', 3, 'Environment variables are always strings.', [
+    {
+      key: 'debug-string',
+      code: djangoProgram(`import os
 
 os.environ["DJANGO_DEBUG"] = "False"  # set by the deployment
 
 DEBUG = bool(os.environ.get("DJANGO_DEBUG", False))
 print(DEBUG)`),
-        correct: 'True',
-        wrong: ['False', 'None', 'ValueError'],
-        why: '`bool("False")` is `True`: any non-empty string is truthy. Production would run with debug pages on. Parse explicitly, for example `os.environ.get("DJANGO_DEBUG", "") == "1"` or `.lower() in {"1", "true", "yes"}`.',
-      },
-      {
-        key: 'hosts-split',
-        code: djangoProgram(`import os
+      correct: 'True',
+      wrong: ['False', 'None', 'ValueError'],
+      why: '`bool("False")` is `True`: any non-empty string is truthy. Production would run with debug pages on. Parse explicitly, for example `os.environ.get("DJANGO_DEBUG", "") == "1"` or `.lower() in {"1", "true", "yes"}`.',
+    },
+    {
+      key: 'hosts-split',
+      code: djangoProgram(`import os
 
 os.environ["DJANGO_ALLOWED_HOSTS"] = "shop.example.com, www.shop.example.com"
 
 hosts = os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
 print(hosts)`),
-        correct: "['shop.example.com', ' www.shop.example.com']",
-        wrong: [
-          "['shop.example.com', 'www.shop.example.com']",
-          "['shop.example.com, www.shop.example.com']",
-          "('shop.example.com', 'www.shop.example.com')",
-        ],
-        why: 'Splitting on `","` keeps the space after the comma, so `" www.shop.example.com"` would never match a Host header and that site would answer 400. Strip each entry: `[h.strip() for h in value.split(",") if h.strip()]`.',
-      },
-    ],
-  ),
-  ...b.fails(
-    'dj-ops-secret-key',
-    2,
-    'Should a missing secret make the app start anyway?',
-    [
-      {
-        key: 'required-env',
-        question:
-          'The settings read the secret key like this, and the deployment forgot to set it. What happens, and is it good?',
-        code: djangoProgram(`import os
+      correct: "['shop.example.com', ' www.shop.example.com']",
+      wrong: [
+        "['shop.example.com', 'www.shop.example.com']",
+        "['shop.example.com, www.shop.example.com']",
+        "('shop.example.com', 'www.shop.example.com')",
+      ],
+      why: 'Splitting on `","` keeps the space after the comma, so `" www.shop.example.com"` would never match a Host header and that site would answer 400. Strip each entry: `[h.strip() for h in value.split(",") if h.strip()]`.',
+    },
+  ]),
+  ...b.fails('dj-ops-secret-key', 2, 'Should a missing secret make the app start anyway?', [
+    {
+      key: 'required-env',
+      question:
+        'The settings read the secret key like this, and the deployment forgot to set it. What happens, and is it good?',
+      code: djangoProgram(`import os
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 print("started")`),
-        error: 'KeyError',
-        correct:
-          'Startup fails with `KeyError: \'DJANGO_SECRET_KEY\'`. That is good: failing fast beats running with a missing or guessable secret.',
-        wrong: [
-          'Django generates a random key automatically, so the app starts normally.',
-          'The key becomes an empty string, and Django signs sessions without a key.',
-          'Startup fails, which is bad: settings should always fall back to a default key committed in the repository.',
-        ],
-        why: '`SECRET_KEY` signs sessions, password-reset tokens and other signed data. A default committed to the repository is public, so anyone could forge signatures. Reading it with `os.environ[...]` (or from a secrets manager) and failing loudly when it is missing is the safe pattern. Django never invents a key.',
-      },
-      {
-        key: 'empty-key',
-        question: 'This program fails when signing a value. Why?',
-        code: djangoProgram(
-          `from django.core import signing
+      error: 'KeyError',
+      correct:
+        "Startup fails with `KeyError: 'DJANGO_SECRET_KEY'`. That is good: failing fast beats running with a missing or guessable secret.",
+      wrong: [
+        'Django generates a random key automatically, so the app starts normally.',
+        'The key becomes an empty string, and Django signs sessions without a key.',
+        'Startup fails, which is bad: settings should always fall back to a default key committed in the repository.',
+      ],
+      why: '`SECRET_KEY` signs sessions, password-reset tokens and other signed data. A default committed to the repository is public, so anyone could forge signatures. Reading it with `os.environ[...]` (or from a secrets manager) and failing loudly when it is missing is the safe pattern. Django never invents a key.',
+    },
+    {
+      key: 'empty-key',
+      question: 'This program fails when signing a value. Why?',
+      code: djangoProgram(
+        `from django.core import signing
 
 print(signing.dumps({"cart": 3}))`,
-          { settings: ['SECRET_KEY=""'] },
-        ),
-        error: 'ImproperlyConfigured',
-        correct: 'Signing needs a non-empty `SECRET_KEY`; Django refuses to sign with an empty one.',
-        wrong: [
-          'Dictionaries cannot be signed; only strings.',
-          '`signing.dumps()` requires a `salt` argument.',
-          'Signing only works inside a request.',
-        ],
-        why: 'Django raises `ImproperlyConfigured: The SECRET_KEY setting must not be empty.` the first time something needs the key. Values are serialized to JSON before signing, so dictionaries are fine, and `salt` is optional.',
-      },
-    ],
-  ),
+        { settings: ['SECRET_KEY=""'] },
+      ),
+      error: 'ImproperlyConfigured',
+      correct: 'Signing needs a non-empty `SECRET_KEY`; Django refuses to sign with an empty one.',
+      wrong: [
+        'Dictionaries cannot be signed; only strings.',
+        '`signing.dumps()` requires a `salt` argument.',
+        'Signing only works inside a request.',
+      ],
+      why: 'Django raises `ImproperlyConfigured: The SECRET_KEY setting must not be empty.` the first time something needs the key. Values are serialized to JSON before signing, so dictionaries are fine, and `salt` is optional.',
+    },
+  ]),
   ...b.output(
     'dj-ops-check-deploy',
     3,
@@ -323,7 +313,8 @@ logging.getLogger("other").info("ignored")`,
       },
       {
         key: 'duplicates',
-        question: 'Both the root logger and `payments` have the same handler. What does this program print?',
+        question:
+          'Both the root logger and `payments` have the same handler. What does this program print?',
         code: djangoProgram(
           `import logging
 
@@ -392,7 +383,11 @@ body = r.content.decode()
 print(r.status_code, "Traceback" in body, "card 4242" in body, "tok-123" in body)`,
           {
             urls: true,
-            settings: ['DEBUG=True', 'SECRET_KEY="practice-only-not-secret"', 'API_TOKEN="tok-123"'],
+            settings: [
+              'DEBUG=True',
+              'SECRET_KEY="practice-only-not-secret"',
+              'API_TOKEN="tok-123"',
+            ],
           },
         ),
         correct: '500 True True False',
@@ -520,7 +515,7 @@ print(static("css/site.css"))`,
           '`STATIC_URL` must be an absolute URL starting with `https://`.',
           'Static files must be listed in `INSTALLED_APPS`.',
         ],
-        why: 'The storage looks the file up in the manifest that `collectstatic` writes and raises `ValueError: Missing staticfiles manifest entry for \'css/site.css\'`. Hashed names (`site.3f2a1c.css`) let browsers cache files forever, but `collectstatic` must be part of every deployment. With `DEBUG = True` the unhashed name is used, which is why this only shows up in production.',
+        why: "The storage looks the file up in the manifest that `collectstatic` writes and raises `ValueError: Missing staticfiles manifest entry for 'css/site.css'`. Hashed names (`site.3f2a1c.css`) let browsers cache files forever, but `collectstatic` must be part of every deployment. With `DEBUG = True` the unhashed name is used, which is why this only shows up in production.",
       },
     ],
   ),
@@ -576,40 +571,35 @@ print(static("css/site.css"))`,
       },
     ],
   ),
-  ...b.concept(
-    'dj-ops-troubleshooting',
-    4,
-    'Match the symptom with the setting that checks it.',
-    [
-      {
-        key: 'csrf-behind-proxy',
-        question:
-          'After moving behind an HTTPS load balancer, every form POST fails with "CSRF verification failed. Origin checking failed - https://shop.example.com does not match any trusted origins." What fixes it?',
-        snippet: plain(`Forbidden (403)
+  ...b.concept('dj-ops-troubleshooting', 4, 'Match the symptom with the setting that checks it.', [
+    {
+      key: 'csrf-behind-proxy',
+      question:
+        'After moving behind an HTTPS load balancer, every form POST fails with "CSRF verification failed. Origin checking failed - https://shop.example.com does not match any trusted origins." What fixes it?',
+      snippet: plain(`Forbidden (403)
 CSRF verification failed. Request aborted.
 Reason given for failure:
     Origin checking failed - https://shop.example.com does not match any trusted origins.`),
-        correct:
-          'Make Django aware of HTTPS behind the proxy (`SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")`, with the proxy setting that header) or add the origin to `CSRF_TRUSTED_ORIGINS`.',
-        wrong: [
-          'Add `@csrf_exempt` to every view that handles a form.',
-          'Remove `CsrfViewMiddleware` from `MIDDLEWARE`.',
-          'Set `CSRF_COOKIE_SECURE = False`.',
-        ],
-        why: 'The proxy talks plain HTTP to Django, so Django believes the request is `http://` and the browser’s `https://` origin does not match. Telling Django how to detect HTTPS (only when the proxy sets that header reliably) or trusting the origin explicitly solves it. Disabling CSRF protection removes a security control.',
-      },
-      {
-        key: 'bad-request-400',
-        question:
-          'A newly deployed site answers every request with "Bad Request (400)" and the logs show `Invalid HTTP_HOST header`. What is wrong?',
-        correct: 'The domain in the Host header is not in `ALLOWED_HOSTS`.',
-        wrong: [
-          'The database migrations have not been applied.',
-          'Static files have not been collected.',
-          '`SECRET_KEY` is too short.',
-        ],
-        why: 'With `DEBUG = False`, requests whose Host is not listed in `ALLOWED_HOSTS` raise `DisallowedHost`, answered with 400. Missing migrations show up as database errors (500), missing static files as 404s for assets, and a short key as a deployment-check warning.',
-      },
-    ],
-  ),
+      correct:
+        'Make Django aware of HTTPS behind the proxy (`SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")`, with the proxy setting that header) or add the origin to `CSRF_TRUSTED_ORIGINS`.',
+      wrong: [
+        'Add `@csrf_exempt` to every view that handles a form.',
+        'Remove `CsrfViewMiddleware` from `MIDDLEWARE`.',
+        'Set `CSRF_COOKIE_SECURE = False`.',
+      ],
+      why: 'The proxy talks plain HTTP to Django, so Django believes the request is `http://` and the browser’s `https://` origin does not match. Telling Django how to detect HTTPS (only when the proxy sets that header reliably) or trusting the origin explicitly solves it. Disabling CSRF protection removes a security control.',
+    },
+    {
+      key: 'bad-request-400',
+      question:
+        'A newly deployed site answers every request with "Bad Request (400)" and the logs show `Invalid HTTP_HOST header`. What is wrong?',
+      correct: 'The domain in the Host header is not in `ALLOWED_HOSTS`.',
+      wrong: [
+        'The database migrations have not been applied.',
+        'Static files have not been collected.',
+        '`SECRET_KEY` is too short.',
+      ],
+      why: 'With `DEBUG = False`, requests whose Host is not listed in `ALLOWED_HOSTS` raise `DisallowedHost`, answered with 400. Missing migrations show up as database errors (500), missing static files as 404s for assets, and a short key as a deployment-check warning.',
+    },
+  ]),
 ];

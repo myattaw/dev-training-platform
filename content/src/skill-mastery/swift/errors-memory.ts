@@ -236,7 +236,8 @@ for (name, qty) in quantities {
     print(name, try! requirePositive(qty, name))
 }`,
         error: "Fatal error: 'try!' expression unexpectedly raised an error",
-        correct: 'The quantity for `"pears"` is `0`, so `requirePositive` throws, and `try!` turns that into a crash',
+        correct:
+          'The quantity for `"pears"` is `0`, so `requirePositive` throws, and `try!` turns that into a crash',
         wrong: [
           '`try!` cannot be used inside a loop',
           'Tuples cannot be destructured in a `for` loop',
@@ -447,7 +448,11 @@ b = nil
 log.lines.append("b cleared")
 print(log.lines.joined(separator: ", "))`,
         correct: 'a cleared, freed, b cleared',
-        wrong: ['freed, a cleared, b cleared', 'a cleared, b cleared, freed', 'a cleared, b cleared'],
+        wrong: [
+          'freed, a cleared, b cleared',
+          'a cleared, b cleared, freed',
+          'a cleared, b cleared',
+        ],
         why: '`b` holds a second strong reference, so clearing `a` only lowers the count to one. The object is freed when `b` is cleared too.',
       },
       {
@@ -676,43 +681,38 @@ print("end")`,
       },
     ],
   ),
-  ...b.multi(
-    'swift-arc-concepts',
-    4,
-    'ARC counts references to class instances only.',
-    [
-      {
-        key: 'statements',
-        question: 'Select every true statement about ARC in Swift.',
-        correct: [
-          'Structs and enums are not reference counted themselves, although class instances they store are',
-          'A retain cycle between two objects is not collected automatically',
-          '`unowned` is appropriate only when the referenced object is guaranteed to outlive the reference',
-        ],
-        wrong: [
-          'ARC periodically scans memory to find unreachable cycles, like a tracing garbage collector',
-          '`weak` references keep an object alive until all weak references are also cleared',
-          'Marking a class `final` prevents retain cycles',
-        ],
-        why: 'ARC is plain reference counting performed at compile-inserted retain and release points; it has no cycle collector, so cycles must be broken with `weak` or `unowned`. `weak` does not count toward keeping an object alive. `final` only affects subclassing.',
-      },
-      {
-        key: 'choosing',
-        question: 'Select every reasonable choice for avoiding leaks.',
-        correct: [
-          'A child view model referencing its parent coordinator with `weak var parent`',
-          'A stored completion handler using `[weak self]` when it refers to its owner',
-          'A delegate property declared `weak var delegate: SomeDelegate?` with a class-constrained protocol',
-        ],
-        wrong: [
-          'Adding `[weak self]` to every closure, including `map` and `filter` calls',
-          'Declaring a parent’s array of children as `weak`',
-          'Using `unowned` for a reference that may outlive its target, to avoid unwrapping',
-        ],
-        why: 'Break cycles on the back-reference (child to parent, delegate to owner, stored closure to owner). Non-escaping closures such as `map` cannot form cycles. Parents usually own children strongly. `unowned` to an object that may already be gone crashes when accessed.',
-      },
-    ],
-  ),
+  ...b.multi('swift-arc-concepts', 4, 'ARC counts references to class instances only.', [
+    {
+      key: 'statements',
+      question: 'Select every true statement about ARC in Swift.',
+      correct: [
+        'Structs and enums are not reference counted themselves, although class instances they store are',
+        'A retain cycle between two objects is not collected automatically',
+        '`unowned` is appropriate only when the referenced object is guaranteed to outlive the reference',
+      ],
+      wrong: [
+        'ARC periodically scans memory to find unreachable cycles, like a tracing garbage collector',
+        '`weak` references keep an object alive until all weak references are also cleared',
+        'Marking a class `final` prevents retain cycles',
+      ],
+      why: 'ARC is plain reference counting performed at compile-inserted retain and release points; it has no cycle collector, so cycles must be broken with `weak` or `unowned`. `weak` does not count toward keeping an object alive. `final` only affects subclassing.',
+    },
+    {
+      key: 'choosing',
+      question: 'Select every reasonable choice for avoiding leaks.',
+      correct: [
+        'A child view model referencing its parent coordinator with `weak var parent`',
+        'A stored completion handler using `[weak self]` when it refers to its owner',
+        'A delegate property declared `weak var delegate: SomeDelegate?` with a class-constrained protocol',
+      ],
+      wrong: [
+        'Adding `[weak self]` to every closure, including `map` and `filter` calls',
+        'Declaring a parent’s array of children as `weak`',
+        'Using `unowned` for a reference that may outlive its target, to avoid unwrapping',
+      ],
+      why: 'Break cycles on the back-reference (child to parent, delegate to owner, stored closure to owner). Non-escaping closures such as `map` cannot form cycles. Parents usually own children strongly. `unowned` to an object that may already be gone crashes when accessed.',
+    },
+  ]),
   ...b.fails(
     'swift-unowned-crash',
     5,

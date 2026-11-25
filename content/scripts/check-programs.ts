@@ -44,9 +44,11 @@ for (const t of tracks) {
   for (const skill of t.topics.flatMap((topic) => topic.skills)) {
     const at = (d: number) => skill.questions.filter((q) => q.difficulty === d).length;
     const problems: string[] = [];
-    for (const d of [1, 2, 3, 4, 5]) if (at(d) < 2) problems.push(`tier ${d} has ${at(d)} (needs 2)`);
+    for (const d of [1, 2, 3, 4, 5])
+      if (at(d) < 2) problems.push(`tier ${d} has ${at(d)} (needs 2)`);
     if (at(4) + at(5) < 7) problems.push(`tiers 4-5 have ${at(4) + at(5)} (needs 7)`);
-    if (skill.questions.length < 15) problems.push(`${skill.questions.length} questions (needs 15)`);
+    if (skill.questions.length < 15)
+      problems.push(`${skill.questions.length} questions (needs 15)`);
     if (problems.length > 0) {
       masteryErrors++;
       console.log(`✗ track:${t.id}/${skill.id} (mastery rule)

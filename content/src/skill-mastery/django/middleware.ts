@@ -211,7 +211,11 @@ print(steps)`,
           mw('__main__.Log', '__main__.Maintenance', '__main__.Audit'),
         ),
         correct: "['log 503']",
-        wrong: ["['audit', 'view', 'log 200']", "['audit', 'log 503']", "['log 503', 'audit', 'view']"],
+        wrong: [
+          "['audit', 'view', 'log 200']",
+          "['audit', 'log 503']",
+          "['log 503', 'audit', 'view']",
+        ],
         why: '`Maintenance` answers without calling `get_response()`, so `Audit` and the view never run. Middleware listed before it (`Log`) still sees the 503 on the way out. Short-circuiting is how caching, maintenance and rate-limiting middleware work.',
       },
       {
@@ -276,13 +280,14 @@ Client().get("/")`,
           mw('__main__.Timing'),
         ),
         error: 'AttributeError',
-        correct: '`__call__` does not return the response, so the handler receives `None`; add `return response`.',
+        correct:
+          '`__call__` does not return the response, so the handler receives `None`; add `return response`.',
         wrong: [
           'Headers cannot be set on a response after the view has returned it.',
           'Middleware must subclass `django.utils.deprecation.MiddlewareMixin`.',
           '`get_response` must be called with `self` as an extra argument.',
         ],
-        why: 'A middleware’s `__call__` must return a response. Here it returns `None`, and the code that receives it fails with `AttributeError: \'NoneType\' object has no attribute ...`. Setting headers after the view is normal, and `MiddlewareMixin` is only needed for old-style hook-based middleware.',
+        why: "A middleware’s `__call__` must return a response. Here it returns `None`, and the code that receives it fails with `AttributeError: 'NoneType' object has no attribute ...`. Setting headers after the view is normal, and `MiddlewareMixin` is only needed for old-style hook-based middleware.",
       },
       {
         key: 'no-get-response',
@@ -521,23 +526,18 @@ print(CurrentUser.created)`,
       },
     ],
   ),
-  ...b.concept(
-    'dj-mw-when-to-use',
-    3,
-    'Middleware is for behavior every request needs.',
-    [
-      {
-        key: 'choose',
-        question: 'Which requirement is the best fit for a custom middleware?',
-        correct:
-          'Add a request id header to every response and include it in log lines for all views.',
-        wrong: [
-          'Validate the fields of the checkout form.',
-          'Compute the total of one order on the order detail page.',
-          'Restrict one admin report to users with a specific permission.',
-        ],
-        why: 'Middleware is global: it runs for every request, so it suits cross-cutting concerns such as request ids, security headers or timing. Form validation, page-specific calculations and the access rule of a single view belong in forms, views and decorators, where they do not slow down or affect every other request.',
-      },
-    ],
-  ),
+  ...b.concept('dj-mw-when-to-use', 3, 'Middleware is for behavior every request needs.', [
+    {
+      key: 'choose',
+      question: 'Which requirement is the best fit for a custom middleware?',
+      correct:
+        'Add a request id header to every response and include it in log lines for all views.',
+      wrong: [
+        'Validate the fields of the checkout form.',
+        'Compute the total of one order on the order detail page.',
+        'Restrict one admin report to users with a specific permission.',
+      ],
+      why: 'Middleware is global: it runs for every request, so it suits cross-cutting concerns such as request ids, security headers or timing. Form validation, page-specific calculations and the access rule of a single view belong in forms, views and decorators, where they do not slow down or affect every other request.',
+    },
+  ]),
 ];

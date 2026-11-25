@@ -87,7 +87,11 @@ except KeyError:
 
 print(parse("0"), parse("x"), parse("5"))`,
         correct: 'ZeroDivisionError ValueError 2.0',
-        wrong: ['ValueError ValueError 2.0', 'ZeroDivisionError ValueError 2', 'ArithmeticError ValueError 2.0'],
+        wrong: [
+          'ValueError ValueError 2.0',
+          'ZeroDivisionError ValueError 2',
+          'ArithmeticError ValueError 2.0',
+        ],
         why: 'A tuple of exception types catches any of them, and `as e` binds the actual exception, whose type name is reported. `10 / 5` is the float `2.0`.',
       },
       {
@@ -130,7 +134,8 @@ except InsufficientFunds as e:
       },
       {
         key: 'hierarchy',
-        prompt: 'Make `NotFound` a kind of `AppError`, so one handler can catch every application error.',
+        prompt:
+          'Make `NotFound` a kind of `AppError`, so one handler can catch every application error.',
         template: `class AppError(Exception):
     pass
 
@@ -155,7 +160,8 @@ except AppError as e:
     [
       {
         key: 'wrong-type',
-        question: 'The developer expected the handler to deal with bad input. Why does the program still crash?',
+        question:
+          'The developer expected the handler to deal with bad input. Why does the program still crash?',
         code: `def average(values):
     try:
         return sum(values) / len(values)
@@ -626,7 +632,7 @@ print(next(tasks))`,
           'The list is empty, so it raises `StopIteration`',
           '`next` requires a default value as its second argument',
         ],
-        why: '`for` loops call `iter()` for you. `next()` needs an iterator, so it raises `TypeError: \'list\' object is not an iterator`. The optional default is only used when an iterator is exhausted.',
+        why: "`for` loops call `iter()` for you. `next()` needs an iterator, so it raises `TypeError: 'list' object is not an iterator`. The optional default is only used when an iterator is exhausted.",
       },
       {
         key: 'stop-iteration',
@@ -700,7 +706,8 @@ print(list(zip(it, it)))`,
 
 print(normalize([1, 3]))
 print(normalize(v for v in [1, 3]))`,
-        correct: 'Materialize the input first: `values = list(values)` at the start of the function',
+        correct:
+          'Materialize the input first: `values = list(values)` at the start of the function',
         wrong: [
           'Call `values.reset()` after `sum`',
           'Replace the comprehension with a generator expression',
@@ -725,7 +732,7 @@ print(names, total)`,
           'The second loop fails silently because `row[1]` is a string',
           '`io.StringIO` can only be read by one `csv.reader`',
         ],
-        why: 'Readers, files and generators are single-pass. Read the rows once (`rows = list(reader)`) and loop over the list as often as needed. The program prints `[\'ana\', \'ben\'] 0`.',
+        why: "Readers, files and generators are single-pass. Read the rows once (`rows = list(reader)`) and loop over the list as often as needed. The program prints `['ana', 'ben'] 0`.",
       },
     ],
   ),

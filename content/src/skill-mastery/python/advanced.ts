@@ -80,48 +80,44 @@ print(check_bare("refunded"), PAID)`,
 // ---------------------------------------------------------------- Strings
 
 export const stringsAdvanced: readonly QuestionSource[] = [
-  ...b.fails(
-    'py-format-pitfalls',
-    4,
-    'Count the placeholders and the values supplied for them.',
-    [
-      {
-        key: 'percent-tuple',
-        question: 'A logging helper formats a message with the old `%` operator. Why does it fail for this call?',
-        code: `def log(template, value):
+  ...b.fails('py-format-pitfalls', 4, 'Count the placeholders and the values supplied for them.', [
+    {
+      key: 'percent-tuple',
+      question:
+        'A logging helper formats a message with the old `%` operator. Why does it fail for this call?',
+      code: `def log(template, value):
     return "LOG: " + template % value
 
 print(log("user %s", "ana"))
 print(log("point %s", (3, 4)))`,
-        error: 'TypeError',
-        correct:
-          'With `%`, a tuple on the right is treated as the argument list, so `(3, 4)` supplies two values for one `%s`; wrap it: `template % (value,)`',
-        wrong: [
-          '`%s` cannot format tuples; only strings and numbers are allowed',
-          'The first call fails because `"ana"` is not wrapped in a tuple',
-          '`%` formatting was removed in Python 3',
-        ],
-        why: 'The error is `TypeError: not all arguments converted during string formatting`. A single non-tuple value works (the first call prints), but a tuple is unpacked into the placeholders. f-strings and `str.format` do not have this ambiguity.',
-      },
-      {
-        key: 'format-index',
-        question: 'Why does building this message fail?',
-        code: `template = "{} ordered {} x {}"
+      error: 'TypeError',
+      correct:
+        'With `%`, a tuple on the right is treated as the argument list, so `(3, 4)` supplies two values for one `%s`; wrap it: `template % (value,)`',
+      wrong: [
+        '`%s` cannot format tuples; only strings and numbers are allowed',
+        'The first call fails because `"ana"` is not wrapped in a tuple',
+        '`%` formatting was removed in Python 3',
+      ],
+      why: 'The error is `TypeError: not all arguments converted during string formatting`. A single non-tuple value works (the first call prints), but a tuple is unpacked into the placeholders. f-strings and `str.format` do not have this ambiguity.',
+    },
+    {
+      key: 'format-index',
+      question: 'Why does building this message fail?',
+      code: `template = "{} ordered {} x {}"
 fields = ["ana", 3]
 print(template.format(*fields, "pens"))
 print(template.format(fields))`,
-        error: 'IndexError',
-        correct:
-          'The second call passes the whole list as one argument, so the template’s second and third `{}` have nothing to fill: `IndexError: Replacement index 1 out of range`',
-        wrong: [
-          '`str.format` cannot take a list argument at all, so it raises `TypeError`',
-          'The first call fails because `*fields` and a positional argument cannot be mixed',
-          'Missing values are filled with empty strings',
-        ],
-        why: 'The first call unpacks the list and adds `"pens"`, giving three arguments and printing `ana ordered 3 x pens`. The second passes one argument (the list), so index 1 is out of range. Unlike `%`, `format` raises `IndexError` for a missing positional field.',
-      },
-    ],
-  ),
+      error: 'IndexError',
+      correct:
+        'The second call passes the whole list as one argument, so the template’s second and third `{}` have nothing to fill: `IndexError: Replacement index 1 out of range`',
+      wrong: [
+        '`str.format` cannot take a list argument at all, so it raises `TypeError`',
+        'The first call fails because `*fields` and a positional argument cannot be mixed',
+        'Missing values are filled with empty strings',
+      ],
+      why: 'The first call unpacks the list and adds `"pens"`, giving three arguments and printing `ana ordered 3 x pens`. The second passes one argument (the list), so index 1 is out of range. Unlike `%`, `format` raises `IndexError` for a missing positional field.',
+    },
+  ]),
   ...b.output(
     'py-escapes-raw-strings',
     5,
@@ -258,7 +254,8 @@ print(p.x, p.z)`,
       },
       {
         key: 'property-no-setter',
-        question: 'A subclass tries to store a precomputed area. Why does creating a `Square` fail?',
+        question:
+          'A subclass tries to store a precomputed area. Why does creating a `Square` fail?',
         code: `class Shape:
     @property
     def area(self):
@@ -278,7 +275,7 @@ print(Square(3).area)`,
           'The instance attribute silently shadows the property and the program prints `9`',
           '`side * side` must be wrapped in `int()`',
         ],
-        why: 'A property is a data descriptor, so it wins over the instance `__dict__` on both reading and writing; without a setter, assignment fails with "property \'area\' of \'Square\' object has no setter". Override `area` as a property in `Square` instead.',
+        why: "A property is a data descriptor, so it wins over the instance `__dict__` on both reading and writing; without a setter, assignment fails with \"property 'area' of 'Square' object has no setter\". Override `area` as a property in `Square` instead.",
       },
     ],
   ),

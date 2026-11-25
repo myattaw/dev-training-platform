@@ -71,7 +71,8 @@ print(sso.has_usable_password(), sso.check_password(""))`,
     [
       {
         key: 'raw-assignment',
-        question: 'A password-reset script sets the new password like this. Why can the user not log in?',
+        question:
+          'A password-reset script sets the new password like this. Why can the user not log in?',
         code: dbProgram(
           `${MIGRATE}
 from django.contrib.auth import authenticate
@@ -399,36 +400,32 @@ print(c.get(f"/invoices/{inv.pk}/").status_code)`,
       },
     ],
   ),
-  ...b.concept(
-    'dj-auth-concepts',
-    2,
-    'Think about what each mechanism is designed to protect.',
-    [
-      {
-        key: 'custom-user',
-        question:
-          'Starting a new project that may later need extra user fields (for example sign-in by email). What does the Django documentation recommend?',
-        correct:
-          'Define a custom user model (for example subclassing `AbstractUser`) and set `AUTH_USER_MODEL` before the first migration.',
-        wrong: [
-          'Use `django.contrib.auth.models.User` and add columns to `auth_user` by hand later.',
-          'Store extra fields in the session.',
-          'Subclass `User` with multi-table inheritance whenever a field is needed.',
-        ],
-        why: 'Switching `AUTH_USER_MODEL` after tables and foreign keys exist is a difficult migration, so the docs recommend a custom user model from the start even if it is identical to `User`. Hand-edited tables drift from the migrations, and sessions are temporary.',
-      },
-      {
-        key: 'hashers',
-        question: 'Why does Django store passwords with a slow, salted hash such as PBKDF2 or Argon2?',
-        correct:
-          'If the database leaks, each guess costs significant computation and salts stop precomputed tables, so recovering passwords is slow.',
-        wrong: [
-          'So that administrators can decrypt passwords when users forget them.',
-          'Because fast hashes like MD5 cannot be stored in a `CharField`.',
-          'To make logins faster by caching the hash in the session.',
-        ],
-        why: 'Password hashes are one-way: nobody can decrypt them, which is why resets set a new password. Fast hashes such as MD5 allow billions of guesses per second, which is why the practice programs here use MD5 only for speed and real projects must not.',
-      },
-    ],
-  ),
+  ...b.concept('dj-auth-concepts', 2, 'Think about what each mechanism is designed to protect.', [
+    {
+      key: 'custom-user',
+      question:
+        'Starting a new project that may later need extra user fields (for example sign-in by email). What does the Django documentation recommend?',
+      correct:
+        'Define a custom user model (for example subclassing `AbstractUser`) and set `AUTH_USER_MODEL` before the first migration.',
+      wrong: [
+        'Use `django.contrib.auth.models.User` and add columns to `auth_user` by hand later.',
+        'Store extra fields in the session.',
+        'Subclass `User` with multi-table inheritance whenever a field is needed.',
+      ],
+      why: 'Switching `AUTH_USER_MODEL` after tables and foreign keys exist is a difficult migration, so the docs recommend a custom user model from the start even if it is identical to `User`. Hand-edited tables drift from the migrations, and sessions are temporary.',
+    },
+    {
+      key: 'hashers',
+      question:
+        'Why does Django store passwords with a slow, salted hash such as PBKDF2 or Argon2?',
+      correct:
+        'If the database leaks, each guess costs significant computation and salts stop precomputed tables, so recovering passwords is slow.',
+      wrong: [
+        'So that administrators can decrypt passwords when users forget them.',
+        'Because fast hashes like MD5 cannot be stored in a `CharField`.',
+        'To make logins faster by caching the hash in the session.',
+      ],
+      why: 'Password hashes are one-way: nobody can decrypt them, which is why resets set a new password. Fast hashes such as MD5 allow billions of guesses per second, which is why the practice programs here use MD5 only for speed and real projects must not.',
+    },
+  ]),
 ];

@@ -145,7 +145,8 @@ print(label(95))`,
       },
       {
         key: 'where-order',
-        question: 'This code should print `"even"` for `4`, but it prints `"small"`. What is the fix?',
+        question:
+          'This code should print `"even"` for `4`, but it prints `"small"`. What is the fix?',
         code: sw`let n = 4
 switch n {
 case let x where x < 10:
@@ -224,7 +225,11 @@ print(out)`,
 }
 print(describe((0, 5)), describe((3, 3)), describe((2, 0)))`,
         correct: 'y-axis at 5 diagonal x-axis',
-        wrong: ['origin diagonal x-axis', 'y-axis at 5 elsewhere x-axis', 'y-axis at 5 diagonal elsewhere'],
+        wrong: [
+          'origin diagonal x-axis',
+          'y-axis at 5 elsewhere x-axis',
+          'y-axis at 5 diagonal elsewhere',
+        ],
         why: '`(0, 5)` skips the first two cases and binds `y = 5` in the third. `(3, 3)` matches the `where x == y` case. `(2, 0)` matches `(_, 0)`, because `_` accepts any first element.',
       },
       {
@@ -427,7 +432,8 @@ export const functionsFamilies: readonly QuestionSource[] = [
 var steps = ["start"]
 finish(steps)
 print(steps)`,
-        correct: 'Assign the result: `steps = finish(steps)` (or make the parameter `inout` and call `finish(&steps)`)',
+        correct:
+          'Assign the result: `steps = finish(steps)` (or make the parameter `inout` and call `finish(&steps)`)',
         wrong: [
           'Change the parameter type to `var [String]`',
           'Declare `steps` with `let` so it is passed by reference',
@@ -771,7 +777,11 @@ let everyone = teams.flatMap { $0 }
 let sizes = teams.map { $0.count }
 print(everyone, sizes)`,
         correct: '["ana", "bo", "cy"] [2, 0, 1]',
-        wrong: ['[["ana", "bo"], [], ["cy"]] [2, 0, 1]', '["ana", "bo", "cy"] [2, 1]', '["ana", "bo", "cy"] 3'],
+        wrong: [
+          '[["ana", "bo"], [], ["cy"]] [2, 0, 1]',
+          '["ana", "bo", "cy"] [2, 1]',
+          '["ana", "bo", "cy"] 3',
+        ],
         why: '`flatMap` concatenates the arrays the closure returns into one array. `map` keeps the structure: one count per team, including the empty one.',
       },
     ],
@@ -844,7 +854,11 @@ while j <= 3 {
 }
 print(actions.map { $0() }, others.map { $0() })`,
         correct: '[10, 20, 30] [40, 40, 40]',
-        wrong: ['[10, 20, 30] [10, 20, 30]', '[30, 30, 30] [40, 40, 40]', '[40, 40, 40] [40, 40, 40]'],
+        wrong: [
+          '[10, 20, 30] [10, 20, 30]',
+          '[30, 30, 30] [40, 40, 40]',
+          '[40, 40, 40] [40, 40, 40]',
+        ],
         why: 'A `for`-`in` loop creates a new `i` constant for each iteration, so each closure has its own value. The `while` loop uses one `j` variable that all closures share, and by the time they run, `j` is `4`.',
       },
     ],
@@ -907,11 +921,13 @@ Downloader().start()`,
     [
       {
         key: 'sorted',
-        question: 'This program should print the names in alphabetical order, but it does not. Why?',
+        question:
+          'This program should print the names in alphabetical order, but it does not. Why?',
         code: sw`var names = ["Cy", "Ana", "Bo"]
 names.sorted()
 print(names)`,
-        correct: '`sorted()` returns a new sorted array and the result is discarded; use `names.sort()` to sort in place',
+        correct:
+          '`sorted()` returns a new sorted array and the result is discarded; use `names.sort()` to sort in place',
         wrong: [
           '`sorted()` needs a closure such as `sorted(by: <)` to do anything',
           '`names` must be declared with `let` for `sorted()` to work',
@@ -921,11 +937,13 @@ print(names)`,
       },
       {
         key: 'filter',
-        question: 'This program should remove negative readings, but it prints all four. What is the fix?',
+        question:
+          'This program should remove negative readings, but it prints all four. What is the fix?',
         code: sw`var readings = [3, -1, 4, -5]
 _ = readings.filter { $0 >= 0 }
 print(readings)`,
-        correct: 'Use `readings.removeAll { $0 < 0 }`, or assign `readings = readings.filter { $0 >= 0 }`',
+        correct:
+          'Use `readings.removeAll { $0 < 0 }`, or assign `readings = readings.filter { $0 >= 0 }`',
         wrong: [
           'Change the closure to `{ $0 < 0 }`',
           'Replace `filter` with `map`',

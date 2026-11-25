@@ -192,7 +192,8 @@ record Product(long id, String name, long priceCents, boolean active) {}`,
     [
       {
         key: 'reasons',
-        question: 'Select every good reason to return DTOs from a REST API instead of JPA entities.',
+        question:
+          'Select every good reason to return DTOs from a REST API instead of JPA entities.',
         correct: [
           'Internal fields such as password hashes or audit data are not exposed by accident.',
           'The database schema can change without breaking the public API.',
@@ -206,7 +207,8 @@ record Product(long id, String name, long priceCents, boolean active) {}`,
       },
       {
         key: 'mass-assignment',
-        question: 'An `updateProfile` endpoint binds the request body directly to the `User` entity and saves it. Select every risk.',
+        question:
+          'An `updateProfile` endpoint binds the request body directly to the `User` entity and saves it. Select every risk.',
         correct: [
           'A client can set fields it should not control, such as `role` or `id` (mass assignment).',
           'Fields missing from the request may overwrite stored values with `null`.',
@@ -227,7 +229,8 @@ record Product(long id, String name, long priceCents, boolean active) {}`,
     [
       {
         key: 'new-inside',
-        question: 'Which refactoring makes `InvoiceService` easiest to unit test without sending real emails?',
+        question:
+          'Which refactoring makes `InvoiceService` easiest to unit test without sending real emails?',
         code: `public class Main {
     public static void main(String[] args) {
         new InvoiceService().send("inv-1", "ada@example.com");
@@ -247,7 +250,8 @@ class InvoiceService {
         mailer.mail(to, "Invoice " + invoiceId);
     }
 }`,
-        correct: 'Introduce a `Mailer` interface, let `SmtpMailer` implement it, and pass a `Mailer` to `InvoiceService` through its constructor; tests pass a fake or mock.',
+        correct:
+          'Introduce a `Mailer` interface, let `SmtpMailer` implement it, and pass a `Mailer` to `InvoiceService` through its constructor; tests pass a fake or mock.',
         wrong: [
           'Make `mail` a `static` method so that `InvoiceService` does not need an instance.',
           'Make the `mailer` field `public` so that tests can read it.',
@@ -257,7 +261,8 @@ class InvoiceService {
       },
       {
         key: 'clock',
-        question: 'A test for “invoices are overdue after 30 days” fails depending on the day it runs. Which change fixes the design?',
+        question:
+          'A test for “invoices are overdue after 30 days” fails depending on the day it runs. Which change fixes the design?',
         code: `import java.time.LocalDate;
 
 public class Main {
@@ -278,7 +283,8 @@ class Invoice {
         return LocalDate.now().isAfter(issuedOn.plusDays(30));
     }
 }`,
-        correct: 'Pass the current date in (`isOverdue(LocalDate today)`), or inject a `java.time.Clock` and call `LocalDate.now(clock)`; tests then use a fixed date or `Clock.fixed(...)`.',
+        correct:
+          'Pass the current date in (`isOverdue(LocalDate today)`), or inject a `java.time.Clock` and call `LocalDate.now(clock)`; tests then use a fixed date or `Clock.fixed(...)`.',
         wrong: [
           'Run the test only on the first day of each month.',
           'Replace `LocalDate` with `java.util.Date`, which is easier to compare.',
@@ -302,7 +308,8 @@ class Invoice {
     <version>5.14.2</version>
     <scope>test</scope>
 </dependency>`),
-        correct: 'Mockito is available to compile and run the code in `src/test/java`, but not to production code, and it is not packaged into the application.',
+        correct:
+          'Mockito is available to compile and run the code in `src/test/java`, but not to production code, and it is not packaged into the application.',
         wrong: [
           'Mockito is downloaded only when the tests fail.',
           'Mockito is included in the application but disabled in production.',
@@ -312,8 +319,10 @@ class Invoice {
       },
       {
         key: 'conflict',
-        question: 'Two libraries in a Maven project depend on different versions of `jackson-databind`. How does Maven choose, and what is the usual fix?',
-        correct: 'Maven picks the version nearest to the project in the dependency tree (the first declared wins on a tie); pin the version explicitly, for example with `<dependencyManagement>` or an imported BOM.',
+        question:
+          'Two libraries in a Maven project depend on different versions of `jackson-databind`. How does Maven choose, and what is the usual fix?',
+        correct:
+          'Maven picks the version nearest to the project in the dependency tree (the first declared wins on a tie); pin the version explicitly, for example with `<dependencyManagement>` or an imported BOM.',
         wrong: [
           'Maven always picks the highest version and never needs help.',
           'Maven includes both versions, and the JVM loads the one it needs for each class.',
@@ -323,8 +332,10 @@ class Invoice {
       },
       {
         key: 'coordinates',
-        question: 'In the Gradle declaration `implementation("com.fasterxml.jackson.core:jackson-annotations:2.20")`, what is `jackson-annotations`?',
-        correct: 'The artifact id: the name of the library within the group `com.fasterxml.jackson.core`.',
+        question:
+          'In the Gradle declaration `implementation("com.fasterxml.jackson.core:jackson-annotations:2.20")`, what is `jackson-annotations`?',
+        correct:
+          'The artifact id: the name of the library within the group `com.fasterxml.jackson.core`.',
         wrong: [
           'The Java package that will be imported.',
           'The group id, which must match the folder of your source files.',
@@ -354,7 +365,8 @@ record Address(String city) {}
 record Customer(String name, Address address) {}
 record Order(String id, Customer customer) {}`,
         error: 'because the return value of "Customer.address()" is null',
-        correct: 'The customer’s `address`: `customer()` returned a customer, but its `address()` returned `null`, so calling `city()` on it failed.',
+        correct:
+          'The customer’s `address`: `customer()` returned a customer, but its `address()` returned `null`, so calling `city()` on it failed.',
         wrong: [
           'The `city` string: `toUpperCase()` was called on a `null` city.',
           'The order’s `customer`: the chain stopped at `customer()`.',
@@ -392,7 +404,8 @@ class CheckoutService {
     }
 }`,
         error: 'because "this.prices" is null',
-        correct: 'The service was created with the no-argument constructor, so its `prices` dependency was never set; remove that constructor, make the field `final`, and always inject the repository.',
+        correct:
+          'The service was created with the no-argument constructor, so its `prices` dependency was never set; remove that constructor, make the field `final`, and always inject the repository.',
         wrong: [
           '`priceOf("pen")` returned `null` and the multiplication failed.',
           'The interface `PriceRepository` has no implementation, so Java sets every reference of that type to `null`.',
@@ -420,7 +433,8 @@ public class Main {
     }
 }`,
         error: 'because the return value of "java.util.Map.get(Object)" is null',
-        correct: 'The map has no entry for `ink`; `get` returned `null`, and the hidden `intValue()` call of auto-unboxing failed. Use `getOrDefault(sku, 0)`.',
+        correct:
+          'The map has no entry for `ink`; `get` returned `null`, and the hidden `intValue()` call of auto-unboxing failed. Use `getOrDefault(sku, 0)`.',
         wrong: [
           'The `STOCK` map is `null` because it is `static`.',
           '`Integer.intValue()` fails for numbers above 127.',
@@ -449,7 +463,8 @@ Caused by: java.lang.NumberFormatException: For input string: "12,5"
     at com.shop.order.QuantityParser.parse(QuantityParser.java:15)
     at com.shop.order.OrderService.place(OrderService.java:38)
     ... 88 more`),
-        correct: '`QuantityParser.parse` at line 15, which passed `"12,5"` to `Integer.parseInt`: the deepest cause’s first frame in application code.',
+        correct:
+          '`QuantityParser.parse` at line 15, which passed `"12,5"` to `Integer.parseInt`: the deepest cause’s first frame in application code.',
         wrong: [
           '`OrderController.create` at line 27, because it is where the request entered the application.',
           '`Integer.parseInt` at line 662, because it is the top frame of the cause.',
@@ -460,11 +475,13 @@ Caused by: java.lang.NumberFormatException: For input string: "12,5"
       {
         key: 'npe-frame',
         question: 'Which statement about this stack trace is correct?',
-        snippet: plain(`java.lang.NullPointerException: Cannot invoke "String.trim()" because "name" is null
+        snippet:
+          plain(`java.lang.NullPointerException: Cannot invoke "String.trim()" because "name" is null
     at com.shop.customer.CustomerMapper.toEntity(CustomerMapper.java:21)
     at com.shop.customer.CustomerService.register(CustomerService.java:33)
     at com.shop.web.CustomerController.register(CustomerController.java:19)`),
-        correct: 'The exception was thrown at `CustomerMapper.java:21`, where `name` (a local variable or parameter) was `null`; the earlier frames show who called it, which helps find where the `null` came from.',
+        correct:
+          'The exception was thrown at `CustomerMapper.java:21`, where `name` (a local variable or parameter) was `null`; the earlier frames show who called it, which helps find where the `null` came from.',
         wrong: [
           'The exception was thrown in `CustomerController.register`, because the last frame is where it happened.',
           '`String.trim()` has a bug, because it is the method named in the message.',
@@ -481,7 +498,8 @@ Caused by: java.lang.NumberFormatException: For input string: "12,5"
     [
       {
         key: 'cancel',
-        question: 'The rule is “a shipped order cannot be cancelled”. Three services currently check it before setting the status. What is the best design?',
+        question:
+          'The rule is “a shipped order cannot be cancelled”. Three services currently check it before setting the status. What is the best design?',
         code: `public class Main {
     public static void main(String[] args) {
         Order order = new Order("o-1");
@@ -517,7 +535,8 @@ class Order {
         return status;
     }
 }`,
-        correct: 'Keep the rule inside `Order.cancel()`, as shown, and remove any public `setStatus`; every caller must then go through the method that enforces it.',
+        correct:
+          'Keep the rule inside `Order.cancel()`, as shown, and remove any public `setStatus`; every caller must then go through the method that enforces it.',
         wrong: [
           'Keep a public `setStatus(String)` and repeat the check in each service, so that every service can decide differently.',
           'Move the rule into the REST controller, because that is where requests arrive.',
@@ -527,7 +546,8 @@ class Order {
       },
       {
         key: 'transaction-script',
-        question: 'A transfer service moves money between accounts. Which version of `transfer` preserves the business rule “balances never go negative” best?',
+        question:
+          'A transfer service moves money between accounts. Which version of `transfer` preserves the business rule “balances never go negative” best?',
         code: `public class Main {
     public static void main(String[] args) {
         Account from = new Account(100);
@@ -561,7 +581,8 @@ class TransferService {
         to.deposit(amount);
     }
 }`,
-        correct: 'This one: `withdraw` validates before changing anything, and it runs before `deposit`, so a rejected transfer leaves both balances unchanged (in a real system, both calls also run in one transaction).',
+        correct:
+          'This one: `withdraw` validates before changing anything, and it runs before `deposit`, so a rejected transfer leaves both balances unchanged (in a real system, both calls also run in one transaction).',
         wrong: [
           'Call `to.deposit(amount)` first, so the receiving account is never short of money.',
           'Remove the checks from `Account` and validate in `TransferService` only, because services own the business logic.',
@@ -986,7 +1007,8 @@ public class Main {
 
 record OrderLine(String sku, int quantity) {}`,
         error: 'InvalidFormatException',
-        correct: '`"two"` cannot be converted to the `int` component `quantity`, so Jackson throws `InvalidFormatException`; the API should answer with a 400 Bad Request that names the field.',
+        correct:
+          '`"two"` cannot be converted to the `int` component `quantity`, so Jackson throws `InvalidFormatException`; the API should answer with a 400 Bad Request that names the field.',
         wrong: [
           'Jackson cannot deserialize records; use a class with setters.',
           'The JSON is syntactically invalid, so the parser fails before mapping.',
@@ -1009,7 +1031,8 @@ public class Main {
 
 record OrderLine(String sku, int quantity) {}`,
         error: 'MismatchedInputException',
-        correct: '`quantity` is missing and the component is a primitive `int`, which cannot be `null`; Jackson 3 rejects this by default instead of using `0`. Make the field an `Integer` and validate it, or send the value.',
+        correct:
+          '`quantity` is missing and the component is a primitive `int`, which cannot be `null`; Jackson 3 rejects this by default instead of using `0`. Make the field an `Integer` and validate it, or send the value.',
         wrong: [
           'Records require every JSON property to be present, including `String` ones.',
           '`sku` must be the last property in the JSON.',
@@ -1054,7 +1077,8 @@ record CreateOrderRequest(
     @NotBlank String customer,
     @Email String email,
     @Positive int quantity) {}`,
-        output: 'customer: must not be blank\nemail: must be a well-formed email address\nquantity: must be greater than 0\n0',
+        output:
+          'customer: must not be blank\nemail: must be a well-formed email address\nquantity: must be greater than 0\n0',
         why: 'All three constraints fail and each produces a violation with the property path and a default message. Violations come in a `Set` with no defined order, so the program sorts them before printing. A valid request has no violations.',
       },
       {
@@ -1354,7 +1378,8 @@ record Discount(@PositiveOrZero int percent, @PositiveOrZero int minimumOrderCen
     [
       {
         key: 'where',
-        question: 'Select every statement that describes a sound validation strategy for a Spring REST service.',
+        question:
+          'Select every statement that describes a sound validation strategy for a Spring REST service.',
         correct: [
           'Annotate request DTOs with Bean Validation constraints and trigger them with `@Valid` at the controller, so invalid input is rejected with 400 before business code runs.',
           'Enforce invariants that must always hold (such as a positive quantity) in the domain objects too, for example in a record’s compact constructor.',

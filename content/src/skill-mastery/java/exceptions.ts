@@ -382,7 +382,8 @@ class Resource implements AutoCloseable {
     [
       {
         key: 'wrapped-config',
-        question: 'The application stops with `IllegalStateException: Invalid configuration`. Where is the actual problem?',
+        question:
+          'The application stops with `IllegalStateException: Invalid configuration`. Where is the actual problem?',
         code: `import java.util.Map;
 
 public class Main {
@@ -399,7 +400,8 @@ public class Main {
     }
 }`,
         error: 'IllegalStateException: Invalid configuration',
-        correct: 'In the cause: a `NumberFormatException` for input string `"80a"`, so the `server.port` value is not a number.',
+        correct:
+          'In the cause: a `NumberFormatException` for input string `"80a"`, so the `server.port` value is not a number.',
         wrong: [
           'The configuration map is `null`, because `IllegalStateException` means an object was not initialized.',
           'The key `server.port` is missing from the map.',
@@ -433,7 +435,8 @@ public class Main {
     }
 }`,
         error: 'NullPointerException',
-        correct: '`load` swallows the `FileNotFoundException` and returns `null`, so the failure surfaces later as an NPE; let the exception propagate (or wrap it) instead of returning `null`.',
+        correct:
+          '`load` swallows the `FileNotFoundException` and returns `null`, so the failure surfaces later as an NPE; let the exception propagate (or wrap it) instead of returning `null`.',
         wrong: [
           '`getProperty` throws `NullPointerException` when the key does not exist.',
           '`Properties` must be created with `new Properties()` before `getProperty` can be called on it.',
@@ -474,7 +477,8 @@ class InvoiceService {
         }
     }
 }`,
-        correct: 'It copies only the message and drops the original exception, so its type and stack trace are lost; add a `(String, Throwable)` constructor and pass `e` as the cause.',
+        correct:
+          'It copies only the message and drops the original exception, so its type and stack trace are lost; add a `(String, Throwable)` constructor and pass `e` as the cause.',
         wrong: [
           'Translating exceptions is always wrong; the `NumberFormatException` should reach the controller unchanged.',
           '`InvoiceException` must extend `Exception`, because custom exceptions must be checked.',
@@ -505,7 +509,8 @@ class CustomerRepository {
         }
     }
 }`,
-        correct: 'Catching `Exception` turns every failure, including bugs such as a `NullPointerException` for an unknown id, into an empty email; handle the missing case explicitly (for example return `Optional<String>`) and let unexpected exceptions propagate.',
+        correct:
+          'Catching `Exception` turns every failure, including bugs such as a `NullPointerException` for an unknown id, into an empty email; handle the missing case explicitly (for example return `Optional<String>`) and let unexpected exceptions propagate.',
         wrong: [
           'The method should catch `Throwable` instead, so that errors such as `OutOfMemoryError` are handled too.',
           'The `try` block is fine but should also log the exception with `e.printStackTrace()` and continue.',
@@ -595,7 +600,11 @@ class CustomerRepository {
     }
 }`,
         correct: 'cached',
-        wrong: ['IllegalStateException: database down', 'database down', 'It does not compile: missing return'],
+        wrong: [
+          'IllegalStateException: database down',
+          'database down',
+          'It does not compile: missing return',
+        ],
         why: 'A `return` in `finally` completes the method normally and discards the pending exception without a trace. This is why `return` (and `throw`) in `finally` blocks should be avoided.',
       },
     ],
@@ -654,7 +663,11 @@ class Connection implements AutoCloseable {
     }
 }`,
         correct: 'close failed / suppressed: 0',
-        wrong: ['query failed / suppressed: 1', 'query failed / suppressed: 0', 'close failed / suppressed: 1'],
+        wrong: [
+          'query failed / suppressed: 1',
+          'query failed / suppressed: 0',
+          'close failed / suppressed: 1',
+        ],
         why: 'With a hand-written `finally`, the exception thrown by `close()` replaces the one in flight: the original `query failed`, the real problem, is lost. try-with-resources exists to avoid exactly this.',
       },
       {
@@ -676,7 +689,11 @@ class Connection implements AutoCloseable {
     }
 }`,
         correct: 'query ok\ncaught close failed / suppressed: 0',
-        wrong: ['query ok', 'caught close failed / suppressed: 0', 'query ok\ncaught close failed / suppressed: 1'],
+        wrong: [
+          'query ok',
+          'caught close failed / suppressed: 0',
+          'query ok\ncaught close failed / suppressed: 1',
+        ],
         why: 'When the body completes normally, an exception from `close()` is simply thrown by the statement and can be caught. Suppression only happens when there already is a primary exception.',
       },
     ],

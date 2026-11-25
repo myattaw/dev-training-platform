@@ -452,7 +452,8 @@ urlpatterns = [path("archive/<yyyy:year>/", archive, name="archive")]
 print(reverse("archive", args=[7]))`,
           urls,
         ),
-        correct: '`/archive/0007/`: `to_url()` formats the value, and the result matches the regex.',
+        correct:
+          '`/archive/0007/`: `to_url()` formats the value, and the result matches the regex.',
         wrong: [
           '`/archive/7/`: `reverse()` uses `str(value)` and ignores `to_url()`.',
           'It raises `NoReverseMatch` because `7` is not four digits.',

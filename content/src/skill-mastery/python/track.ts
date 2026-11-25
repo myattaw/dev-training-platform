@@ -86,7 +86,8 @@ export const pythonTrack: TrackSource = {
     {
       id: 'py-collections-topic',
       name: 'Collections',
-      description: 'Choose the right built-in collection and avoid surprises from shared mutable objects.',
+      description:
+        'Choose the right built-in collection and avoid surprises from shared mutable objects.',
       skills: [
         {
           id: 'py-collections',
@@ -282,7 +283,8 @@ export const pythonTrack: TrackSource = {
     {
       id: 'py-typing',
       name: 'Type hints',
-      description: 'Document and check types with annotations, without expecting run-time enforcement.',
+      description:
+        'Document and check types with annotations, without expecting run-time enforcement.',
       skills: [
         {
           id: 'py-type-hints',

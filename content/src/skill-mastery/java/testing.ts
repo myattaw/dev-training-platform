@@ -17,7 +17,11 @@ const b = programBuilders('java');
  * A program whose `main` runs the given JUnit test classes and prints
  * "<n> passed, <m> failed". `imports` are extra import lines.
  */
-function junit(testClasses: readonly string[], rest: string, imports: readonly string[] = []): string {
+function junit(
+  testClasses: readonly string[],
+  rest: string,
+  imports: readonly string[] = [],
+): string {
   const selectors = testClasses.map((c) => `selectClass(${c}.class)`).join(', ');
   return `import org.junit.jupiter.api.*;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
@@ -152,7 +156,8 @@ class CartTest {
     [
       {
         key: 'assert-throws',
-        prompt: 'Complete the test so that it passes only if withdrawing too much throws `IllegalStateException`.',
+        prompt:
+          'Complete the test so that it passes only if withdrawing too much throws `IllegalStateException`.',
         template: junit(
           ['AccountTest'],
           `class Account {
@@ -199,7 +204,8 @@ class InvoiceTest {
       },
       {
         key: 'assert-all',
-        prompt: 'Complete the test so that all three checks are evaluated and reported together, even if the first one fails.',
+        prompt:
+          'Complete the test so that all three checks are evaluated and reported together, even if the first one fails.',
         template: junit(
           ['AddressTest'],
           `record Address(String street, String city, String zip) {}
@@ -244,7 +250,11 @@ public class Main {
     }
 }`,
         correct: 'expected: <999> but was: <1499>',
-        wrong: ['expected: <1499> but was: <999>', 'expected: <6> but was: <999>', 'assertion failed'],
+        wrong: [
+          'expected: <1499> but was: <999>',
+          'expected: <6> but was: <999>',
+          'assertion failed',
+        ],
         why: 'The first argument is reported as “expected”. Here the actual value was passed first, so the message claims the code returned `1499`, which sends whoever debugs the failure in the wrong direction. Write `assertEquals(1499, shippingCents(6))`.',
       },
       {
@@ -263,7 +273,11 @@ public class Main {
     }
 }`,
         correct: 'stock after restock ==> expected: <5> but was: <3>',
-        wrong: ['expected: <5> but was: <3>', 'stock after restock', 'expected: <3> but was: <5> ==> stock after restock'],
+        wrong: [
+          'expected: <5> but was: <3>',
+          'stock after restock',
+          'expected: <3> but was: <5> ==> stock after restock',
+        ],
         why: 'In JUnit 5 the optional message is the last argument (in JUnit 4 it was the first). It is prefixed to the generated text with `==>`.',
       },
       {
@@ -285,7 +299,11 @@ public class Main {
     }
 }`,
         correct: 'within delta\nexpected: <0.3> but was: <0.30000000000000004>',
-        wrong: ['within delta\nexact', 'expected: <0.3> but was: <0.30000000000000004>', 'within delta'],
+        wrong: [
+          'within delta\nexact',
+          'expected: <0.3> but was: <0.30000000000000004>',
+          'within delta',
+        ],
         why: 'The three-argument `assertEquals(expected, actual, delta)` accepts a small difference, so it passes. The exact comparison fails because `0.1 + 0.2` is not exactly `0.3` in binary floating point.',
       },
     ],
@@ -382,7 +400,10 @@ class TransferTest {
         assertThatCode(() -> Transfer.validate(10)).doesNotThrowAnyException();
     }
 }`,
-          ['import static org.assertj.core.api.Assertions.assertThatCode;', 'import static org.assertj.core.api.Assertions.assertThatThrownBy;'],
+          [
+            'import static org.assertj.core.api.Assertions.assertThatCode;',
+            'import static org.assertj.core.api.Assertions.assertThatThrownBy;',
+          ],
         ),
         output: '2 passed, 1 failed',
         why: '`assertThatThrownBy` captures the exception for further checks. For `-5` the message ends with `was -5`, not `was 5`, so that test fails. `assertThatCode(...).doesNotThrowAnyException()` passes for a valid amount.',
@@ -415,7 +436,10 @@ class EmailValidatorTest {
         assertTrue(EmailValidator.isValid(email));
     }
 }`,
-          ['import org.junit.jupiter.params.ParameterizedTest;', 'import org.junit.jupiter.params.provider.ValueSource;'],
+          [
+            'import org.junit.jupiter.params.ParameterizedTest;',
+            'import org.junit.jupiter.params.provider.ValueSource;',
+          ],
         ),
         output: '2 passed, 2 failed',
         why: 'The test runs once per value. Two of the values are invalid emails, so `assertTrue` fails for them: the data set mixes valid and invalid cases under a test named “acceptsValidEmails”. Split it into two tests (or use `@CsvSource` with the expected result).',
@@ -444,7 +468,10 @@ class ShippingTest {
         assertEquals(expected, Shipping.cost(weight, zone));
     }
 }`,
-          ['import org.junit.jupiter.params.ParameterizedTest;', 'import org.junit.jupiter.params.provider.CsvSource;'],
+          [
+            'import org.junit.jupiter.params.ParameterizedTest;',
+            'import org.junit.jupiter.params.provider.CsvSource;',
+          ],
         ),
         output: '3 passed, 1 failed',
         why: 'Each CSV row is one invocation, with values converted to `int` and `String`. The last row expects `25`, but a 20 kg US parcel costs `15 * 2 = 30`, so one invocation fails.',
@@ -579,7 +606,8 @@ class OrderStatusTest {
     [
       {
         key: 'not-invoked',
-        question: 'This check (written directly in `main` for brevity) fails. What does the failure mean?',
+        question:
+          'This check (written directly in `main` for brevity) fails. What does the failure mean?',
         code: `import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -611,7 +639,8 @@ class SignupService {
     }
 }`,
         error: 'WantedButNotInvoked',
-        correct: 'The service never called `send`, because the welcome email is only sent when `newsletter` is `true`; either the test expectation or the business rule is wrong.',
+        correct:
+          'The service never called `send`, because the welcome email is only sent when `newsletter` is `true`; either the test expectation or the business rule is wrong.',
         wrong: [
           '`mock` creates a real `EmailGateway`, so the email was sent but not recorded.',
           '`any()` does not match `String` arguments, so the call was not recognized.',
@@ -653,7 +682,8 @@ class BatchImporter {
     }
 }`,
         error: 'TooManyActualInvocations',
-        correct: '`verify(mock)` means exactly once by default, and the importer logs “import finished” once per row (twice); the log call belongs after the loop, or the test must use `times(2)`.',
+        correct:
+          '`verify(mock)` means exactly once by default, and the importer logs “import finished” once per row (twice); the log call belongs after the loop, or the test must use `times(2)`.',
         wrong: [
           '`verify` checks that the method was called at least once, so the failure must come from the list.',
           'The message is compared by reference, so the two literals do not match.',
@@ -698,7 +728,8 @@ class CheckoutService {
         return prices.unitPrice(sku) * quantity;
     }
 }`,
-        correct: 'The stub is for `"PEN"`, but the service is called with `"pen"`; the arguments are not equal, so the mock returns the default `0` for an `int` method.',
+        correct:
+          'The stub is for `"PEN"`, but the service is called with `"pen"`; the arguments are not equal, so the mock returns the default `0` for an `int` method.',
         wrong: [
           '`thenReturn` only takes effect after `verify` has been called.',
           'Mocks of interfaces always return `0` for primitive methods, whatever is stubbed.',
@@ -708,7 +739,8 @@ class CheckoutService {
       },
       {
         key: 'what-to-mock',
-        question: 'You are writing a unit test for `InvoiceService.total`. Which test design is best?',
+        question:
+          'You are writing a unit test for `InvoiceService.total`. Which test design is best?',
         code: `import java.math.BigDecimal;
 import java.util.List;
 
@@ -738,7 +770,8 @@ class InvoiceService {
         return lines.findByInvoice(invoiceId).stream().map(Line::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }`,
-        correct: 'Replace only `LineRepository` with a mock or a fake that returns real `Line` records, and assert on the returned total.',
+        correct:
+          'Replace only `LineRepository` with a mock or a fake that returns real `Line` records, and assert on the returned total.',
         wrong: [
           'Mock `Line` and `BigDecimal` too, so that the test does not depend on any real class.',
           'Mock `InvoiceService` itself and verify that `total` was called.',
@@ -748,7 +781,8 @@ class InvoiceService {
       },
       {
         key: 'then-throw',
-        question: 'This stubbing simulates a failing payment provider. What does the program print?',
+        question:
+          'This stubbing simulates a failing payment provider. What does the program print?',
         code: `import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -781,7 +815,8 @@ class CheckoutService {
         }
     }
 }`,
-        correct: 'It prints `status=RETRY_LATER`: the stub throws for any amount, and the service handles the failure.',
+        correct:
+          'It prints `status=RETRY_LATER`: the stub throws for any amount, and the service handles the failure.',
         wrong: [
           'It prints `status=null`, because `thenThrow` only records the exception for `verify`.',
           'It throws `IllegalStateException` from `when(...)` while the stub is being defined.',
@@ -817,7 +852,8 @@ interface OrderRepository {
     List<String> findByCustomer(String customer, int limit);
 }`,
         error: 'InvalidUseOfMatchersException',
-        correct: 'It mixes a raw value (`"ada"`) with a matcher (`anyInt()`); wrap the raw value in `eq("ada")` so that both arguments are matchers.',
+        correct:
+          'It mixes a raw value (`"ada"`) with a matcher (`anyInt()`); wrap the raw value in `eq("ada")` so that both arguments are matchers.',
         wrong: [
           '`anyInt()` cannot be used for `int` parameters; use `any()`.',
           '`thenReturn` cannot return a `List`.',
@@ -844,7 +880,8 @@ interface Notifier {
     void alert(String user, String message);
 }`,
         error: 'InvalidUseOfMatchersException',
-        correct: 'The same rule applies to `verify`: `"ada"` is a raw value while `anyString()` is a matcher; use `verify(notifier).alert(eq("ada"), anyString())`.',
+        correct:
+          'The same rule applies to `verify`: `"ada"` is a raw value while `anyString()` is a matcher; use `verify(notifier).alert(eq("ada"), anyString())`.',
         wrong: [
           'The call to `alert` was made with different arguments, so Mockito reports a mismatch.',
           '`anyString()` does not match messages with spaces.',
@@ -875,7 +912,8 @@ C: @Test void shippingCostCallsRepository() {
    }
 
 D: @Test void freeShipping() { System.out.println(service.shippingCost(order(150))); }`),
-        correct: 'B: it names the rule and checks the boundary on both sides with concrete expected values.',
+        correct:
+          'B: it names the rule and checks the boundary on both sides with concrete expected values.',
         wrong: [
           'A: it covers the case and cannot fail because of formatting differences.',
           'C: verifying the interaction proves the calculation is right.',
@@ -885,8 +923,10 @@ D: @Test void freeShipping() { System.out.println(service.shippingCost(order(150
       },
       {
         key: 'independence',
-        question: 'A test suite passes when run in the IDE one class at a time but fails on the build server. What is the most likely cause?',
-        correct: 'Tests share mutable state (a static field, a singleton, a database row) and depend on the order in which they run.',
+        question:
+          'A test suite passes when run in the IDE one class at a time but fails on the build server. What is the most likely cause?',
+        correct:
+          'Tests share mutable state (a static field, a singleton, a database row) and depend on the order in which they run.',
         wrong: [
           'The build server runs JUnit 4 instead of JUnit 5, which uses different assertions.',
           'Tests that pass in the IDE are cached and never run on the build server.',

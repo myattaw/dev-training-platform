@@ -156,7 +156,8 @@ print(rows)`,
     [
       {
         key: 'halve',
-        prompt: 'Complete the loop so it counts how many times `n` can be halved (integer division) before it reaches 1.',
+        prompt:
+          'Complete the loop so it counts how many times `n` can be halved (integer division) before it reaches 1.',
         template: `n = 40
 steps = 0
 while n {{blank:op}} 1:
@@ -245,8 +246,7 @@ else:
     return result
 
 print(deltas([10, 12, 17, 14]))`,
-        correct:
-          'Use `range(1, len(readings))`, or iterate over `zip(readings, readings[1:])`',
+        correct: 'Use `range(1, len(readings))`, or iterate over `zip(readings, readings[1:])`',
         wrong: [
           'Use `range(0, len(readings) - 1)` so the first pair is included',
           'Use `range(1, len(readings) + 1)` so the last pair is included',
@@ -263,7 +263,8 @@ while n > 0:
     print(n % 10, end=" ")
     n //= 10
 print()`,
-        correct: 'The loop would never end, printing `2` forever, because `n` never changes inside the loop',
+        correct:
+          'The loop would never end, printing `2` forever, because `n` never changes inside the loop',
         wrong: [
           'It would print `2 7 4` and then the update would run once',
           'Python would raise `IndentationError` because the loop body must end with an assignment',
@@ -581,7 +582,7 @@ print(connect(5433, host="db"))`,
 print(create_user(name="ana", mail="a@x.io"))`,
         error: 'TypeError',
         correct:
-          'There is no parameter called `mail`, so Python raises `TypeError: create_user() got an unexpected keyword argument \'mail\'`',
+          "There is no parameter called `mail`, so Python raises `TypeError: create_user() got an unexpected keyword argument 'mail'`",
         wrong: [
           '`mail` is silently ignored and `email` defaults to `None`',
           'It raises `NameError` because `mail` is not defined',
@@ -600,7 +601,7 @@ cart = Cart()
 print(cart.add("pen"))`,
         error: 'TypeError',
         correct:
-          '`qty` has no default and was not passed: `TypeError: Cart.add() missing 1 required positional argument: \'qty\'`',
+          "`qty` has no default and was not passed: `TypeError: Cart.add() missing 1 required positional argument: 'qty'`",
         wrong: [
           '`self` must be passed explicitly: `cart.add(cart, "pen")`',
           '`qty` defaults to `None` and the f-string fails',
@@ -680,7 +681,8 @@ assert add(3) == [3]`,
       },
       {
         key: 'condition',
-        prompt: 'Complete the check so an explicitly passed empty dict is kept, and only a missing argument gets a new dict.',
+        prompt:
+          'Complete the check so an explicitly passed empty dict is kept, and only a missing argument gets a new dict.',
         template: `def with_defaults(options=None):
     if {{blank:cond}}:
         options = {}
@@ -883,7 +885,7 @@ print(join_words("a", "b", "-"))`,
           '`*words` must be the last parameter',
           '`sep.join` needs a list, and `words` is a tuple',
         ],
-        why: 'Parameters after `*args` can only be passed by keyword, and `sep` has no default, so `TypeError: missing 1 required keyword-only argument: \'sep\'`. `str.join` accepts any iterable of strings, including a tuple.',
+        why: "Parameters after `*args` can only be passed by keyword, and `sep` has no default, so `TypeError: missing 1 required keyword-only argument: 'sep'`. `str.join` accepts any iterable of strings, including a tuple.",
       },
     ],
   ),
@@ -1110,7 +1112,8 @@ print(labels)`,
       },
       {
         key: 'when-not-to',
-        question: 'A colleague proposes replacing this loop with `[send(e) for e in emails if e]`. What is the best response?',
+        question:
+          'A colleague proposes replacing this loop with `[send(e) for e in emails if e]`. What is the best response?',
         code: `sent = []
 def send(address):
     sent.append(address)

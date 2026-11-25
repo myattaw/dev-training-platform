@@ -344,8 +344,7 @@ s = BookSerializer(data={"title": "X", "author": 42})
 print(s.is_valid(), s.errors["author"][0])`,
           drf,
         ),
-        output:
-          '{\'title\': \'Notes\', \'author\': 1}\nFalse Invalid pk "42" - object does not exist.',
+        output: "{'title': 'Notes', 'author': 1}\nFalse Invalid pk \"42\" - object does not exist.",
         why: 'By default `ModelSerializer` represents a foreign key as a `PrimaryKeyRelatedField`: the id on output, and on input an id that must exist, which DRF checks with a query.',
       },
     ],
@@ -387,8 +386,7 @@ s = AccountSerializer(data={"email": "grace@example.com"})
 print(s.is_valid(), s.save().plan)`,
           drf,
         ),
-        output:
-          'False account with this email already exists.\nTrue free',
+        output: 'False account with this email already exists.\nTrue free',
         why: '`unique=True` becomes a `UniqueValidator`, so duplicates are a 400-style validation error rather than an `IntegrityError`. Fields with `blank=True` or a model default are not required; the default fills `plan`.',
       },
       {
@@ -474,37 +472,32 @@ s.save()`,
       },
     ],
   ),
-  ...b.concept(
-    'dj-drf-ser-concepts',
-    2,
-    'DRF is an add-on to Django, not part of it.',
-    [
-      {
-        key: 'separate-package',
-        question: 'How does Django REST Framework relate to Django?',
-        correct:
-          'It is a separate package (`djangorestframework`), installed with pip and added to `INSTALLED_APPS` as `"rest_framework"`; it builds on Django’s request handling, ORM and auth.',
-        wrong: [
-          'It is part of Django core since Django 4.0 and needs no installation.',
-          'It replaces Django’s ORM with its own serializer-based database layer.',
-          'It is a JavaScript client for calling Django views.',
-        ],
-        why: 'DRF is maintained separately and versioned on its own (3.16 here, with Django 5.2). It adds serializers, API views, authentication and permission classes, routers and a browsable API on top of Django; models and the ORM stay Django’s.',
-      },
-      {
-        key: 'serializer-vs-form',
-        question: 'Why do APIs built with DRF use serializers instead of Django forms?',
-        correct:
-          'Serializers convert in both directions (objects to JSON-friendly data and input back to validated data), handle nested and list data, and integrate with DRF views, parsers and error responses.',
-        wrong: [
-          'Django forms cannot validate data that did not come from an HTML page.',
-          'Serializers are faster because they skip validation.',
-          'Forms are deprecated in Django 5.2.',
-        ],
-        why: 'Forms validate flat input and render HTML widgets; serializers also produce output representations, support nested structures, and plug into content negotiation. Serializers do validate (that is half their job), and forms are not deprecated.',
-      },
-    ],
-  ),
+  ...b.concept('dj-drf-ser-concepts', 2, 'DRF is an add-on to Django, not part of it.', [
+    {
+      key: 'separate-package',
+      question: 'How does Django REST Framework relate to Django?',
+      correct:
+        'It is a separate package (`djangorestframework`), installed with pip and added to `INSTALLED_APPS` as `"rest_framework"`; it builds on Django’s request handling, ORM and auth.',
+      wrong: [
+        'It is part of Django core since Django 4.0 and needs no installation.',
+        'It replaces Django’s ORM with its own serializer-based database layer.',
+        'It is a JavaScript client for calling Django views.',
+      ],
+      why: 'DRF is maintained separately and versioned on its own (3.16 here, with Django 5.2). It adds serializers, API views, authentication and permission classes, routers and a browsable API on top of Django; models and the ORM stay Django’s.',
+    },
+    {
+      key: 'serializer-vs-form',
+      question: 'Why do APIs built with DRF use serializers instead of Django forms?',
+      correct:
+        'Serializers convert in both directions (objects to JSON-friendly data and input back to validated data), handle nested and list data, and integrate with DRF views, parsers and error responses.',
+      wrong: [
+        'Django forms cannot validate data that did not come from an HTML page.',
+        'Serializers are faster because they skip validation.',
+        'Forms are deprecated in Django 5.2.',
+      ],
+      why: 'Forms validate flat input and render HTML widgets; serializers also produce output representations, support nested structures, and plug into content negotiation. Serializers do validate (that is half their job), and forms are not deprecated.',
+    },
+  ]),
 ];
 
 export const apiViewFamilies: readonly QuestionSource[] = [
@@ -627,7 +620,11 @@ print(r.status_code, r.json())`,
           api,
         ),
         correct: "404 {'detail': 'No Book matches the given query.'}",
-        wrong: ["404 {'detail': 'Not found.'}", "500 {'detail': 'Book matching query does not exist.'}", '200 {}'],
+        wrong: [
+          "404 {'detail': 'Not found.'}",
+          "500 {'detail': 'Book matching query does not exist.'}",
+          '200 {}',
+        ],
         why: '`get_object()` uses `get_object_or_404()`, and DRF’s exception handler renders `Http404` as a 404 with a `detail` message. `DoesNotExist` never escapes as a 500.',
       },
     ],
@@ -848,7 +845,11 @@ print(APIClient().get("/books/", {"page": 2}).json())`,
           api,
         ),
         correct: "[{'title': 'A'}, {'title': 'B'}, {'title': 'C'}]",
-        wrong: ["{'count': 3, 'next': None, 'previous': None, 'results': []}", "[{'title': 'C'}]", '404'],
+        wrong: [
+          "{'count': 3, 'next': None, 'previous': None, 'results': []}",
+          "[{'title': 'C'}]",
+          '404',
+        ],
         why: 'Pagination is off unless a pagination class is configured (globally with `PAGE_SIZE` or on the view), so `?page=2` is ignored and the whole list is returned as a plain array. On large tables that is a performance risk.',
       },
     ],

@@ -149,8 +149,12 @@
           <ul class="divided-list">
             @for (w of web.value; track w.id) {
               <li class="row">
-                <a [routerLink]="['/web-challenges', w.id, w.framework, 'workspace']">{{ w.title }}</a>
-                <span class="meta"><span class="text-secondary">{{ w.frameworkLabel }} · not solved yet</span></span>
+                <a [routerLink]="['/web-challenges', w.id, w.framework, 'workspace']">{{
+                  w.title
+                }}</a>
+                <span class="meta"
+                  ><span class="text-secondary">{{ w.frameworkLabel }} · not solved yet</span></span
+                >
               </li>
             }
           </ul>

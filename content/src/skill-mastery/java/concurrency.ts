@@ -75,8 +75,10 @@ export const concurrencyFamilies: readonly QuestionSource[] = [
     [
       {
         key: 'shutdown',
-        question: 'A batch job submits its tasks to `Executors.newFixedThreadPool(4)`, prints the results, and returns from `main`, but the process never exits. What is the most likely cause?',
-        correct: 'The executor was never shut down, so its non-daemon worker threads keep waiting for tasks and keep the JVM alive; call `shutdown()` (or use try-with-resources on the `ExecutorService` in Java 19+).',
+        question:
+          'A batch job submits its tasks to `Executors.newFixedThreadPool(4)`, prints the results, and returns from `main`, but the process never exits. What is the most likely cause?',
+        correct:
+          'The executor was never shut down, so its non-daemon worker threads keep waiting for tasks and keep the JVM alive; call `shutdown()` (or use try-with-resources on the `ExecutorService` in Java 19+).',
         wrong: [
           'A deadlock between the four worker threads; the pool size must be 1.',
           'The results were printed with `System.out`, which is not thread-safe and blocks the JVM.',
@@ -86,8 +88,10 @@ export const concurrencyFamilies: readonly QuestionSource[] = [
       },
       {
         key: 'thread-per-request',
-        question: 'A service creates a new platform thread (`new Thread(...).start()`) for every incoming request. Under load it fails with `OutOfMemoryError: unable to create native thread`. What is the best fix in Java 21?',
-        correct: 'Submit the work to a bounded executor, or to `Executors.newVirtualThreadPerTaskExecutor()` when the tasks mostly wait on I/O.',
+        question:
+          'A service creates a new platform thread (`new Thread(...).start()`) for every incoming request. Under load it fails with `OutOfMemoryError: unable to create native thread`. What is the best fix in Java 21?',
+        correct:
+          'Submit the work to a bounded executor, or to `Executors.newVirtualThreadPerTaskExecutor()` when the tasks mostly wait on I/O.',
         wrong: [
           'Call `System.gc()` after each request so that finished threads are collected.',
           'Increase the thread priority so that threads finish sooner.',
@@ -274,7 +278,8 @@ public class Main {
     [
       {
         key: 'counter',
-        question: 'This page-view counter is updated from many request threads. It sometimes reports fewer views than requests. Why, and what is the fix?',
+        question:
+          'This page-view counter is updated from many request threads. It sometimes reports fewer views than requests. Why, and what is the fix?',
         code: `public class Main {
     public static void main(String[] args) {
         PageStats stats = new PageStats();
@@ -294,7 +299,8 @@ class PageStats {
         return views;
     }
 }`,
-        correct: '`views++` is a read, an add and a write; two threads can read the same value and one increment is lost. Use an `AtomicInteger` (`incrementAndGet`) or make the methods `synchronized`.',
+        correct:
+          '`views++` is a read, an add and a write; two threads can read the same value and one increment is lost. Use an `AtomicInteger` (`incrementAndGet`) or make the methods `synchronized`.',
         wrong: [
           'Make `views` `volatile`, which makes `++` atomic.',
           'Make `recordView` `static`, so that all threads share one method.',
@@ -304,7 +310,8 @@ class PageStats {
       },
       {
         key: 'check-then-act',
-        question: 'This cache is shared by request threads and uses a `ConcurrentHashMap`. Why can `load` still run twice for the same key, and what is the fix?',
+        question:
+          'This cache is shared by request threads and uses a `ConcurrentHashMap`. Why can `load` still run twice for the same key, and what is the fix?',
         code: `import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -329,7 +336,8 @@ class RateCache {
         return currency.equals("EUR") ? 1.0 : 1.1;
     }
 }`,
-        correct: 'Each map call is thread-safe, but “check, then put” is two calls, and two threads can both see the key missing; use `rates.computeIfAbsent(currency, this::load)`, which is atomic per key.',
+        correct:
+          'Each map call is thread-safe, but “check, then put” is two calls, and two threads can both see the key missing; use `rates.computeIfAbsent(currency, this::load)`, which is atomic per key.',
         wrong: [
           '`ConcurrentHashMap` does not allow `double` values; use `HashMap`.',
           'Replace `ConcurrentHashMap` with `HashMap` and make the field `volatile`.',
@@ -339,7 +347,8 @@ class RateCache {
       },
       {
         key: 'lazy-init',
-        question: 'Two threads call `get()` at the same time on a fresh `Lazy` holder. What can go wrong, and what is a simple safe alternative?',
+        question:
+          'Two threads call `get()` at the same time on a fresh `Lazy` holder. What can go wrong, and what is a simple safe alternative?',
         code: `public class Main {
     public static void main(String[] args) {
         System.out.println(ConfigHolder.get().get("region"));
@@ -356,7 +365,8 @@ class ConfigHolder {
         return config;
     }
 }`,
-        correct: 'Both threads can see `null` and initialize it twice (with an expensive loader, twice the work and two different objects); initialize it in a `static final` field or a holder class, which the JVM initializes exactly once.',
+        correct:
+          'Both threads can see `null` and initialize it twice (with an expensive loader, twice the work and two different objects); initialize it in a `static final` field or a holder class, which the JVM initializes exactly once.',
         wrong: [
           'Nothing can go wrong because `Map.of` returns an immutable map.',
           'The method must be `private`, otherwise it is not thread-safe.',
@@ -465,7 +475,8 @@ public class Main {
     }
 }`,
         error: 'ExecutionException',
-        correct: 'The task threw `IllegalArgumentException: file name is empty`; `get()` wraps it in an `ExecutionException`, so look at the cause (`e.getCause()`).',
+        correct:
+          'The task threw `IllegalArgumentException: file name is empty`; `get()` wraps it in an `ExecutionException`, so look at the cause (`e.getCause()`).',
         wrong: [
           'The executor was closed before the task ran, so the task never started.',
           '`get()` always throws `ExecutionException` for tasks that return a value.',
@@ -475,7 +486,8 @@ public class Main {
       },
       {
         key: 'completion-exception',
-        question: 'Why does this `join()` throw `CompletionException` instead of the original exception?',
+        question:
+          'Why does this `join()` throw `CompletionException` instead of the original exception?',
         code: `import java.util.concurrent.CompletableFuture;
 
 public class Main {
@@ -487,7 +499,8 @@ public class Main {
     }
 }`,
         error: 'CompletionException',
-        correct: 'The supplier failed asynchronously; `join()` rethrows the failure wrapped in an unchecked `CompletionException`, whose cause is the `IllegalStateException`.',
+        correct:
+          'The supplier failed asynchronously; `join()` rethrows the failure wrapped in an unchecked `CompletionException`, whose cause is the `IllegalStateException`.',
         wrong: [
           '`thenApply` throws `CompletionException` whenever its argument is a lambda.',
           '`supplyAsync` cannot take a lambda that throws, so the code fails before it starts.',
@@ -497,7 +510,8 @@ public class Main {
       },
       {
         key: 'rejected',
-        question: 'A shutdown hook closes the executor, but a late request still submits work. What happens?',
+        question:
+          'A shutdown hook closes the executor, but a late request still submits work. What happens?',
         code: `import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -510,7 +524,8 @@ public class Main {
     }
 }`,
         error: 'RejectedExecutionException',
-        correct: 'After `shutdown()` the executor accepts no new tasks, so `submit` throws `RejectedExecutionException` (already submitted tasks still complete).',
+        correct:
+          'After `shutdown()` the executor accepts no new tasks, so `submit` throws `RejectedExecutionException` (already submitted tasks still complete).',
         wrong: [
           'The late task is queued and runs when the executor is restarted.',
           'The late task runs on the calling thread instead.',

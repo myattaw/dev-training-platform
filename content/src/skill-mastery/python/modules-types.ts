@@ -107,11 +107,12 @@ print(math.pi)`,
           'A module can be imported only once per program',
           '`sqrt(25)` fails because it returns a float',
         ],
-        why: 'The `from` form loads the whole module but binds only the listed names in the current namespace. The first line prints `5.0`, then `math.pi` raises `NameError: name \'math\' is not defined`.',
+        why: "The `from` form loads the whole module but binds only the listed names in the current namespace. The first line prints `5.0`, then `math.pi` raises `NameError: name 'math' is not defined`.",
       },
       {
         key: 'missing-package',
-        question: 'This script works on the developer’s laptop but fails on the build server. What is the most likely cause?',
+        question:
+          'This script works on the developer’s laptop but fails on the build server. What is the most likely cause?',
         code: `import pracstack_reports
 
 print(pracstack_reports.render())`,
@@ -144,7 +145,7 @@ print(gross_price(10))`,
           'The function is created on first use, so the import should be `import pricing.gross_price`',
           'Modules written at run time cannot be imported',
         ],
-        why: 'The module was found and executed; only the requested name is missing. That gives `ImportError` with the message "cannot import name \'gross_price\' from \'pricing\'", unlike `ModuleNotFoundError` for a missing module.',
+        why: "The module was found and executed; only the requested name is missing. That gives `ImportError` with the message \"cannot import name 'gross_price' from 'pricing'\", unlike `ModuleNotFoundError` for a missing module.",
       },
     ],
   ),
@@ -364,7 +365,8 @@ pip install -r requirements.txt`),
       },
       {
         key: 'pinning',
-        question: 'A deployment broke because a dependency released a new major version. Which practice prevents this?',
+        question:
+          'A deployment broke because a dependency released a new major version. Which practice prevents this?',
         snippet: plain(`# requirements.txt
 django>=5.0
 requests`),
@@ -393,23 +395,28 @@ invoice-cli = "invoices.cli:main"`),
       },
     ],
   ),
-  ...b.multi('py-module-organization', 4, 'Consider what runs on import and what callers should rely on.', [
-    {
-      key: 'practices',
-      question: 'Select every good practice for organizing a Python package.',
-      correct: [
-        'Keep module top-level code free of side effects such as network calls; put them in functions',
-        'Use an `if __name__ == "__main__":` block (or an entry point) for code that should run only as a script',
-        'Expose the public API from the package’s `__init__.py` and keep helpers in internal modules',
-      ],
-      wrong: [
-        'Use `from module import *` in library code so callers get every name',
-        'Name a local module `json.py` so it overrides the standard library one in your project',
-        'Put all code in `__init__.py` so imports are shorter',
-      ],
-      why: 'Imports should be cheap and predictable, scripts should be guarded, and a deliberate public API makes refactoring safe. Star imports hide where names come from, and shadowing a standard library module breaks every import of it in that directory.',
-    },
-  ]),
+  ...b.multi(
+    'py-module-organization',
+    4,
+    'Consider what runs on import and what callers should rely on.',
+    [
+      {
+        key: 'practices',
+        question: 'Select every good practice for organizing a Python package.',
+        correct: [
+          'Keep module top-level code free of side effects such as network calls; put them in functions',
+          'Use an `if __name__ == "__main__":` block (or an entry point) for code that should run only as a script',
+          'Expose the public API from the package’s `__init__.py` and keep helpers in internal modules',
+        ],
+        wrong: [
+          'Use `from module import *` in library code so callers get every name',
+          'Name a local module `json.py` so it overrides the standard library one in your project',
+          'Put all code in `__init__.py` so imports are shorter',
+        ],
+        why: 'Imports should be cheap and predictable, scripts should be guarded, and a deliberate public API makes refactoring safe. Star imports hide where names come from, and shadowing a standard library module breaks every import of it in that directory.',
+      },
+    ],
+  ),
 ];
 
 // ---------------------------------------------------------------- Type hints
@@ -460,7 +467,8 @@ print(price_list(["pen"], [1.5]))`,
       },
       {
         key: 'optional',
-        prompt: 'Annotate the return type: the function returns a `str`, or `None` when nothing is found.',
+        prompt:
+          'Annotate the return type: the function returns a `str`, or `None` when nothing is found.',
         template: `def find_email(users: dict[str, str], name: str) -> {{blank:ret}}:
     return users.get(name)
 
@@ -487,7 +495,8 @@ print(best((3, 9, 4)))`,
     [
       {
         key: 'find-user',
-        question: 'A type checker reports an error on the line marked `# here`. Why, and what is the fix?',
+        question:
+          'A type checker reports an error on the line marked `# here`. Why, and what is the fix?',
         code: `def find(users: dict[int, str], user_id: int) -> str | None:
     return users.get(user_id)
 
@@ -642,7 +651,8 @@ print(validate([1, 2]))`,
       },
       {
         key: 'typeddict',
-        question: 'A developer expects `TypedDict` to protect against bad data. Why does the program fail where it does?',
+        question:
+          'A developer expects `TypedDict` to protect against bad data. Why does the program fail where it does?',
         code: `from typing import TypedDict
 
 class User(TypedDict):
@@ -699,7 +709,8 @@ try:
     handler.__annotations__
 except NameError as e:
     print("NameError:", e)`,
-        output: "defined\n{'event': 'Event', 'return': 'Response'}\nNameError: name 'Event' is not defined",
+        output:
+          "defined\n{'event': 'Event', 'return': 'Response'}\nNameError: name 'Event' is not defined",
         why: 'Defining the function does not evaluate its annotations, so the undefined names cause no error. Asking for the values via `__annotations__` evaluates them and raises `NameError`; the `STRING` format returns the source text instead.',
       },
     ],

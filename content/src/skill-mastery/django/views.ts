@@ -18,7 +18,10 @@ export const viewsFamilies: readonly QuestionSource[] = [
   ...b.output(
     'dj-view-basics',
     1,
-    ['A view takes an `HttpRequest` and returns an `HttpResponse`.', 'Look at the status each response sets.'],
+    [
+      'A view takes an `HttpRequest` and returns an `HttpResponse`.',
+      'Look at the status each response sets.',
+    ],
     [
       {
         key: 'http-response',
@@ -208,7 +211,7 @@ Client().get("/ping/")`,
           'Django turns `None` into an empty 204 response, so the error comes from the test client.',
           '`HttpResponse` must be given a status code.',
         ],
-        why: 'Django checks the return value and raises `ValueError: The view __main__.ping didn\'t return an HttpResponse object. It returned None instead.` There is no automatic 204 for `None`. Add a final `return` for the other branch.',
+        why: "Django checks the return value and raises `ValueError: The view __main__.ping didn't return an HttpResponse object. It returned None instead.` There is no automatic 204 for `None`. Add a final `return` for the other branch.",
       },
       {
         key: 'returns-dict',
@@ -469,8 +472,7 @@ print(r.status_code, r["Location"])`,
     [
       {
         key: 'mutable-class-attribute',
-        question:
-          'This view keeps a list of visited items. What does the second request return?',
+        question: 'This view keeps a list of visited items. What does the second request return?',
         code: djangoProgram(
           `from django.http import HttpResponse
 from django.test import Client

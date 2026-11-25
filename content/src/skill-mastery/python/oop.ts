@@ -402,7 +402,7 @@ try:
 except TypeError:
     print("TypeError")`,
         output: '8\nTypeError',
-        why: 'Reading `c.diameter` already calls the getter and returns `8`. Adding parentheses then tries to call the int `8`, which raises `TypeError: \'int\' object is not callable`.',
+        why: "Reading `c.diameter` already calls the getter and returns `8`. Adding parentheses then tries to call the int `8`, which raises `TypeError: 'int' object is not callable`.",
       },
     ],
   ),
@@ -435,7 +435,8 @@ print(s.pop(), s[0])`,
       },
       {
         key: 'notifier',
-        question: 'Which design best lets an `OrderService` send notifications by email in production and record them in tests?',
+        question:
+          'Which design best lets an `OrderService` send notifications by email in production and record them in tests?',
         code: `class EmailSender:
     def send(self, to, text):
         print("email to", to)
@@ -494,7 +495,8 @@ class Service(Logging, Caching):
 
 print(Service().setup())
 print([c.__name__ for c in Service.__mro__])`,
-        output: "['Service', 'Logging', 'Caching', 'Base']\n['Service', 'Logging', 'Caching', 'Base', 'object']",
+        output:
+          "['Service', 'Logging', 'Caching', 'Base']\n['Service', 'Logging', 'Caching', 'Base', 'object']",
         why: 'The MRO of `Service` is Service, Logging, Caching, Base, object. `super()` inside `Logging` calls the next class in the instance’s MRO, which is `Caching`, not `Base`. That is why each class runs once.',
       },
       {
@@ -590,7 +592,7 @@ print(Order(1))`,
           '`id` shadows a built-in name, which dataclasses forbid',
           'Defaults are only allowed on the first field',
         ],
-        why: 'The error is raised while the class is being created: `mutable default <class \'list\'> for field items is not allowed: use default_factory`. This protects against the same shared-default bug that plain function defaults have.',
+        why: "The error is raised while the class is being created: `mutable default <class 'list'> for field items is not allowed: use default_factory`. This protects against the same shared-default bug that plain function defaults have.",
       },
       {
         key: 'field-order',
@@ -612,7 +614,7 @@ print(Task("write", owner="ana"))`,
           '`owner` must be passed positionally',
           'Dataclasses do not allow keyword arguments in the constructor',
         ],
-        why: 'The generated signature would be `__init__(self, title, done=False, owner)`, which is illegal, so the decorator raises `TypeError: non-default argument \'owner\' follows default argument`. Reorder the fields or use `@dataclass(kw_only=True)` / `field(kw_only=True)`.',
+        why: "The generated signature would be `__init__(self, title, done=False, owner)`, which is illegal, so the decorator raises `TypeError: non-default argument 'owner' follows default argument`. Reorder the fields or use `@dataclass(kw_only=True)` / `field(kw_only=True)`.",
       },
     ],
   ),

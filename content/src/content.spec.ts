@@ -103,12 +103,15 @@ describe('the real content', { timeout: 120_000 }, () => {
       for (const hidden of source.hiddenTests) expect(publicText).not.toContain(hidden.description);
       for (const impl of source.implementations) {
         for (const content of Object.values(impl.reference)) {
-          if (content.length > 200) expect(publicText).not.toContain(JSON.stringify(content).slice(1, 200));
+          if (content.length > 200)
+            expect(publicText).not.toContain(JSON.stringify(content).slice(1, 200));
         }
       }
       const id = source.challenge.id;
       expect([...result.publicFiles.keys()].some((k) => k.includes(id))).toBe(false);
-      expect([...result.privateFiles.keys()].filter((k) => k.startsWith(`web-challenges/${id}@`))).toHaveLength(2);
+      expect(
+        [...result.privateFiles.keys()].filter((k) => k.startsWith(`web-challenges/${id}@`)),
+      ).toHaveLength(2);
     }
   });
 

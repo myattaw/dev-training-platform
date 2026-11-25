@@ -82,39 +82,34 @@ print(names)`,
       },
     ],
   ),
-  ...b.outputChoice(
-    'py-tuples',
-    2,
-    'The comma makes a tuple, not the parentheses.',
-    [
-      {
-        key: 'single',
-        code: `a = (5)
+  ...b.outputChoice('py-tuples', 2, 'The comma makes a tuple, not the parentheses.', [
+    {
+      key: 'single',
+      code: `a = (5)
 b = (5,)
 print(type(a).__name__, type(b).__name__, len(b))`,
-        correct: 'int tuple 1',
-        wrong: ['tuple tuple 1', 'int int 1', 'tuple tuple 2'],
-        why: 'Parentheses alone only group an expression, so `(5)` is the int `5`. A one-element tuple needs a trailing comma: `(5,)`.',
-      },
-      {
-        key: 'without-parens',
-        code: `point = 3, 4
+      correct: 'int tuple 1',
+      wrong: ['tuple tuple 1', 'int int 1', 'tuple tuple 2'],
+      why: 'Parentheses alone only group an expression, so `(5)` is the int `5`. A one-element tuple needs a trailing comma: `(5,)`.',
+    },
+    {
+      key: 'without-parens',
+      code: `point = 3, 4
 x, y = point
 print(point, x + y)`,
-        correct: '(3, 4) 7',
-        wrong: ['3 7', '[3, 4] 7', '(3, 4) 34'],
-        why: '`3, 4` creates a tuple even without parentheses, and unpacking assigns its items to `x` and `y`. Tuples print with parentheses.',
-      },
-      {
-        key: 'trailing-comma-bug',
-        code: `total = 10 + 5,
+      correct: '(3, 4) 7',
+      wrong: ['3 7', '[3, 4] 7', '(3, 4) 34'],
+      why: '`3, 4` creates a tuple even without parentheses, and unpacking assigns its items to `x` and `y`. Tuples print with parentheses.',
+    },
+    {
+      key: 'trailing-comma-bug',
+      code: `total = 10 + 5,
 print(total)`,
-        correct: '(15,)',
-        wrong: ['15', '(10, 5)', 'SyntaxError'],
-        why: 'The trailing comma turns the right side into a one-element tuple. This is a classic bug after copying a line out of a function call or a list.',
-      },
-    ],
-  ),
+      correct: '(15,)',
+      wrong: ['15', '(10, 5)', 'SyntaxError'],
+      why: 'The trailing comma turns the right side into a one-element tuple. This is a classic bug after copying a line out of a function call or a list.',
+    },
+  ]),
   ...b.output(
     'py-set-operations',
     2,
@@ -152,46 +147,41 @@ print(before <= {1, 2, 3, 4, 5}, after.isdisjoint({1, 2}))`,
       },
     ],
   ),
-  ...b.fails(
-    'py-dict-missing-key',
-    2,
-    'Square-bracket lookup requires the key to exist.',
-    [
-      {
-        key: 'lookup',
-        question: 'Why does this program fail?',
-        code: `stock = {"apple": 3, "pear": 0}
+  ...b.fails('py-dict-missing-key', 2, 'Square-bracket lookup requires the key to exist.', [
+    {
+      key: 'lookup',
+      question: 'Why does this program fail?',
+      code: `stock = {"apple": 3, "pear": 0}
 print(stock["pear"])
 print(stock["plum"])`,
-        error: 'KeyError',
-        correct:
-          '`stock["plum"]` raises `KeyError` because the key is missing; use `stock.get("plum", 0)` or test `"plum" in stock` first',
-        wrong: [
-          '`stock["pear"]` fails because its value is `0`',
-          '`stock["plum"]` returns `None` and printing `None` fails',
-          'It raises `IndexError` because the dict has only two entries',
-        ],
-        why: 'A key with a falsy value like `0` still exists, so `stock["pear"]` prints `0`. A missing key raises `KeyError` (not `IndexError`, which is for sequences). `dict.get` returns a default instead.',
-      },
-      {
-        key: 'counting',
-        question: 'This word counter fails on the first word. What is the fix?',
-        code: `counts = {}
+      error: 'KeyError',
+      correct:
+        '`stock["plum"]` raises `KeyError` because the key is missing; use `stock.get("plum", 0)` or test `"plum" in stock` first',
+      wrong: [
+        '`stock["pear"]` fails because its value is `0`',
+        '`stock["plum"]` returns `None` and printing `None` fails',
+        'It raises `IndexError` because the dict has only two entries',
+      ],
+      why: 'A key with a falsy value like `0` still exists, so `stock["pear"]` prints `0`. A missing key raises `KeyError` (not `IndexError`, which is for sequences). `dict.get` returns a default instead.',
+    },
+    {
+      key: 'counting',
+      question: 'This word counter fails on the first word. What is the fix?',
+      code: `counts = {}
 for word in "to be or not to be".split():
     counts[word] += 1
 print(counts)`,
-        error: 'KeyError',
-        correct:
-          '`counts[word] += 1` reads the missing key first; use `counts[word] = counts.get(word, 0) + 1`, a `defaultdict(int)` or `collections.Counter`',
-        wrong: [
-          'Use `counts[word] =+ 1` instead',
-          'Initialize with `counts = []` because dicts cannot be incremented',
-          'Replace `+=` with `counts.update(word)`',
-        ],
-        why: '`counts[word] += 1` means `counts[word] = counts[word] + 1`, and the read fails for a new word. `=+ 1` would just assign `+1`, and `update(word)` expects a mapping or pairs. `Counter(words)` does the whole job.',
-      },
-    ],
-  ),
+      error: 'KeyError',
+      correct:
+        '`counts[word] += 1` reads the missing key first; use `counts[word] = counts.get(word, 0) + 1`, a `defaultdict(int)` or `collections.Counter`',
+      wrong: [
+        'Use `counts[word] =+ 1` instead',
+        'Initialize with `counts = []` because dicts cannot be incremented',
+        'Replace `+=` with `counts.update(word)`',
+      ],
+      why: '`counts[word] += 1` means `counts[word] = counts[word] + 1`, and the read fails for a new word. `=+ 1` would just assign `+1`, and `update(word)` expects a mapping or pairs. `Counter(words)` does the whole job.',
+    },
+  ]),
   ...b.output(
     'py-dict-methods',
     3,
@@ -249,7 +239,7 @@ print(visited)`,
           'A list can be a key only if it is not empty',
           '`visited` must be created with `dict()` instead of `{}`',
         ],
-        why: 'Dicts locate keys by hash, and a key’s hash must never change. Lists can change, so they define no hash and raise `TypeError: unhashable type: \'list\'`. Tuples, strings, numbers and frozensets work.',
+        why: "Dicts locate keys by hash, and a key’s hash must never change. Lists can change, so they define no hash and raise `TypeError: unhashable type: 'list'`. Tuples, strings, numbers and frozensets work.",
       },
       {
         key: 'tuple-with-list',
@@ -265,7 +255,7 @@ print(len(seen))`,
           '`set()` creates an empty dict, which has no `add` method',
           'Tuples are never hashable; only strings and numbers are',
         ],
-        why: 'Hashing a tuple hashes each item, and the list inside raises `TypeError: unhashable type: \'list\'`. Use a tuple of tuples (or a frozenset) for the inner value. `set()` really is an empty set; `{}` would be the empty dict.',
+        why: "Hashing a tuple hashes each item, and the list inside raises `TypeError: unhashable type: 'list'`. Use a tuple of tuples (or a frozenset) for the inner value. `set()` really is an empty set; `{}` would be the empty dict.",
       },
       {
         key: 'set-of-sets',
@@ -371,40 +361,45 @@ print(list(recent))`,
       },
     ],
   ),
-  ...b.multi('py-choose-collection', 3, 'Think about order, duplicates, mutability and lookup speed.', [
-    {
-      key: 'statements',
-      question: 'Select every true statement about Python’s built-in collections.',
-      correct: [
-        'Checking `x in some_set` takes about the same time however large the set is, while `x in some_list` scans the list',
-        'A `tuple` is a good fit for a fixed-size record such as `(latitude, longitude)` and can be used as a dict key',
-        'Dicts preserve insertion order',
-      ],
-      wrong: [
-        'Sets keep their elements in insertion order',
-        'A `list` cannot hold values of different types',
-        'Dicts allow duplicate keys; the latest value is returned first',
-      ],
-      why: 'Set and dict membership is a hash lookup (average constant time), list membership is a linear scan. Tuples are immutable and hashable when their items are. Dicts (not sets) keep insertion order since Python 3.7. Lists may mix types, and a dict key appears only once.',
-    },
-    {
-      key: 'pick',
-      question:
-        'You need to store users’ email addresses, reject duplicates and check quickly whether an address is already registered. Which choices are reasonable?',
-      code: `registered = set()
+  ...b.multi(
+    'py-choose-collection',
+    3,
+    'Think about order, duplicates, mutability and lookup speed.',
+    [
+      {
+        key: 'statements',
+        question: 'Select every true statement about Python’s built-in collections.',
+        correct: [
+          'Checking `x in some_set` takes about the same time however large the set is, while `x in some_list` scans the list',
+          'A `tuple` is a good fit for a fixed-size record such as `(latitude, longitude)` and can be used as a dict key',
+          'Dicts preserve insertion order',
+        ],
+        wrong: [
+          'Sets keep their elements in insertion order',
+          'A `list` cannot hold values of different types',
+          'Dicts allow duplicate keys; the latest value is returned first',
+        ],
+        why: 'Set and dict membership is a hash lookup (average constant time), list membership is a linear scan. Tuples are immutable and hashable when their items are. Dicts (not sets) keep insertion order since Python 3.7. Lists may mix types, and a dict key appears only once.',
+      },
+      {
+        key: 'pick',
+        question:
+          'You need to store users’ email addresses, reject duplicates and check quickly whether an address is already registered. Which choices are reasonable?',
+        code: `registered = set()
 for email in ["a@x.io", "b@x.io", "a@x.io"]:
     if email in registered:
         print("duplicate", email)
     registered.add(email)
 print(len(registered))`,
-      correct: [
-        'A `set` of addresses',
-        'A `dict` mapping each address to the user’s data',
-      ],
-      wrong: ['A `list` with `append` and `in` checks, since it is the fastest option', 'A `tuple`, rebuilt for every new address'],
-      why: 'Sets and dicts both give fast membership tests and unique keys; a dict also stores data per address. A list works but checks membership with a linear scan, and a tuple would need copying on every insert.',
-    },
-  ]),
+        correct: ['A `set` of addresses', 'A `dict` mapping each address to the user’s data'],
+        wrong: [
+          'A `list` with `append` and `in` checks, since it is the fastest option',
+          'A `tuple`, rebuilt for every new address',
+        ],
+        why: 'Sets and dicts both give fast membership tests and unique keys; a dict also stores data per address. A list works but checks membership with a linear scan, and a tuple would need copying on every insert.',
+      },
+    ],
+  ),
   ...b.output(
     'py-dict-equality-views',
     5,
@@ -507,7 +502,7 @@ add_item(names, "b")
 add_suffix(label, "!")
 print(names, label)`,
       correct: [
-        'It prints `[\'a\', \'b\'] x`',
+        "It prints `['a', 'b'] x`",
         '`add_item` changes the caller’s list because the parameter refers to the same object',
         '`text += suffix` rebinds only the local name `text` to a new string',
       ],
@@ -557,15 +552,11 @@ print(settings)`,
       },
     ],
   ),
-  ...b.blank(
-    'py-deepcopy',
-    3,
-    'The `copy` module has both shallow and deep copying.',
-    [
-      {
-        key: 'nested-config',
-        prompt: 'Complete the code so changing `test_cfg` never affects `base_cfg`, at any depth.',
-        template: `import copy
+  ...b.blank('py-deepcopy', 3, 'The `copy` module has both shallow and deep copying.', [
+    {
+      key: 'nested-config',
+      prompt: 'Complete the code so changing `test_cfg` never affects `base_cfg`, at any depth.',
+      template: `import copy
 
 base_cfg = {"db": {"host": "localhost", "port": 5432}, "features": ["a"]}
 test_cfg = copy.{{blank:fn}}(base_cfg)
@@ -573,26 +564,30 @@ test_cfg["db"]["port"] = 5433
 test_cfg["features"].append("b")
 print(base_cfg)
 assert base_cfg == {"db": {"host": "localhost", "port": 5432}, "features": ["a"]}`,
-        blanks: { fn: ['deepcopy'] },
-        why: '`copy.deepcopy` copies the container and, recursively, everything inside it, so the nested dict and list are independent. `copy.copy` would copy only the outer dict and share the nested objects.',
-      },
-      {
-        key: 'grid',
-        prompt: 'Complete the code so `snapshot` keeps the board as it was before the move.',
-        template: `import copy
+      blanks: { fn: ['deepcopy'] },
+      why: '`copy.deepcopy` copies the container and, recursively, everything inside it, so the nested dict and list are independent. `copy.copy` would copy only the outer dict and share the nested objects.',
+    },
+    {
+      key: 'grid',
+      prompt: 'Complete the code so `snapshot` keeps the board as it was before the move.',
+      template: `import copy
 
 board = [[".", "."], [".", "."]]
 snapshot = {{blank:expr}}
 board[0][0] = "X"
 print(snapshot[0][0])
 assert snapshot[0][0] == "."`,
-        blanks: {
-          expr: ['copy.deepcopy(board)', '[row[:] for row in board]', '[row.copy() for row in board]', '[list(row) for row in board]'],
-        },
-        why: 'The board is a list of lists, so both levels need copying. `copy.deepcopy` does it generally; for exactly two levels, copying each row in a comprehension is enough. `board.copy()` or `board[:]` would share the rows.',
+      blanks: {
+        expr: [
+          'copy.deepcopy(board)',
+          '[row[:] for row in board]',
+          '[row.copy() for row in board]',
+          '[list(row) for row in board]',
+        ],
       },
-    ],
-  ),
+      why: 'The board is a list of lists, so both levels need copying. `copy.deepcopy` does it generally; for exactly two levels, copying each row in a comprehension is enough. `board.copy()` or `board[:]` would share the rows.',
+    },
+  ]),
   ...b.outputChoice(
     'py-list-multiplication',
     3,
@@ -645,7 +640,8 @@ print(buckets)`,
 prices = [50, 100]
 result = normalized(prices)
 print(prices, result)`,
-        correct: 'Return a new list: `return [v / top for v in values]` instead of writing into `values`',
+        correct:
+          'Return a new list: `return [v / top for v in values]` instead of writing into `values`',
         wrong: [
           'Declare `global values` inside the function',
           'Call it as `normalized(*prices)` so the list is copied',
@@ -655,7 +651,8 @@ print(prices, result)`,
       },
       {
         key: 'sort-in-helper',
-        question: 'The report shows customers in the order they signed up, but after `top_three` runs, `customers` is sorted. Why?',
+        question:
+          'The report shows customers in the order they signed up, but after `top_three` runs, `customers` is sorted. Why?',
         code: `def top_three(scores):
     scores.sort(reverse=True)
     return scores[:3]

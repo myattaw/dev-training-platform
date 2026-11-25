@@ -52,7 +52,9 @@ export const ormFamilies: readonly QuestionSource[] = [
     [
       {
         key: 'filter',
-        code: catalog(`print([p.name for p in Product.objects.filter(price__lt=20).order_by("name")])`),
+        code: catalog(
+          `print([p.name for p in Product.objects.filter(price__lt=20).order_by("name")])`,
+        ),
         correct: "['Bible', 'Dice']",
         wrong: ["['Atlas', 'Chess']", "['Dice']", "['Bible', 'Chess', 'Dice']"],
         why: '`price__lt=20` means `price < 20`: Bible (15) and Dice (5). The double underscore separates the field name from the lookup (`lt`, `gt`, `gte`, `contains`…).',
@@ -79,7 +81,9 @@ print([p.name for p in Product.objects.exclude(stock=0).filter(price__gt=10).ord
   ...b.output(
     'dj-orm-lookups',
     2,
-    ['Lookup names follow the double underscore: `icontains`, `startswith`, `in`, `range`, `isnull`.'],
+    [
+      'Lookup names follow the double underscore: `icontains`, `startswith`, `in`, `range`, `isnull`.',
+    ],
     [
       {
         key: 'text',
@@ -105,55 +109,50 @@ print(list(Category.objects.filter(products__price__lt=100).values_list("name", 
       },
     ],
   ),
-  ...b.fails(
-    'dj-orm-get-errors',
-    2,
-    '`get()` must find exactly one row.',
-    [
-      {
-        key: 'does-not-exist',
-        question: 'This program fails. Why?',
-        code: catalog(`print(Product.objects.get(name="Puzzle"))`),
-        error: 'DoesNotExist',
-        correct:
-          'No product is named `Puzzle`; `get()` raises `Product.DoesNotExist` instead of returning `None`.',
-        wrong: [
-          '`get()` only accepts the primary key.',
-          '`get()` returns a QuerySet, which cannot be printed.',
-          'The name lookup needs `name__exact`.',
-        ],
-        why: 'When no row matches, `get()` raises the model’s `DoesNotExist` exception. Catch it, use `filter(...).first()` (which returns `None`), or in views use `get_object_or_404()`. Plain `name=` already means `name__exact`.',
-      },
-      {
-        key: 'multiple',
-        question: 'This program fails. Why?',
-        code: catalog(`print(Product.objects.get(category=books).name)`),
-        error: 'MultipleObjectsReturned',
-        correct: 'Two products are in `Books`; `get()` refuses to pick one.',
-        wrong: [
-          '`category` must be compared by id: `category_id=books`.',
-          '`get()` returns the first match, so the error must come from `.name`.',
-          'Foreign keys cannot be used in `get()`.',
-        ],
-        why: '`get()` raises `MultipleObjectsReturned` when more than one row matches; it never silently picks the first. Use `filter()` for many rows, or a unique field when you mean one. Passing a model instance for a foreign key is fine.',
-      },
-      {
-        key: 'string-pk',
-        question: 'A view passes the URL’s query parameter to `get()`. Why does this fail?',
-        code: catalog(`product_id = "abc"
+  ...b.fails('dj-orm-get-errors', 2, '`get()` must find exactly one row.', [
+    {
+      key: 'does-not-exist',
+      question: 'This program fails. Why?',
+      code: catalog(`print(Product.objects.get(name="Puzzle"))`),
+      error: 'DoesNotExist',
+      correct:
+        'No product is named `Puzzle`; `get()` raises `Product.DoesNotExist` instead of returning `None`.',
+      wrong: [
+        '`get()` only accepts the primary key.',
+        '`get()` returns a QuerySet, which cannot be printed.',
+        'The name lookup needs `name__exact`.',
+      ],
+      why: 'When no row matches, `get()` raises the model’s `DoesNotExist` exception. Catch it, use `filter(...).first()` (which returns `None`), or in views use `get_object_or_404()`. Plain `name=` already means `name__exact`.',
+    },
+    {
+      key: 'multiple',
+      question: 'This program fails. Why?',
+      code: catalog(`print(Product.objects.get(category=books).name)`),
+      error: 'MultipleObjectsReturned',
+      correct: 'Two products are in `Books`; `get()` refuses to pick one.',
+      wrong: [
+        '`category` must be compared by id: `category_id=books`.',
+        '`get()` returns the first match, so the error must come from `.name`.',
+        'Foreign keys cannot be used in `get()`.',
+      ],
+      why: '`get()` raises `MultipleObjectsReturned` when more than one row matches; it never silently picks the first. Use `filter()` for many rows, or a unique field when you mean one. Passing a model instance for a foreign key is fine.',
+    },
+    {
+      key: 'string-pk',
+      question: 'A view passes the URL’s query parameter to `get()`. Why does this fail?',
+      code: catalog(`product_id = "abc"
 print(Product.objects.get(pk=product_id))`),
-        error: 'ValueError',
-        correct:
-          'The primary key is an integer, and `"abc"` cannot be converted, so Django raises `ValueError` before querying.',
-        wrong: [
-          'It raises `DoesNotExist` because no product has id `abc`.',
-          '`pk` cannot be used in `get()`; use `id`.',
-          'Query parameters are bytes and must be decoded first.',
-        ],
-        why: 'Lookups convert values to the field’s type: `int("abc")` fails with `ValueError: Field \'id\' expected a number but got \'abc\'.` Validate input (an `int` path converter or a form) before querying; otherwise the view crashes with a 500 instead of answering 404 or 400.',
-      },
-    ],
-  ),
+      error: 'ValueError',
+      correct:
+        'The primary key is an integer, and `"abc"` cannot be converted, so Django raises `ValueError` before querying.',
+      wrong: [
+        'It raises `DoesNotExist` because no product has id `abc`.',
+        '`pk` cannot be used in `get()`; use `id`.',
+        'Query parameters are bytes and must be decoded first.',
+      ],
+      why: "Lookups convert values to the field’s type: `int(\"abc\")` fails with `ValueError: Field 'id' expected a number but got 'abc'.` Validate input (an `int` path converter or a form) before querying; otherwise the view crashes with a 500 instead of answering 404 or 400.",
+    },
+  ]),
   ...b.outputChoice(
     'dj-orm-q-objects',
     3,
@@ -249,7 +248,9 @@ print(dice.stock)`,
       },
       {
         key: 'related-then-field',
-        code: catalog(`print([p.name for p in Product.objects.order_by("-category__name", "price")])`),
+        code: catalog(
+          `print([p.name for p in Product.objects.order_by("-category__name", "price")])`,
+        ),
         correct: "['Dice', 'Chess', 'Bible', 'Atlas']",
         wrong: [
           "['Atlas', 'Bible', 'Chess', 'Dice']",

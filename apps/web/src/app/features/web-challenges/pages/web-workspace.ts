@@ -558,7 +558,9 @@ export class WebWorkspace {
   protected timeUsed(): string {
     const t = this.timedSession();
     if (!t) return '';
-    const end = t.finishedAt ? Date.parse(t.finishedAt) : Math.min(Date.parse(t.deadline), this.now() + this.clockOffset());
+    const end = t.finishedAt
+      ? Date.parse(t.finishedAt)
+      : Math.min(Date.parse(t.deadline), this.now() + this.clockOffset());
     const minutes = Math.max(0, Math.round((end - Date.parse(t.startedAt)) / 60_000));
     return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
   }
