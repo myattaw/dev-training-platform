@@ -1,4 +1,11 @@
 import type { TrackSource } from '@pracstack/content-model';
+import {
+  collectionsAdvancedFamilies,
+  controlFlowAdvancedFamilies,
+  functionsAdvancedFamilies,
+  genericsAdvancedFamilies,
+  stringsAdvancedFamilies,
+} from './advanced';
 import { concurrencyFamilies, testingFamilies } from './concurrency-testing';
 import { errorsFamilies, memoryFamilies } from './errors-memory';
 import { closuresFamilies, controlFlowFamilies, functionsFamilies } from './flow-functions';
@@ -54,7 +61,7 @@ export const swiftTrack: TrackSource = {
             'Predict `count` for accented characters and emoji.',
             'Convert between `Substring`, `Character` and `String` where the compiler requires it.',
           ],
-          questions: stringsFamilies,
+          questions: [...stringsFamilies, ...stringsAdvancedFamilies],
         },
       ],
     },
@@ -96,7 +103,7 @@ export const swiftTrack: TrackSource = {
             'Fix out-of-range and empty-collection crashes.',
             'Produce stable output from unordered dictionaries and sets.',
           ],
-          questions: collectionsFamilies,
+          questions: [...collectionsFamilies, ...collectionsAdvancedFamilies],
         },
       ],
     },
@@ -117,7 +124,7 @@ export const swiftTrack: TrackSource = {
             'Choose the right range or `stride` for a loop.',
             'Fix case-ordering bugs and use labeled `break`/`continue`.',
           ],
-          questions: controlFlowFamilies,
+          questions: [...controlFlowFamilies, ...controlFlowAdvancedFamilies],
         },
       ],
     },
@@ -138,7 +145,7 @@ export const swiftTrack: TrackSource = {
             'Explain why value-type parameters are copies and fix code that relies on mutation.',
             'Store, pass and return functions as values.',
           ],
-          questions: functionsFamilies,
+          questions: [...functionsFamilies, ...functionsAdvancedFamilies],
         },
         {
           id: 'swift-closures',
@@ -222,7 +229,7 @@ export const swiftTrack: TrackSource = {
             'Use associated types and constrained extensions.',
             'Predict which overload a generic call site selects.',
           ],
-          questions: genericsFamilies,
+          questions: [...genericsFamilies, ...genericsAdvancedFamilies],
         },
       ],
     },
