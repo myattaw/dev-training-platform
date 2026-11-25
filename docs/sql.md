@@ -33,18 +33,18 @@ API process ──IPC──▶ SQL runner process (packages/sql-engine/src/runti
 Each one was verified with tests (`packages/sql-engine/src/engine.spec.ts`), most against the
 attack itself.
 
-| Threat | Control | Enforced by |
-| --- | --- | --- |
-| Writes, DDL, multiple statements | Query is the body of `DECLARE CURSOR` (single SELECT/WITH/VALUES; no data-modifying CTEs, no `SELECT INTO`), inside a `READ ONLY` transaction | PostgreSQL |
-| Reading or changing other data | `learner` has `SELECT` on the exercise tables only; no `CREATE` | PostgreSQL privileges |
-| Privilege escalation | Session user is `learner` (not just current user); `set_config` revoked, so the role cannot be reset; string-executing functions (`query_to_xml`) refuse `SET`; superuser-only functions denied | PostgreSQL |
-| Host files, network, processes | PGlite has a virtual filesystem only, no sockets, cannot start processes (`COPY … TO PROGRAM` has no effect) | WebAssembly sandbox |
-| Infinite or slow queries | The worker thread is terminated at 3 s (PostgreSQL's `statement_timeout` does **not** fire in PGlite; worker termination does interrupt WebAssembly) | Supervisor |
-| Memory exhaustion | The supervisor polls the runner's RSS and kills the worker above 1,200 MB | Supervisor |
-| Crashing the API | All of the above happens in a separate process; if it dies or hangs, the API restarts it | `ChildProcessSqlEngine` |
-| Huge results | At most `maxRows + 1` rows are fetched from the cursor (100 for "Run query", 1,000 for grading) | Cursor `FETCH` |
-| Floods | 30 SQL requests per user per minute (runs and answers); at most 20 queued jobs, beyond which requests are refused as busy | API |
-| Learning hidden data | Only results and errors from the **sample** data are shown. For hidden datasets the learner only learns that the query was wrong there | Grader |
+| Threat                           | Control                                                                                                                                                                                         | Enforced by             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| Writes, DDL, multiple statements | Query is the body of `DECLARE CURSOR` (single SELECT/WITH/VALUES; no data-modifying CTEs, no `SELECT INTO`), inside a `READ ONLY` transaction                                                   | PostgreSQL              |
+| Reading or changing other data   | `learner` has `SELECT` on the exercise tables only; no `CREATE`                                                                                                                                 | PostgreSQL privileges   |
+| Privilege escalation             | Session user is `learner` (not just current user); `set_config` revoked, so the role cannot be reset; string-executing functions (`query_to_xml`) refuse `SET`; superuser-only functions denied | PostgreSQL              |
+| Host files, network, processes   | PGlite has a virtual filesystem only, no sockets, cannot start processes (`COPY … TO PROGRAM` has no effect)                                                                                    | WebAssembly sandbox     |
+| Infinite or slow queries         | The worker thread is terminated at 3 s (PostgreSQL's `statement_timeout` does **not** fire in PGlite; worker termination does interrupt WebAssembly)                                            | Supervisor              |
+| Memory exhaustion                | The supervisor polls the runner's RSS and kills the worker above 1,200 MB                                                                                                                       | Supervisor              |
+| Crashing the API                 | All of the above happens in a separate process; if it dies or hangs, the API restarts it                                                                                                        | `ChildProcessSqlEngine` |
+| Huge results                     | At most `maxRows + 1` rows are fetched from the cursor (100 for "Run query", 1,000 for grading)                                                                                                 | Cursor `FETCH`          |
+| Floods                           | 30 SQL requests per user per minute (runs and answers); at most 20 queued jobs, beyond which requests are refused as busy                                                                       | API                     |
+| Learning hidden data             | Only results and errors from the **sample** data are shown. For hidden datasets the learner only learns that the query was wrong there                                                          | Grader                  |
 
 **Known limits**, stated plainly:
 
@@ -134,22 +134,22 @@ cannot grade), and the content build warns that the Oracle reference queries wer
 Unlike PGlite there is one long-lived database, so isolation comes from Oracle's own access
 control, set up by the engine:
 
-| Boundary | How |
-| --- | --- |
-| **Datasets are separate schemas** | Each dataset (sample and each hidden one) is a schema owned by a user that cannot log in |
-| **Learner SQL runs as a per-dataset user** | It can log in and *read* that one dataset's tables (the `READ` privilege: no writes, not even `SELECT … FOR UPDATE` locks) and nothing else. Hidden datasets are other schemas, so "Run query" cannot read them; the tests try every schema name |
-| **Fresh session per run** | Inline PL/SQL (`WITH FUNCTION`) could change session state; every run opens a new connection, so nothing carries over. Inline PL/SQL is also refused before running |
-| **Limits** | A client-side call timeout (3 s; the call is cancelled), CPU and logical reads per call (profile), a 64 MB temporary tablespace, rows fetched, 2 runs at a time |
-| **No network or files** | `UTL_HTTP`, `UTL_TCP`, `UTL_SMTP`, `UTL_INADDR`, `UTL_FILE`, `DBMS_LDAP` and `HTTPURITYPE` are revoked from `PUBLIC`; Oracle's default network ACLs already block them |
-| **Admin credentials** | The SYS/SYSTEM password is random, kept in `.local/oracle.json` (git-ignored), used only to create datasets, and never reaches learner sessions |
-| **Local only** | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB |
+| Boundary                                   | How                                                                                                                                                                                                                                              |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Datasets are separate schemas**          | Each dataset (sample and each hidden one) is a schema owned by a user that cannot log in                                                                                                                                                         |
+| **Learner SQL runs as a per-dataset user** | It can log in and _read_ that one dataset's tables (the `READ` privilege: no writes, not even `SELECT … FOR UPDATE` locks) and nothing else. Hidden datasets are other schemas, so "Run query" cannot read them; the tests try every schema name |
+| **Fresh session per run**                  | Inline PL/SQL (`WITH FUNCTION`) could change session state; every run opens a new connection, so nothing carries over. Inline PL/SQL is also refused before running                                                                              |
+| **Limits**                                 | A client-side call timeout (3 s; the call is cancelled), CPU and logical reads per call (profile), a 64 MB temporary tablespace, rows fetched, 2 runs at a time                                                                                  |
+| **No network or files**                    | `UTL_HTTP`, `UTL_TCP`, `UTL_SMTP`, `UTL_INADDR`, `UTL_FILE`, `DBMS_LDAP` and `HTTPURITYPE` are revoked from `PUBLIC`; Oracle's default network ACLs already block them                                                                           |
+| **Admin credentials**                      | The SYS/SYSTEM password is random, kept in `.local/oracle.json` (git-ignored), used only to create datasets, and never reaches learner sessions                                                                                                  |
+| **Local only**                             | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB                                                                                                                                                                      |
 
 Values are normalized like the PostgreSQL engine's: numbers stay exact (long ones as text),
 `DATE` values print as `YYYY-MM-DD` (with the time when there is one) independent of this
 machine's time zone, and Oracle's rule that `''` is NULL applies.
 
 **Known limits.** Learners share one database (separated by users, privileges and limits, not
-by a fresh database per run as with PGlite); a query can list other datasets' *schema names*
+by a fresh database per run as with PGlite); a query can list other datasets' _schema names_
 (not their contents) in `ALL_USERS`; CPU limits are per call, so a slow query is stopped by the
 3 s timeout.
 
@@ -186,16 +186,16 @@ reference queries were not run.
 
 ### Security boundaries (`packages/sql-engine/src/sqlserver-engine.ts`)
 
-| Boundary | How |
-| --- | --- |
-| **Datasets are separate databases** | Each dataset (sample and each hidden one) is its own database, built by `sa` and then set `READ_ONLY`, so nothing can change it and readers take no locks (one learner cannot block another) |
-| **Learner SQL runs as a per-dataset login** | Its only permission is `SELECT` on that database's `dbo` schema. `guest` is disabled, so other datasets (hidden data included) cannot be opened (Msg 916), and `VIEW ANY DATABASE` is revoked from `public`, so they are not even listed |
-| **Fresh session per run** | Every run opens a new connection, so temp tables and `SET` options never carry over |
-| **One result set** | A batch that returns a second result set is cancelled and refused; statements that write fail on permissions and the read-only database |
-| **Limits** | A 3 s request timeout (the batch is cancelled), a 1 s lock timeout, rows fetched (cancelled after one extra row), 4 runs at a time |
-| **No shell, files or network** | `xp_cmdshell`, OLE automation, ad hoc `OPENROWSET`, CLR and external scripts are kept off; `xp_dirtree`, `xp_fileexist`, `xp_subdirs`, `xp_regread` and similar are revoked from `public`; bulk `OPENROWSET` needs a permission learners do not have |
-| **Admin credentials** | The `sa` password is random, kept in `.local/sqlserver.json` (git-ignored), used only to create datasets, and never reaches learner sessions |
-| **Local only** | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB (SQL Server itself to 2 GB) |
+| Boundary                                    | How                                                                                                                                                                                                                                                  |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Datasets are separate databases**         | Each dataset (sample and each hidden one) is its own database, built by `sa` and then set `READ_ONLY`, so nothing can change it and readers take no locks (one learner cannot block another)                                                         |
+| **Learner SQL runs as a per-dataset login** | Its only permission is `SELECT` on that database's `dbo` schema. `guest` is disabled, so other datasets (hidden data included) cannot be opened (Msg 916), and `VIEW ANY DATABASE` is revoked from `public`, so they are not even listed             |
+| **Fresh session per run**                   | Every run opens a new connection, so temp tables and `SET` options never carry over                                                                                                                                                                  |
+| **One result set**                          | A batch that returns a second result set is cancelled and refused; statements that write fail on permissions and the read-only database                                                                                                              |
+| **Limits**                                  | A 3 s request timeout (the batch is cancelled), a 1 s lock timeout, rows fetched (cancelled after one extra row), 4 runs at a time                                                                                                                   |
+| **No shell, files or network**              | `xp_cmdshell`, OLE automation, ad hoc `OPENROWSET`, CLR and external scripts are kept off; `xp_dirtree`, `xp_fileexist`, `xp_subdirs`, `xp_regread` and similar are revoked from `public`; bulk `OPENROWSET` needs a permission learners do not have |
+| **Admin credentials**                       | The `sa` password is random, kept in `.local/sqlserver.json` (git-ignored), used only to create datasets, and never reaches learner sessions                                                                                                         |
+| **Local only**                              | The container listens on 127.0.0.1 only and is limited to 2 CPUs and 2.5 GB (SQL Server itself to 2 GB)                                                                                                                                              |
 
 Values: `date` prints as `YYYY-MM-DD`, `datetime`/`datetime2` add the time when there is one
 (independent of this machine's time zone), `bit` is a boolean, `bigint` is a number when it is
