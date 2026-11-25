@@ -1,4 +1,5 @@
 import type * as Monaco from 'monaco-editor';
+import { registerCompletions } from './completions';
 
 export type MonacoApi = typeof Monaco;
 
@@ -42,6 +43,7 @@ async function initMonaco(): Promise<MonacoApi> {
 
   const [monaco] = await Promise.all([import('monaco-editor'), loadStylesheet()]);
   configureTypeScript(monaco);
+  registerCompletions(monaco);
   defineTheme(monaco);
   return monaco;
 }

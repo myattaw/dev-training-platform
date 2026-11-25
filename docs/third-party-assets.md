@@ -50,7 +50,10 @@ The grammar packages are not installed as dependencies: they build native Node.j
 install, which the browser does not need. To update one, take the `.wasm` file from the package's
 npm tarball (`npm pack tree-sitter-c-sharp@<version>`) and update the row above.
 
-Syntax only: names and types (`return e;` with no `e`) are checked by the real compiler when the
-code runs on the server, and those errors are underlined too. The parser runs in a Web Worker
+Besides syntax errors, it flags lowercase names declared nowhere in the file (`return ew;`; see
+`undefined-names.ts`, checked against all C# and Java content by `content/src/checks/editor-name-check.spec.ts`).
+Types and members are checked by the real compiler when the code runs on the server, and those
+errors are underlined too. Suggestions while typing (keywords, common types and members) come from
+a fixed list in `apps/web/src/app/shared/editor/completions.ts`. The parser runs in a Web Worker
 (`apps/web/src/app/shared/editor/workers/syntax.worker.ts`) under the worker policy, which allows
 compiling WebAssembly and denies network access; the page fetches the files and passes them in.

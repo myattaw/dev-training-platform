@@ -96,9 +96,11 @@ test.describe('server-graded submissions', () => {
     await expect(page.locator('.file-name')).toHaveText('Solution.cs');
     await replaceCode(
       page,
-      'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        return e;\n    }\n}\n',
+      'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        return 42;\n    }\n}\n',
     );
     const squiggle = page.locator('.monaco-editor .squiggly-error');
+    // A type error: only the real compiler (on the server) finds it, so nothing is underlined yet.
+    await page.waitForTimeout(1_000);
     await expect(squiggle).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Run tests' }).click();
@@ -106,7 +108,7 @@ test.describe('server-graded submissions', () => {
     await expect(squiggle).toHaveCount(1);
 
     // Editing the reported line removes its marker (the error may be fixed there).
-    await page.locator('.monaco-editor .view-line', { hasText: 'return e;' }).click();
+    await page.locator('.monaco-editor .view-line', { hasText: 'return 42;' }).click();
     await page.keyboard.press('End');
     await page.keyboard.type(' ');
     await expect(squiggle).toHaveCount(0);

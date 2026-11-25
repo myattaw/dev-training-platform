@@ -56,7 +56,8 @@ test.describe('coding workspace', () => {
       page,
       'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        return e.;\n    }\n}\n',
     );
-    await expect(status).toHaveText('1 error, line 5', { timeout: 15_000 });
+    // Two: the syntax error, and `e` is declared nowhere.
+    await expect(status).toHaveText('2 errors, line 5', { timeout: 15_000 });
     await expect(squiggles.first()).toBeVisible();
 
     await replaceCode(
@@ -65,6 +66,23 @@ test.describe('coding workspace', () => {
     );
     await expect(status).toBeEmpty();
     await expect(squiggles).toHaveCount(0);
+
+    // A name declared nowhere in the file is flagged before running, too.
+    await replaceCode(
+      page,
+      'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        var seen = 0;\n        return ew;\n    }\n}\n',
+    );
+    await expect(status).toHaveText('1 error, line 6', { timeout: 15_000 });
+
+    // Suggestions: typing "HashSe" offers HashSet.
+    await page.locator('.monaco-editor .view-line', { hasText: 'var seen = 0;' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('var set = new HashSe');
+    await expect(
+      page.locator('.monaco-editor .suggest-widget .monaco-list-row', { hasText: 'HashSet' }),
+    ).toBeVisible();
+    await page.keyboard.press('Escape');
 
     await page.getByRole('combobox', { name: 'Language' }).selectOption('java');
     await expect(page.locator('.file-name')).toHaveText('Solution.java');

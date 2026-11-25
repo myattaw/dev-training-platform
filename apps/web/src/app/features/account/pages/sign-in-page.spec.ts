@@ -64,7 +64,7 @@ describe('SignInPage layout and modes', () => {
     const { el } = await renderWith({});
     const buttons = [...el.querySelectorAll('.provider-btn:not(:disabled)')];
     expect(buttons.map((b) => b.getAttribute('data-provider'))).toEqual(['Google', 'GitHub']);
-    for (const b of buttons) expect(b.querySelector('svg.provider-icon path')).not.toBeNull();
+    for (const b of buttons) expect(b.querySelector('.provider-icon svg path')).not.toBeNull();
     expect(text(el.querySelector('h1'))).toBe('Sign in to PracStack');
     expect(text(el.querySelector('.email-btn'))).toBe('Sign in with email');
   });

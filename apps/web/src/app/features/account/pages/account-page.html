@@ -104,24 +104,32 @@
         {{ auth.status() === 'local' ? 'None: local mode has no sign-in.' : 'None recorded yet.' }}
       </p>
     } @else {
+      <!-- Styled like the sign-in buttons: connected methods are a status, the rest connect. -->
       <ul class="methods">
         @for (i of ids.value.identities; track i.provider) {
           <li>
-            <span class="method-name">{{ i.provider }}</span>
-            <span class="connected">Connected</span>
+            <div class="method method--connected">
+              <app-provider-icon class="method-icon" [provider]="i.provider" />
+              <span class="method-name">{{ i.provider }}</span>
+              <span class="method-status">
+                <app-icon name="check-circle" [size]="16" />
+                Connected
+              </span>
+            </div>
           </li>
         }
         @for (provider of linkable(); track provider) {
           <li>
-            <span class="method-name">{{ provider }}</span>
             <button
               type="button"
-              class="btn btn--sm"
+              class="method method--connect"
               [disabled]="linking()"
               [attr.aria-label]="'Connect ' + provider + ' to this account'"
               (click)="addSignInMethod(provider)"
             >
-              Connect
+              <app-provider-icon class="method-icon" [provider]="provider" />
+              <span class="method-name">{{ provider }}</span>
+              <span class="method-status">Connect</span>
             </button>
           </li>
         }

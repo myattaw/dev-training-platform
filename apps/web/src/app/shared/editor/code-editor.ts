@@ -333,16 +333,18 @@ export class CodeEditor {
       errors.map((d) => {
         const line = Math.min(Math.max(1, d.line), model.getLineCount());
         const column = Math.min(Math.max(1, d.column), model.getLineMaxColumn(line));
-        // At least one character wide, so the error is visible at the end of a line too.
+        // The word that starts there (an unknown name); otherwise one character, so the
+        // error is visible at the end of a line too.
+        const word = model.getWordAtPosition({ lineNumber: line, column });
         const end = Math.min(column + 1, model.getLineMaxColumn(line));
         return {
           severity: monaco.MarkerSeverity.Error,
           message: d.message,
           source: 'syntax',
           startLineNumber: line,
-          startColumn: end > column ? column : Math.max(1, column - 1),
+          startColumn: word?.startColumn ?? (end > column ? column : Math.max(1, column - 1)),
           endLineNumber: line,
-          endColumn: end > column ? end : column,
+          endColumn: word?.endColumn ?? (end > column ? end : column),
         };
       }),
     );

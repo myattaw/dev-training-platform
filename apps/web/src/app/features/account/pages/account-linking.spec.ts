@@ -14,7 +14,8 @@ const DOMAIN = 'https://pracstack-test.auth.us-east-2.amazoncognito.com';
 const TOKEN = '0b6e1f4c-8c2a-4a57-9b0e-3d3a3f1e9c11';
 const text = (node: Element | null | undefined) => node?.textContent?.replace(/\s+/g, ' ').trim();
 /** A sign-in method row: its name and its status or action, e.g. `GitHub Connected`. */
-const row = (li: Element) => [...li.children].map((c) => text(c)).join(' ');
+const row = (li: Element) =>
+  `${text(li.querySelector('.method-name'))} ${text(li.querySelector('.method-status'))}`;
 const settle = () => new Promise((r) => setTimeout(r));
 
 function api(identities: string[]) {

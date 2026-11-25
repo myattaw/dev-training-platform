@@ -16,6 +16,7 @@ import { asyncResource, errorMessage } from '../../../shared/async/async-state';
 import { Alert } from '../../../shared/ui/alert/alert';
 import { Badge } from '../../../shared/ui/badge/badge';
 import { Icon } from '../../../shared/ui/icon/icon';
+import { ProviderIcon } from '../../../shared/ui/provider-icon/provider-icon';
 import { LoadingState } from '../../../shared/ui/loading-state/loading-state';
 import { PageHeader } from '../../../shared/ui/page-header/page-header';
 import { Panel } from '../../../shared/ui/panel/panel';
@@ -44,7 +45,7 @@ const FEATURE_LABELS: Readonly<Record<string, string>> = {
  */
 @Component({
   selector: 'app-account-page',
-  imports: [RouterLink, Alert, Badge, Icon, LoadingState, PageHeader, Panel],
+  imports: [RouterLink, Alert, Badge, Icon, LoadingState, PageHeader, Panel, ProviderIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './account-page.html',
   styleUrl: './account-page.css',

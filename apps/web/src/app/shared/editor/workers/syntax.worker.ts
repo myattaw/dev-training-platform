@@ -1,8 +1,9 @@
 /// <reference lib="webworker" />
 /*
  * Syntax checking for languages the browser cannot compile (C#, Java), with
- * Tree-sitter grammars compiled to WebAssembly. Syntax only: names and types
- * are checked by the real compiler when the code runs on the server.
+ * Tree-sitter grammars compiled to WebAssembly: syntax errors, and names used
+ * but declared nowhere in the file. Types and members are checked by the real
+ * compiler when the code runs on the server.
  *
  * Workers get the worker Content-Security-Policy, which allows compiling
  * WebAssembly but denies all network access, so the page fetches the
@@ -10,6 +11,7 @@
  */
 import { Language, type Node, Parser } from 'web-tree-sitter';
 import type { SyntaxRequest, SyntaxResponse } from './syntax.models';
+import { undefinedNames } from './undefined-names';
 
 /** Reported per check, so a badly broken file stays readable. */
 const MAX_ERRORS = 20;
@@ -44,6 +46,8 @@ async function handle(request: SyntaxRequest): Promise<SyntaxResponse> {
   try {
     const diagnostics: { line: number; column: number; message: string }[] = [];
     collect(tree.rootNode, diagnostics);
+    // Names used but declared nowhere (`return ew;`): see undefined-names.ts.
+    diagnostics.push(...undefinedNames(tree.rootNode, request.language));
     return { id: request.id, ok: true, diagnostics };
   } finally {
     tree.delete();
