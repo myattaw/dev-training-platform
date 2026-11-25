@@ -17,7 +17,11 @@ import {
  */
 const dir = challengeDir(import.meta.url);
 
-const margaret = { name: 'Margaret Hamilton', email: 'margaret@example.com', department: 'Engineering' };
+const margaret = {
+  name: 'Margaret Hamilton',
+  email: 'margaret@example.com',
+  department: 'Engineering',
+};
 
 export const source: WebChallengeSource = {
   challenge: {
@@ -99,7 +103,12 @@ export const source: WebChallengeSource = {
           status: 200,
           json: [
             json.type('', 'array'),
-            json.contains('', { id: 1, name: 'Ada Lovelace', email: 'ada@example.com', department: 'Engineering' }),
+            json.contains('', {
+              id: 1,
+              name: 'Ada Lovelace',
+              email: 'ada@example.com',
+              department: 'Engineering',
+            }),
             json.contains('', { id: 3, name: 'Linus Torvalds' }),
           ],
         }),
@@ -107,7 +116,11 @@ export const source: WebChallengeSource = {
       test('gets-one-employee', 'reading', 'returns one employee by id', [
         http.get('/api/employees/2', {
           status: 200,
-          json: [json.equals('id', 2), json.equals('name', 'Grace Hopper'), json.equals('department', 'Engineering')],
+          json: [
+            json.equals('id', 2),
+            json.equals('name', 'Grace Hopper'),
+            json.equals('department', 'Engineering'),
+          ],
         }),
       ]),
       test('unknown-employee', 'not-found', 'returns 404 for an unknown employee', [
@@ -116,27 +129,53 @@ export const source: WebChallengeSource = {
       test('creates-employee', 'creating', 'creates an employee and reads it back', [
         http.post('/api/employees', margaret, {
           status: 201,
-          json: [json.type('id', 'number'), json.equals('name', 'Margaret Hamilton'), json.equals('email', 'margaret@example.com')],
+          json: [
+            json.type('id', 'number'),
+            json.equals('name', 'Margaret Hamilton'),
+            json.equals('email', 'margaret@example.com'),
+          ],
           headers: [{ name: 'Location', matches: '/api/employees/\\d+$' }],
           capture: { id: 'id' },
         }),
-        http.get('/api/employees/{{id}}', { status: 200, json: [json.equals('email', 'margaret@example.com')] }),
-        http.get('/api/employees', { status: 200, json: [json.contains('', { email: 'margaret@example.com' })] }),
+        http.get('/api/employees/{{id}}', {
+          status: 200,
+          json: [json.equals('email', 'margaret@example.com')],
+        }),
+        http.get('/api/employees', {
+          status: 200,
+          json: [json.contains('', { email: 'margaret@example.com' })],
+        }),
       ]),
-      test('rejects-invalid-input', 'validation', 'rejects invalid input and lists the invalid fields', [
-        http.post(
-          '/api/employees',
-          { name: '', email: 'not-an-email', department: 'Engineering' },
-          { status: 400, json: [json.exists('errors.name'), json.exists('errors.email'), json.absent('errors.department')] },
-        ),
-      ]),
+      test(
+        'rejects-invalid-input',
+        'validation',
+        'rejects invalid input and lists the invalid fields',
+        [
+          http.post(
+            '/api/employees',
+            { name: '', email: 'not-an-email', department: 'Engineering' },
+            {
+              status: 400,
+              json: [
+                json.exists('errors.name'),
+                json.exists('errors.email'),
+                json.absent('errors.department'),
+              ],
+            },
+          ),
+        ],
+      ),
     ],
   },
   hiddenTests: [
     test('normalizes-input', 'normalization', 'trims fields and lower-cases the email', [
       http.post(
         '/api/employees',
-        { name: '  Katherine Johnson ', email: ' Katherine.Johnson@Example.COM ', department: ' Finance ' },
+        {
+          name: '  Katherine Johnson ',
+          email: ' Katherine.Johnson@Example.COM ',
+          department: ' Finance ',
+        },
         {
           status: 201,
           json: [
@@ -147,43 +186,117 @@ export const source: WebChallengeSource = {
           capture: { id: 'id' },
         },
       ),
-      http.get('/api/employees/{{id}}', { status: 200, json: [json.equals('email', 'katherine.johnson@example.com')] }),
+      http.get('/api/employees/{{id}}', {
+        status: 200,
+        json: [json.equals('email', 'katherine.johnson@example.com')],
+      }),
     ]),
     test('duplicate-of-seeded', 'duplicates', 'rejects an email that differs only in case', [
-      http.post('/api/employees', { name: 'Ada Clone', email: ' ADA@example.com', department: 'Sales' }, { status: 409 }),
-      http.get('/api/employees', { status: 200, json: [json.notContains('', { name: 'Ada Clone' })] }),
+      http.post(
+        '/api/employees',
+        { name: 'Ada Clone', email: ' ADA@example.com', department: 'Sales' },
+        { status: 409 },
+      ),
+      http.get('/api/employees', {
+        status: 200,
+        json: [json.notContains('', { name: 'Ada Clone' })],
+      }),
     ]),
-    test('duplicate-of-created', 'duplicates', 'rejects a second employee with a new but repeated email', [
-      http.post('/api/employees', { name: 'Dorothy Vaughan', email: 'dorothy@example.com', department: 'Support' }, { status: 201 }),
-      http.post('/api/employees', { name: 'D. Vaughan', email: ' Dorothy@EXAMPLE.com ', department: 'Support' }, { status: 409 }),
-    ]),
+    test(
+      'duplicate-of-created',
+      'duplicates',
+      'rejects a second employee with a new but repeated email',
+      [
+        http.post(
+          '/api/employees',
+          { name: 'Dorothy Vaughan', email: 'dorothy@example.com', department: 'Support' },
+          { status: 201 },
+        ),
+        http.post(
+          '/api/employees',
+          { name: 'D. Vaughan', email: ' Dorothy@EXAMPLE.com ', department: 'Support' },
+          { status: 409 },
+        ),
+      ],
+    ),
     test('email-rules', 'validation', 'applies every email rule', [
-      http.post('/api/employees', { name: 'A', email: 'a@@b.com', department: 'Sales' }, { status: 400, json: [json.exists('errors.email')] }),
-      http.post('/api/employees', { name: 'A', email: 'a b@c.io', department: 'Sales' }, { status: 400, json: [json.exists('errors.email')] }),
-      http.post('/api/employees', { name: 'A', email: '@c.io', department: 'Sales' }, { status: 400, json: [json.exists('errors.email')] }),
-      http.post('/api/employees', { name: 'A', email: 'a@', department: 'Sales' }, { status: 400, json: [json.exists('errors.email')] }),
+      http.post(
+        '/api/employees',
+        { name: 'A', email: 'a@@b.com', department: 'Sales' },
+        { status: 400, json: [json.exists('errors.email')] },
+      ),
+      http.post(
+        '/api/employees',
+        { name: 'A', email: 'a b@c.io', department: 'Sales' },
+        { status: 400, json: [json.exists('errors.email')] },
+      ),
+      http.post(
+        '/api/employees',
+        { name: 'A', email: '@c.io', department: 'Sales' },
+        { status: 400, json: [json.exists('errors.email')] },
+      ),
+      http.post(
+        '/api/employees',
+        { name: 'A', email: 'a@', department: 'Sales' },
+        { status: 400, json: [json.exists('errors.email')] },
+      ),
     ]),
     test('required-fields', 'validation', 'reports every missing field', [
-      http.post('/api/employees', {}, {
-        status: 400,
-        json: [json.exists('errors.name'), json.exists('errors.email'), json.exists('errors.department')],
-      }),
-      http.post('/api/employees', { name: '   ', email: 'blank@example.com', department: 'Sales' }, { status: 400, json: [json.exists('errors.name')] }),
+      http.post(
+        '/api/employees',
+        {},
+        {
+          status: 400,
+          json: [
+            json.exists('errors.name'),
+            json.exists('errors.email'),
+            json.exists('errors.department'),
+          ],
+        },
+      ),
+      http.post(
+        '/api/employees',
+        { name: '   ', email: 'blank@example.com', department: 'Sales' },
+        { status: 400, json: [json.exists('errors.name')] },
+      ),
     ]),
     test('department-rules', 'validation', 'accepts only the listed departments, exactly', [
-      http.post('/api/employees', { name: 'A', email: 'legal@example.com', department: 'Legal' }, { status: 400, json: [json.exists('errors.department')] }),
-      http.post('/api/employees', { name: 'A', email: 'lower@example.com', department: 'engineering' }, { status: 400, json: [json.exists('errors.department')] }),
+      http.post(
+        '/api/employees',
+        { name: 'A', email: 'legal@example.com', department: 'Legal' },
+        { status: 400, json: [json.exists('errors.department')] },
+      ),
+      http.post(
+        '/api/employees',
+        { name: 'A', email: 'lower@example.com', department: 'engineering' },
+        { status: 400, json: [json.exists('errors.department')] },
+      ),
     ]),
     test('name-length', 'validation', 'allows names up to 100 characters', [
-      http.post('/api/employees', { name: 'x'.repeat(101), email: 'long@example.com', department: 'Sales' }, { status: 400, json: [json.exists('errors.name')] }),
-      http.post('/api/employees', { name: 'y'.repeat(100), email: 'long@example.com', department: 'Sales' }, { status: 201 }),
+      http.post(
+        '/api/employees',
+        { name: 'x'.repeat(101), email: 'long@example.com', department: 'Sales' },
+        { status: 400, json: [json.exists('errors.name')] },
+      ),
+      http.post(
+        '/api/employees',
+        { name: 'y'.repeat(100), email: 'long@example.com', department: 'Sales' },
+        { status: 201 },
+      ),
     ]),
     test('invalid-json', 'validation', 'rejects a body that is not JSON', [
       http.post('/api/employees', '{"name": "Broken"', { status: 400 }),
     ]),
     test('no-side-effects', 'validation', 'does not store anything for invalid input', [
-      http.post('/api/employees', { name: 'Ghost', email: 'ghost@example.com', department: 'Legal' }, { status: 400 }),
-      http.get('/api/employees', { status: 200, json: [json.notContains('', { email: 'ghost@example.com' })] }),
+      http.post(
+        '/api/employees',
+        { name: 'Ghost', email: 'ghost@example.com', department: 'Legal' },
+        { status: 400 },
+      ),
+      http.get('/api/employees', {
+        status: 200,
+        json: [json.notContains('', { email: 'ghost@example.com' })],
+      }),
     ]),
     test('more-not-found', 'not-found', 'answers 404 for ids that never existed', [
       http.get('/api/employees/0', { status: 404 }),

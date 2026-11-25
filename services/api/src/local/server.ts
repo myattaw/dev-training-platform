@@ -97,7 +97,7 @@ void codeRunner.check().then((status) => {
 // docs/execution-security.md). Kill switch: PRACSTACK_WEB_EXECUTION=off makes
 // them browse-only. Containers left by an earlier crash are removed first.
 const webExecution = process.env['PRACSTACK_WEB_EXECUTION'] !== 'off';
-const webRunner = webExecution ? new DockerWebRunner({ maxConcurrent: 2, maxQueue: 6 }) : undefined;
+const webRunner = webExecution ? new DockerWebRunner({ maxConcurrent: 3, maxQueue: 6 }) : undefined;
 if (webRunner) {
   void webRunner.removeLeftovers();
   void webRunner.check().then((status) => {

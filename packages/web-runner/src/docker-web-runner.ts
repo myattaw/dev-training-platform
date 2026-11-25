@@ -341,7 +341,10 @@ export class WebApp {
     const onData = (chunk: Buffer): void => {
       this.outputBytes += chunk.length;
       if (this.outputBytes > l.maxOutputBytes) {
-        void this.stop('resource-limit', 'The application printed too much output and was stopped.');
+        void this.stop(
+          'resource-limit',
+          'The application printed too much output and was stopped.',
+        );
         return;
       }
       this.consume(chunk.toString('utf8'));
@@ -540,7 +543,8 @@ export class WebApp {
     this.message = message;
     this.setState(state);
     this.cleanup();
-    if (!this.exited && this.releaseSlot) void exec(this.runner.docker, ['rm', '-f', this.containerName]);
+    if (!this.exited && this.releaseSlot)
+      void exec(this.runner.docker, ['rm', '-f', this.containerName]);
   }
 
   private cleanup(): void {
@@ -595,12 +599,15 @@ function sanitizeResponse(value: unknown): ProbeResponse {
       if (typeof h === 'string') headers[k.toLowerCase().slice(0, 64)] = h.slice(0, 1024);
     }
   }
-  const status = typeof v['status'] === 'number' && Number.isInteger(v['status']) ? v['status'] : undefined;
+  const status =
+    typeof v['status'] === 'number' && Number.isInteger(v['status']) ? v['status'] : undefined;
   return {
     ...(status !== undefined && status >= 100 && status <= 599 ? { status, headers } : {}),
     ...(typeof v['body'] === 'string' ? { body: v['body'].slice(0, 64 * 1024) } : {}),
     ...(v['truncated'] === true ? { truncated: true } : {}),
-    ...(typeof v['durationMs'] === 'number' ? { durationMs: Math.max(0, Math.round(v['durationMs'])) } : {}),
+    ...(typeof v['durationMs'] === 'number'
+      ? { durationMs: Math.max(0, Math.round(v['durationMs'])) }
+      : {}),
     ...(typeof v['error'] === 'string' ? { error: v['error'].slice(0, 300) } : {}),
     ...(status === undefined && typeof v['error'] !== 'string' ? { error: 'No response.' } : {}),
   };
@@ -616,7 +623,10 @@ function exec(command: string, args: string[]): Promise<{ code: number | null; s
   });
 }
 
-function execOut(command: string, args: string[]): Promise<{ code: number | null; stdout: string }> {
+function execOut(
+  command: string,
+  args: string[],
+): Promise<{ code: number | null; stdout: string }> {
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'ignore'] });
     let stdout = '';

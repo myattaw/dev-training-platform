@@ -1,0 +1,75 @@
+import {
+  WEB_VERDICT_LABELS,
+  type WebSessionState,
+  type WebVerdict,
+} from '@pracstack/api-contracts';
+import type { EditorLanguage } from '../../../shared/editor/code-editor';
+import type { StatusType } from '../../../shared/ui/status-indicator/status-indicator';
+
+export const VERDICT_LABELS = WEB_VERDICT_LABELS;
+
+export const VERDICT_STATUS: Readonly<Record<WebVerdict, StatusType>> = {
+  accepted: 'success',
+  'tests-failed': 'error',
+  'compilation-error': 'error',
+  'startup-error': 'error',
+  'time-limit-exceeded': 'warning',
+  'resource-limit-exceeded': 'warning',
+  'infrastructure-error': 'neutral',
+};
+
+export const SESSION_LABELS: Readonly<Record<WebSessionState, string>> = {
+  queued: 'Queued',
+  building: 'Building',
+  starting: 'Starting',
+  ready: 'Running',
+  'build-failed': 'Build failed',
+  'startup-failed': 'Startup failed',
+  'resource-limit': 'Stopped (resource limit)',
+  expired: 'Expired',
+  stopped: 'Stopped',
+  unavailable: 'Runner unavailable',
+};
+
+export const SESSION_STATUS: Readonly<Record<WebSessionState, StatusType>> = {
+  queued: 'in-progress',
+  building: 'in-progress',
+  starting: 'in-progress',
+  ready: 'success',
+  'build-failed': 'error',
+  'startup-failed': 'error',
+  'resource-limit': 'warning',
+  expired: 'neutral',
+  stopped: 'neutral',
+  unavailable: 'warning',
+};
+
+/** Monaco language for a project file (syntax highlighting only; no language server). */
+export function monacoLanguage(path: string): string {
+  const ext = path.slice(path.lastIndexOf('.') + 1).toLowerCase();
+  const map: Readonly<Record<string, string>> = {
+    cs: 'csharp',
+    csproj: 'xml',
+    xml: 'xml',
+    java: 'java',
+    py: 'python',
+    ts: 'typescript',
+    js: 'javascript',
+    json: 'json',
+    html: 'html',
+    css: 'css',
+    yml: 'yaml',
+    yaml: 'yaml',
+    properties: 'ini',
+    md: 'markdown',
+    sql: 'sql',
+  };
+  return map[ext] ?? 'plaintext';
+}
+
+/** The editor language whose live syntax check applies (C# and Java only). */
+export function syntaxLanguage(path: string): EditorLanguage | undefined {
+  if (path.endsWith('.cs')) return 'csharp';
+  if (path.endsWith('.java')) return 'java';
+  return undefined;
+}

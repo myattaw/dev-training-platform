@@ -41,7 +41,8 @@ function parseFiles(value: unknown): Readonly<Record<string, string>> {
 export function parseCreateWebRun(body: unknown): CreateWebRunRequest {
   const b = obj(body);
   const mode = b['mode'];
-  if (mode !== 'visible' && mode !== 'submit') throw badRequest('"mode" must be visible or submit.');
+  if (mode !== 'visible' && mode !== 'submit')
+    throw badRequest('"mode" must be visible or submit.');
   return {
     framework: parseFramework(b['framework']),
     files: parseFiles(b['files']),
@@ -64,7 +65,12 @@ export function parseCreateWebSession(body: unknown): CreateWebSessionRequest {
 export function parseSaveWebDraft(body: unknown): SaveWebDraftRequest {
   const b = obj(body);
   const version = b['challengeVersion'];
-  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1 || version > 10_000) {
+  if (
+    typeof version !== 'number' ||
+    !Number.isInteger(version) ||
+    version < 1 ||
+    version > 10_000
+  ) {
     throw badRequest('"challengeVersion" must be a positive integer.');
   }
   return { challengeVersion: version, files: parseFiles(b['files']) };

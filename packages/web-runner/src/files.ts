@@ -53,7 +53,10 @@ export function validateSubmittedFiles(
   let total = 0;
   for (const [path, content] of entries) {
     if (!isSafeProjectPath(path) || !allowed.has(path)) {
-      return { ok: false, message: `"${path.slice(0, 200)}" is not an editable file of this project.` };
+      return {
+        ok: false,
+        message: `"${path.slice(0, 200)}" is not an editable file of this project.`,
+      };
     }
     if (typeof content !== 'string') {
       return { ok: false, message: `The content of ${path} must be text.` };
@@ -67,7 +70,10 @@ export function validateSubmittedFiles(
     }
     total += bytes;
     if (total > limits.maxTotalBytes) {
-      return { ok: false, message: `The project is larger than ${limits.maxTotalBytes / 1000} KB.` };
+      return {
+        ok: false,
+        message: `The project is larger than ${limits.maxTotalBytes / 1000} KB.`,
+      };
     }
     files[path] = content;
   }

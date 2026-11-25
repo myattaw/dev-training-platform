@@ -55,7 +55,10 @@ export interface WebChallengeContent {
 export interface WebExecutionPolicy {
   /** Builds per user per UTC day (runs, submissions and application sessions each count one). */
   readonly executionsPerDay: { readonly free: number; readonly pro: number };
-  /** Runs and sessions one user may have building or running at once. */
+  /**
+   * Test runs one user may have building or running at once. Separately, each
+   * user has at most one interactive application session (a new one replaces it).
+   */
   readonly concurrentPerUser: number;
   /** Interactive session: hard lifetime and idle timeout. */
   readonly sessionLifetimeMs: number;
@@ -104,7 +107,8 @@ interface SessionEntry {
 }
 
 const RUN_RETENTION_MS = 30 * 60_000;
-const HEADER_NAME = /^(content-type|accept|authorization|if-match|if-none-match|x-[a-z0-9-]{1,40})$/i;
+const HEADER_NAME =
+  /^(content-type|accept|authorization|if-match|if-none-match|x-[a-z0-9-]{1,40})$/i;
 const REQUEST_PATH = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]{0,2047}$/;
 const MAX_HTTP_BODY = 64 * 1024;
 
@@ -118,7 +122,7 @@ export class WebChallengeService {
   private readonly policy: WebExecutionPolicy;
   private readonly runs = new Map<string, RunJob>();
   private readonly sessions = new Map<string, SessionEntry>();
-  /** Runs and sessions currently building or running, per user. */
+  /** Test runs currently building or running, per user (sessions are one per user by design). */
   private readonly active = new Map<string, number>();
 
   constructor(private readonly deps: WebChallengeServiceDeps) {
@@ -143,7 +147,11 @@ export class WebChallengeService {
     };
   }
 
-  async project(user: Caller, challengeId: string, framework: WebFramework): Promise<WebProjectResponse> {
+  async project(
+    user: Caller,
+    challengeId: string,
+    framework: WebFramework,
+  ): Promise<WebProjectResponse> {
     const content = await this.accessible(user, challengeId);
     const project = content.projects.find((p) => p.framework === framework);
     if (!project) throw notFound('This challenge has no project for that framework.');
@@ -176,7 +184,11 @@ export class WebChallengeService {
 
   /* ---------- Runs (visible tests) and submissions ---------- */
 
-  async createRun(user: Caller, challengeId: string, request: CreateWebRunRequest): Promise<WebRunResponse> {
+  async createRun(
+    user: Caller,
+    challengeId: string,
+    request: CreateWebRunRequest,
+  ): Promise<WebRunResponse> {
     const content = await this.accessible(user, challengeId);
     const { project, files } = this.prepare(content, request.framework, request.files);
     const acceptedAt = this.deps.now();
@@ -190,7 +202,7 @@ export class WebChallengeService {
       }
     }
     const runner = this.requireRunner();
-    await this.reserve(user);
+    await this.reserve(user, 'run');
     const run: WebRun = {
       id: this.deps.newId(),
       challengeId,
@@ -200,7 +212,11 @@ export class WebChallengeService {
       acceptedAt: acceptedAt.toISOString(),
       ...(timed ? { timedSessionId: timed.id } : {}),
     };
-    const job: RunJob = { userId: user.id, run, expiresAt: acceptedAt.getTime() + RUN_RETENTION_MS };
+    const job: RunJob = {
+      userId: user.id,
+      run,
+      expiresAt: acceptedAt.getTime() + RUN_RETENTION_MS,
+    };
     this.runs.set(run.id, job);
     this.pruneRuns();
     // Grading continues after the response; the browser polls GET /api/web-runs/:id.
@@ -235,7 +251,13 @@ export class WebChallengeService {
         onApp: (app) =>
           app.onChange(() => {
             const status =
-              app.state === 'building' ? 'building' : app.state === 'starting' ? 'starting' : app.state === 'ready' ? 'testing' : undefined;
+              app.state === 'building'
+                ? 'building'
+                : app.state === 'starting'
+                  ? 'starting'
+                  : app.state === 'ready'
+                    ? 'testing'
+                    : undefined;
             if (status && job.run.status !== 'completed') job.run = { ...job.run, status };
           }),
       });
@@ -283,7 +305,7 @@ export class WebChallengeService {
     for (const entry of [...this.sessions.values()]) {
       if (entry.userId === user.id) await this.stopEntry(entry, 'stopped');
     }
-    await this.reserve(user);
+    await this.reserve(user, 'session');
     const app = runner.start(project, { lifetimeMs: this.policy.sessionLifetimeMs });
     const now = this.deps.now();
     const entry: SessionEntry = {
@@ -301,9 +323,18 @@ export class WebChallengeService {
     this.sessions.set(entry.id, entry);
     let released = false;
     app.onChange(() => {
-      if (!released && ['build-failed', 'startup-failed', 'resource-limit', 'expired', 'stopped', 'unavailable'].includes(app.state)) {
+      if (
+        !released &&
+        [
+          'build-failed',
+          'startup-failed',
+          'resource-limit',
+          'expired',
+          'stopped',
+          'unavailable',
+        ].includes(app.state)
+      ) {
         released = true;
-        this.releaseSlot(user.id);
         if (entry.idleTimer) clearTimeout(entry.idleTimer);
       }
     });
@@ -321,13 +352,23 @@ export class WebChallengeService {
     return { session: this.describeSession(entry) };
   }
 
-  async sendRequest(user: Caller, sessionId: string, request: WebHttpRequest): Promise<WebHttpExchangeResponse> {
+  async sendRequest(
+    user: Caller,
+    sessionId: string,
+    request: WebHttpRequest,
+  ): Promise<WebHttpExchangeResponse> {
     const entry = this.ownSession(user, sessionId);
     if (entry.app.state !== 'ready') {
-      throw new ApiError('conflict', 'The application is not running. Start it again with Run application.');
+      throw new ApiError(
+        'conflict',
+        'The application is not running. Start it again with Run application.',
+      );
     }
     if (entry.requestsUsed >= this.policy.sessionRequestLimit) {
-      throw new ApiError('rate-limited', 'This session has used all its requests. Restart the application.');
+      throw new ApiError(
+        'rate-limited',
+        'This session has used all its requests. Restart the application.',
+      );
     }
     entry.requestsUsed++;
     this.touch(entry);
@@ -370,13 +411,19 @@ export class WebChallengeService {
   private touch(entry: SessionEntry): void {
     entry.lastUsed = Date.now();
     if (entry.idleTimer) clearTimeout(entry.idleTimer);
-    entry.idleTimer = setTimeout(() => void this.stopEntry(entry, 'expired'), this.policy.sessionIdleMs);
+    entry.idleTimer = setTimeout(
+      () => void this.stopEntry(entry, 'expired'),
+      this.policy.sessionIdleMs,
+    );
     entry.idleTimer.unref?.();
   }
 
   private async stopEntry(entry: SessionEntry, state: 'stopped' | 'expired'): Promise<void> {
     if (entry.idleTimer) clearTimeout(entry.idleTimer);
-    await entry.app.stop(state, state === 'expired' ? 'The application was stopped after being idle.' : undefined);
+    await entry.app.stop(
+      state,
+      state === 'expired' ? 'The application was stopped after being idle.' : undefined,
+    );
     // Keep stopped sessions briefly so the browser can read the final state.
     setTimeout(() => this.sessions.delete(entry.id), 5 * 60_000).unref?.();
   }
@@ -398,7 +445,12 @@ export class WebChallengeService {
       diagnostics: app.diagnostics.map((d) => ({ ...d })),
       logs: app.logs().slice(-200),
       createdAt: entry.createdAt,
-      expiresAt: new Date(Math.min(entry.expiresAt, Date.now() + this.policy.sessionIdleMs - (Date.now() - entry.lastUsed))).toISOString(),
+      expiresAt: new Date(
+        Math.min(
+          entry.expiresAt,
+          Date.now() + this.policy.sessionIdleMs - (Date.now() - entry.lastUsed),
+        ),
+      ).toISOString(),
       requestsUsed: entry.requestsUsed,
       requestLimit: this.policy.sessionRequestLimit,
     };
@@ -406,7 +458,11 @@ export class WebChallengeService {
 
   /* ---------- Drafts ---------- */
 
-  async getDraft(user: Caller, challengeId: string, framework: WebFramework): Promise<WebDraftResponse> {
+  async getDraft(
+    user: Caller,
+    challengeId: string,
+    framework: WebFramework,
+  ): Promise<WebDraftResponse> {
     await this.accessible(user, challengeId);
     const record = await this.deps.store.getWebDraft(user.id, challengeId, framework);
     if (!record) return { draft: null };
@@ -421,7 +477,9 @@ export class WebChallengeService {
     request: SaveWebDraftRequest,
   ): Promise<WebDraftResponse> {
     const content = await this.accessible(user, challengeId);
-    const project = content.projects.find((p) => p.framework === framework && p.status === 'available');
+    const project = content.projects.find(
+      (p) => p.framework === framework && p.status === 'available',
+    );
     if (!project) throw notFound('This challenge has no project for that framework.');
     const validation = validateSubmittedFiles(
       request.files,
@@ -439,7 +497,11 @@ export class WebChallengeService {
     return { draft };
   }
 
-  async deleteDraft(user: Caller, challengeId: string, framework: WebFramework): Promise<WebDraftResponse> {
+  async deleteDraft(
+    user: Caller,
+    challengeId: string,
+    framework: WebFramework,
+  ): Promise<WebDraftResponse> {
     await this.accessible(user, challengeId);
     await this.deps.store.deleteWebDraft(user.id, challengeId, framework);
     return { draft: null };
@@ -447,7 +509,10 @@ export class WebChallengeService {
 
   /* ---------- Timed sessions ---------- */
 
-  async createTimedSession(user: Caller, request: CreateWebTimedSessionRequest): Promise<WebTimedSessionResponse> {
+  async createTimedSession(
+    user: Caller,
+    request: CreateWebTimedSessionRequest,
+  ): Promise<WebTimedSessionResponse> {
     const content = await this.accessible(user, request.challengeId);
     const project = content.projects.find(
       (p) => p.framework === request.framework && p.status === 'available',
@@ -482,7 +547,10 @@ export class WebChallengeService {
     const now = this.deps.now();
     const record = await this.deps.store.getWebTimedSession(user.id, id);
     if (!record) throw notFound('No such timed session.');
-    return { session: publicTimed(await this.settleTimed(record, now)), serverTime: now.toISOString() };
+    return {
+      session: publicTimed(await this.settleTimed(record, now)),
+      serverTime: now.toISOString(),
+    };
   }
 
   async finishTimedSession(user: Caller, id: string): Promise<WebTimedSessionResponse> {
@@ -491,7 +559,8 @@ export class WebChallengeService {
       const record = await this.deps.store.getWebTimedSession(user.id, id);
       if (!record) throw notFound('No such timed session.');
       const settled = await this.settleTimed(record, now);
-      if (settled.status !== 'active') return { session: publicTimed(settled), serverTime: now.toISOString() };
+      if (settled.status !== 'active')
+        return { session: publicTimed(settled), serverTime: now.toISOString() };
       const finished = { ...settled, status: 'completed' as const, finishedAt: now.toISOString() };
       if (await this.deps.store.updateWebTimedSession(finished, settled.revision)) {
         return { session: publicTimed(finished), serverTime: now.toISOString() };
@@ -501,18 +570,28 @@ export class WebChallengeService {
   }
 
   /** The session if it accepts submissions at `at`; otherwise a 409. */
-  private async liveTimedSession(user: Caller, id: string, at: Date): Promise<WebTimedSessionRecord> {
+  private async liveTimedSession(
+    user: Caller,
+    id: string,
+    at: Date,
+  ): Promise<WebTimedSessionRecord> {
     const record = await this.deps.store.getWebTimedSession(user.id, id);
     if (!record) throw notFound('No such timed session.');
     const settled = await this.settleTimed(record, at);
     if (settled.status !== 'active') {
-      throw new ApiError('session-expired', 'This timed session has ended: no more submissions are accepted.');
+      throw new ApiError(
+        'session-expired',
+        'This timed session has ended: no more submissions are accepted.',
+      );
     }
     return settled;
   }
 
   /** Marks an active session whose deadline has passed as expired. */
-  private async settleTimed(record: WebTimedSessionRecord, now: Date): Promise<WebTimedSessionRecord> {
+  private async settleTimed(
+    record: WebTimedSessionRecord,
+    now: Date,
+  ): Promise<WebTimedSessionRecord> {
     if (record.status !== 'active' || now.getTime() < Date.parse(record.deadline)) return record;
     const expired = { ...record, status: 'expired' as const, finishedAt: record.deadline };
     await this.deps.store.updateWebTimedSession(expired, record.revision);
@@ -523,7 +602,11 @@ export class WebChallengeService {
    * Counts a submission that the server accepted before the deadline, even if
    * grading finished after it. The best result is kept.
    */
-  private async recordTimedSubmission(userId: string, id: string, submission: WebSubmissionRecord): Promise<void> {
+  private async recordTimedSubmission(
+    userId: string,
+    id: string,
+    submission: WebSubmissionRecord,
+  ): Promise<void> {
     for (let attempt = 0; attempt < 5; attempt++) {
       const record = await this.deps.store.getWebTimedSession(userId, id);
       if (!record || Date.parse(submission.submittedAt) >= Date.parse(record.deadline)) return;
@@ -585,12 +668,12 @@ export class WebChallengeService {
     return this.deps.runner;
   }
 
-  /** Enforces the per-user concurrency limit and the daily quota, then takes a slot. */
-  private async reserve(user: Caller): Promise<void> {
-    if ((this.active.get(user.id) ?? 0) >= this.policy.concurrentPerUser) {
+  /** Enforces the per-user concurrency limit (runs) and the daily quota (runs and sessions). */
+  private async reserve(user: Caller, kind: 'run' | 'session'): Promise<void> {
+    if (kind === 'run' && (this.active.get(user.id) ?? 0) >= this.policy.concurrentPerUser) {
       throw new ApiError(
         'conflict',
-        'You already have an application building or running. Wait for it to finish, or stop it.',
+        'Your previous test run is still in progress. Wait for it to finish.',
       );
     }
     const limit = await this.dailyLimit(user);
@@ -601,7 +684,7 @@ export class WebChallengeService {
         `You have used today's ${limit} application runs. The limit resets at midnight UTC.`,
       );
     }
-    this.active.set(user.id, (this.active.get(user.id) ?? 0) + 1);
+    if (kind === 'run') this.active.set(user.id, (this.active.get(user.id) ?? 0) + 1);
   }
 
   private releaseSlot(userId: string): void {
@@ -666,11 +749,26 @@ export function toRunResult(
         logs: logs(outcome.logs),
       };
     case 'startup-failed':
-      return { ...base, verdict: 'startup-error', message: outcome.message, logs: logs(outcome.logs) };
+      return {
+        ...base,
+        verdict: 'startup-error',
+        message: outcome.message,
+        logs: logs(outcome.logs),
+      };
     case 'time-limit':
-      return { ...base, verdict: 'time-limit-exceeded', message: outcome.message, logs: logs(outcome.logs) };
+      return {
+        ...base,
+        verdict: 'time-limit-exceeded',
+        message: outcome.message,
+        logs: logs(outcome.logs),
+      };
     case 'resource-limit':
-      return { ...base, verdict: 'resource-limit-exceeded', message: outcome.message, logs: logs(outcome.logs) };
+      return {
+        ...base,
+        verdict: 'resource-limit-exceeded',
+        message: outcome.message,
+        logs: logs(outcome.logs),
+      };
     case 'unavailable':
       return {
         ...base,
@@ -680,7 +778,9 @@ export function toRunResult(
   }
 }
 
-function publicProgress(p: WebChallengeProgress & { readonly userId?: string }): WebChallengeProgress {
+function publicProgress(
+  p: WebChallengeProgress & { readonly userId?: string },
+): WebChallengeProgress {
   return {
     challengeId: p.challengeId,
     attempts: p.attempts,
@@ -721,11 +821,22 @@ export function parseWebHttpRequest(body: unknown): WebHttpRequest {
   if (typeof body !== 'object' || body === null) throw badRequest('A request is required.');
   const b = body as Record<string, unknown>;
   const method = b['method'];
-  if (method !== 'GET' && method !== 'POST' && method !== 'PUT' && method !== 'PATCH' && method !== 'DELETE') {
+  if (
+    method !== 'GET' &&
+    method !== 'POST' &&
+    method !== 'PUT' &&
+    method !== 'PATCH' &&
+    method !== 'DELETE'
+  ) {
     throw badRequest('method must be GET, POST, PUT, PATCH or DELETE.');
   }
   const path = b['path'];
-  if (typeof path !== 'string' || !REQUEST_PATH.test(path) || /^\/\//.test(path) || path.includes('\\')) {
+  if (
+    typeof path !== 'string' ||
+    !REQUEST_PATH.test(path) ||
+    /^\/\//.test(path) ||
+    path.includes('\\')
+  ) {
     throw badRequest('path must be a relative application path such as /api/employees (no URLs).');
   }
   const headers: Record<string, string> = {};
@@ -737,7 +848,9 @@ export function parseWebHttpRequest(body: unknown): WebHttpRequest {
     if (entries.length > 10) throw badRequest('At most 10 headers are allowed.');
     for (const [name, value] of entries) {
       if (!HEADER_NAME.test(name)) {
-        throw badRequest(`Header "${name.slice(0, 64)}" is not allowed. Allowed: Content-Type, Accept, Authorization, If-Match, If-None-Match and X-… headers.`);
+        throw badRequest(
+          `Header "${name.slice(0, 64)}" is not allowed. Allowed: Content-Type, Accept, Authorization, If-Match, If-None-Match and X-… headers.`,
+        );
       }
       if (typeof value !== 'string' || value.length > 1024 || /[\r\n\0]/.test(value)) {
         throw badRequest(`Header "${name}" must be a single line of at most 1024 characters.`);

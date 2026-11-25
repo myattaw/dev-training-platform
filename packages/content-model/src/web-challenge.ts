@@ -215,7 +215,10 @@ export interface WebImplementationGrading {
   /** Reference versions of the editable files (proven to pass every test by the build checks). */
   readonly referenceFiles: Readonly<Record<string, string>>;
   /** Spring Boot: the main class and the runner library set. */
-  readonly spring?: { readonly mainClass: string; readonly librarySet: 'core' | 'jpa' | 'security' };
+  readonly spring?: {
+    readonly mainClass: string;
+    readonly librarySet: 'core' | 'jpa' | 'security';
+  };
 }
 
 export interface WebChallengeGrading {
@@ -257,7 +260,8 @@ export function splitWebChallenge(source: WebChallengeSource): {
 } {
   const c = source.challenge;
   const categories = new Map<string, number>();
-  for (const t of source.hiddenTests) categories.set(t.category, (categories.get(t.category) ?? 0) + 1);
+  for (const t of source.hiddenTests)
+    categories.set(t.category, (categories.get(t.category) ?? 0) + 1);
   const projects: WebImplementation[] = source.implementations.map((impl) => ({
     framework: impl.framework,
     status: impl.status,

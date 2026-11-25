@@ -11,7 +11,11 @@ export type WebTestRun =
       readonly logs: readonly string[];
       readonly durationMs: number;
     }
-  | { readonly kind: 'build-failed'; readonly diagnostics: readonly BuildDiagnostic[]; readonly logs: readonly string[] }
+  | {
+      readonly kind: 'build-failed';
+      readonly diagnostics: readonly BuildDiagnostic[];
+      readonly logs: readonly string[];
+    }
   | { readonly kind: 'startup-failed'; readonly message: string; readonly logs: readonly string[] }
   /** Out of memory or too much output: the learner's code hit a limit. */
   | { readonly kind: 'resource-limit'; readonly message: string; readonly logs: readonly string[] }
@@ -53,7 +57,11 @@ export async function runWebTests(
     if (result.kind === 'not-ready') {
       // The application died while the tests ran (e.g. it exited on a request).
       const final = app.state === 'ready' ? 'startup-failed' : app.state;
-      return notReady(app, final === 'resource-limit' ? final : 'startup-failed', 'The application stopped while the tests were running.');
+      return notReady(
+        app,
+        final === 'resource-limit' ? final : 'startup-failed',
+        'The application stopped while the tests were running.',
+      );
     }
     const results = tests.map((test, i) => gradeWebTest(test, result.results[i] ?? []));
     return { kind: 'completed', results, logs: app.logs(), durationMs: Date.now() - started };
@@ -68,11 +76,18 @@ function notReady(app: WebApp, state: AppState, message?: string): WebTestRun {
     case 'build-failed':
       return { kind: 'build-failed', diagnostics: app.diagnostics, logs };
     case 'resource-limit':
-      return { kind: 'resource-limit', message: message ?? app.stateMessage ?? 'A resource limit was reached.', logs };
+      return {
+        kind: 'resource-limit',
+        message: message ?? app.stateMessage ?? 'A resource limit was reached.',
+        logs,
+      };
     case 'expired':
       return { kind: 'time-limit', message: app.stateMessage ?? 'A time limit was reached.', logs };
     case 'unavailable':
-      return { kind: 'unavailable', message: app.stateMessage ?? 'The application runner is not available.' };
+      return {
+        kind: 'unavailable',
+        message: app.stateMessage ?? 'The application runner is not available.',
+      };
     default:
       return {
         kind: 'startup-failed',

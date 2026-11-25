@@ -90,7 +90,10 @@ function gradeStep(step: HttpTestStep, response: HttpResponseLike | undefined): 
     const value = headerValue(response.headers ?? {}, h.name);
     if (value === undefined) return fail(`Missing header ${h.name}.`, actual);
     if (h.matches !== undefined && !new RegExp(h.matches).test(value)) {
-      return fail(`Header ${h.name} is "${truncate(value, 200)}", which does not match ${h.matches}.`, actual);
+      return fail(
+        `Header ${h.name} is "${truncate(value, 200)}", which does not match ${h.matches}.`,
+        actual,
+      );
     }
   }
   if (step.expect.json && step.expect.json.length > 0) {
@@ -118,7 +121,8 @@ export function readPath(value: unknown, path: string): unknown {
     if (current === null || current === undefined) return MISSING;
     if (Array.isArray(current)) {
       if (key === 'length') current = current.length;
-      else if (/^\d+$/.test(key)) current = Number(key) < current.length ? current[Number(key)] : MISSING;
+      else if (/^\d+$/.test(key))
+        current = Number(key) < current.length ? current[Number(key)] : MISSING;
       else return MISSING;
     } else if (typeof current === 'string' && key === 'length') {
       current = current.length;
@@ -142,7 +146,11 @@ function checkAssertion(json: unknown, a: JsonAssertion): string | undefined {
   const where = a.path === '' ? 'the response' : `"${a.path}"`;
   if ('exists' in a) {
     const exists = value !== MISSING;
-    return exists === a.exists ? undefined : a.exists ? `${where} is missing.` : `${where} should not be present.`;
+    return exists === a.exists
+      ? undefined
+      : a.exists
+        ? `${where} is missing.`
+        : `${where} should not be present.`;
   }
   if (value === MISSING) return `${where} is missing.`;
   if ('equals' in a) {
@@ -151,7 +159,9 @@ function checkAssertion(json: unknown, a: JsonAssertion): string | undefined {
       : `Expected ${where} to be ${show(a.equals)} but it is ${show(value)}.`;
   }
   if ('type' in a) {
-    return typeOf(value) === a.type ? undefined : `Expected ${where} to be ${article(a.type)} but it is ${typeOf(value)}.`;
+    return typeOf(value) === a.type
+      ? undefined
+      : `Expected ${where} to be ${article(a.type)} but it is ${typeOf(value)}.`;
   }
   if (!Array.isArray(value)) return `Expected ${where} to be an array but it is ${typeOf(value)}.`;
   const subset = 'contains' in a ? a.contains : a.notContains;

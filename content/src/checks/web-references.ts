@@ -94,7 +94,8 @@ export async function checkWebChallenge(
     for (const mutant of entry.mutants.filter((m) => m.framework === impl.framework)) {
       jobs.push(
         run(`mutant ${mutant.name}`, { ...impl.reference, ...mutant.files }, (r) => {
-          if (r.kind !== 'completed') return { ok: false, detail: `mutants must build: ${describe(r)}` };
+          if (r.kind !== 'completed')
+            return { ok: false, detail: `mutants must build: ${describe(r)}` };
           const caught = r.results.filter((t) => !t.passed && hiddenIds.has(t.id)).map((t) => t.id);
           return caught.length > 0
             ? { ok: true, detail: `caught by ${caught.join(', ')}` }

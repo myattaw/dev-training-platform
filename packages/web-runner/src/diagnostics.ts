@@ -26,7 +26,9 @@ export function parseDiagnostics(
   };
   for (const line of lines) {
     if (framework === 'aspnetcore') {
-      const m = /^(.+?)\((\d+),(\d+)\): error ([A-Z]+\d+): (.*?)(?: \[[^\]]*\])?$/.exec(line.trim());
+      const m = /^(.+?)\((\d+),(\d+)\): error ([A-Z]+\d+): (.*?)(?: \[[^\]]*\])?$/.exec(
+        line.trim(),
+      );
       if (m) {
         add({
           file: relative(m[1] ?? ''),
@@ -51,7 +53,10 @@ export function parseDiagnostics(
   }
   if (found.length === 0) {
     // No structured errors (e.g. a Django import error during migrate): show the tail.
-    const tail = lines.filter((l) => l.trim() !== '').slice(-8).join('\n');
+    const tail = lines
+      .filter((l) => l.trim() !== '')
+      .slice(-8)
+      .join('\n');
     found.push({ message: tail.slice(0, 2000) || 'The build failed without an error message.' });
   }
   return found;
@@ -59,6 +64,8 @@ export function parseDiagnostics(
 
 function relative(path: string): string | undefined {
   const normalized = path.replace(/\\/g, '/');
-  const rel = normalized.startsWith(PROJECT_ROOT) ? normalized.slice(PROJECT_ROOT.length) : normalized;
+  const rel = normalized.startsWith(PROJECT_ROOT)
+    ? normalized.slice(PROJECT_ROOT.length)
+    : normalized;
   return /^[A-Za-z0-9_\-./]{1,200}$/.test(rel) && !rel.includes('..') ? rel : undefined;
 }

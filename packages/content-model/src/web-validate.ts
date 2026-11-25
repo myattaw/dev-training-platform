@@ -18,7 +18,8 @@ const MAX_PROJECT_BYTES = 400_000;
  */
 export function validateWebChallenges(sources: readonly WebChallengeSource[]): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const error = (path: string, message: string) => issues.push({ severity: 'error', path, message });
+  const error = (path: string, message: string) =>
+    issues.push({ severity: 'error', path, message });
   const ids = new Set<string>();
 
   for (const source of sources) {
@@ -27,22 +28,32 @@ export function validateWebChallenges(sources: readonly WebChallengeSource[]): V
     if (!ID.test(c.id)) error(path, 'id must be kebab-case');
     if (ids.has(c.id)) error(path, 'duplicate web challenge id');
     ids.add(c.id);
-    if (!Number.isInteger(c.version) || c.version < 1) error(path, 'version must be a positive integer');
+    if (!Number.isInteger(c.version) || c.version < 1)
+      error(path, 'version must be a positive integer');
     if (!c.title.trim()) error(path, 'title is required');
     if (!c.summary.trim()) error(path, 'summary is required');
     if (!(c.category in WEB_CATEGORY_LABELS)) error(path, `unknown category "${c.category}"`);
-    if (!Number.isInteger(c.estimatedMinutes) || c.estimatedMinutes < 5 || c.estimatedMinutes > 240) {
+    if (
+      !Number.isInteger(c.estimatedMinutes) ||
+      c.estimatedMinutes < 5 ||
+      c.estimatedMinutes > 240
+    ) {
       error(path, 'estimatedMinutes must be 5–240');
     }
     if (c.objectives.length < 2) error(path, 'at least two learning objectives are required');
     if (c.hints.length < 1) error(path, 'at least one hint is required');
-    for (const t of c.competencies) if (!ID.test(t)) error(path, `competency "${t}" must be a kebab-case term id`);
+    for (const t of c.competencies)
+      if (!ID.test(t)) error(path, `competency "${t}" must be a kebab-case term id`);
     for (const s of c.prerequisiteSkills) {
-      if (!/^[a-z0-9-]+\/[a-z0-9-]+$/.test(s)) error(path, `prerequisite skill "${s}" must be technology/skill`);
+      if (!/^[a-z0-9-]+\/[a-z0-9-]+$/.test(s))
+        error(path, `prerequisite skill "${s}" must be technology/skill`);
     }
-    issues.push(...validateInstructionBlocks(`${path}/instructions`, c.instructions, 'instructions'));
+    issues.push(
+      ...validateInstructionBlocks(`${path}/instructions`, c.instructions, 'instructions'),
+    );
     for (const e of c.endpoints) {
-      if (!METHODS.has(e.method) || !e.path.startsWith('/')) error(path, `invalid endpoint ${e.method} ${e.path}`);
+      if (!METHODS.has(e.method) || !e.path.startsWith('/'))
+        error(path, `invalid endpoint ${e.method} ${e.path}`);
       if (e.exampleBody !== undefined) {
         try {
           JSON.parse(e.exampleBody);
@@ -71,7 +82,8 @@ export function validateWebChallenges(sources: readonly WebChallengeSource[]): V
       frameworks.add(impl.framework);
       if (impl.status === 'available') {
         available++;
-        if (!RUNNABLE.has(impl.framework)) error(ipath, 'this framework has no runner: it can only be coming-soon');
+        if (!RUNNABLE.has(impl.framework))
+          error(ipath, 'this framework has no runner: it can only be coming-soon');
       }
       const starter = Object.keys(impl.starter);
       let bytes = 0;
@@ -82,11 +94,14 @@ export function validateWebChallenges(sources: readonly WebChallengeSource[]): V
       if (bytes > MAX_PROJECT_BYTES) error(ipath, 'the starter project is too large');
       if (impl.status === 'available') {
         if (impl.editable.length === 0) error(ipath, 'at least one file must be editable');
-        if (!impl.starter[impl.entryFile]) error(ipath, `entryFile "${impl.entryFile}" is not a starter file`);
-        if (Object.keys(impl.reference).length === 0) error(ipath, 'a reference solution is required');
+        if (!impl.starter[impl.entryFile])
+          error(ipath, `entryFile "${impl.entryFile}" is not a starter file`);
+        if (Object.keys(impl.reference).length === 0)
+          error(ipath, 'a reference solution is required');
       }
       for (const file of impl.editable) {
-        if (!(file in impl.starter)) error(ipath, `editable file "${file}" is not in the starter project`);
+        if (!(file in impl.starter))
+          error(ipath, `editable file "${file}" is not in the starter project`);
       }
       for (const file of Object.keys(impl.reference)) {
         if (!impl.editable.includes(file)) error(ipath, `reference file "${file}" is not editable`);
@@ -120,7 +135,8 @@ function validateTest(
       if (!captured.has(m[1] ?? '')) error(spath, `{{${m[1]}}} is used before it is captured`);
     }
     const statuses = Array.isArray(step.expect.status) ? step.expect.status : [step.expect.status];
-    for (const s of statuses) if (!Number.isInteger(s) || s < 100 || s > 599) error(spath, `invalid status ${s}`);
+    for (const s of statuses)
+      if (!Number.isInteger(s) || s < 100 || s > 599) error(spath, `invalid status ${s}`);
     for (const h of step.expect.headers ?? []) {
       if (h.matches !== undefined) {
         try {
