@@ -1,0 +1,5 @@
+[
+  {"model": "inventory.item", "pk": 1, "fields": {"sku": "KBD-101", "name": "Mechanical keyboard", "quantity": 25}},
+  {"model": "inventory.item", "pk": 2, "fields": {"sku": "MON-202", "name": "27-inch monitor", "quantity": 8}},
+  {"model": "inventory.item", "pk": 3, "fields": {"sku": "CBL-303", "name": "USB-C cable", "quantity": 140}}
+]

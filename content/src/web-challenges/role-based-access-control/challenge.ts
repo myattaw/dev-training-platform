@@ -52,13 +52,13 @@ export const source: WebChallengeSource = {
     objectives: [
       'Authenticate requests from a bearer token in one place (middleware, interceptor or authentication class).',
       'Tell 401 Unauthorized (who are you?) from 403 Forbidden (you may not do this).',
-      'Enforce object ownership so users cannot read other people\'s data, and hide what they may not see.',
+      "Enforce object ownership so users cannot read other people's data, and hide what they may not see.",
       'Take the owner of new data from the authenticated identity, never from the request body.',
     ],
     instructions: [
       {
         kind: 'paragraph',
-        text: 'Finance is moving expense reports into an internal API. A colleague wrote the endpoints, but nothing is secured yet: anyone can read every report, create reports in someone else\'s name and approve them. Secure the API before it goes live. Identities come from a read-only identity store; in this sandbox they are fixed test tokens (no real identity provider and no real credentials).',
+        text: "Finance is moving expense reports into an internal API. A colleague wrote the endpoints, but nothing is secured yet: anyone can read every report, create reports in someone else's name and approve them. Secure the API before it goes live. Identities come from a read-only identity store; in this sandbox they are fixed test tokens (no real identity provider and no real credentials).",
       },
       { kind: 'heading', text: 'Test identities' },
       {
@@ -85,9 +85,9 @@ export const source: WebChallengeSource = {
         kind: 'list',
         items: [
           '`GET /api/reports`: employees get only their own reports; admins get every report. Ordered by id.',
-          '`GET /api/reports/{id}`: the owner and admins get 200. Anyone else gets 404 Not Found, exactly as for a report that does not exist, so ids of other people\'s reports are not revealed.',
+          "`GET /api/reports/{id}`: the owner and admins get 200. Anyone else gets 404 Not Found, exactly as for a report that does not exist, so ids of other people's reports are not revealed.",
           '`POST /api/reports` with `{ "title", "amountCents" }`: any authenticated user. The owner is always the caller: `owner`, `status`, `approvedBy` or `id` in the body are ignored. New reports are `submitted`. Returns 201 with a `Location` header ending in `/api/reports/{id}` and the report.',
-          '`POST /api/reports/{id}/approve`: admins only. Employees get 403 Forbidden, also for their own reports and for ids that do not exist. For an admin: 404 for an unknown report, 409 Conflict if it is already approved, otherwise 200 with the report, now `approved` with `approvedBy` set to the admin\'s username.',
+          "`POST /api/reports/{id}/approve`: admins only. Employees get 403 Forbidden, also for their own reports and for ids that do not exist. For an admin: 404 for an unknown report, 409 Conflict if it is already approved, otherwise 200 with the report, now `approved` with `approvedBy` set to the admin's username.",
           'Validation (already implemented): `title` is required, trimmed, at most 100 characters; `amountCents` is an integer from 1 to 1000000. Invalid input returns 400 with `{ "errors": { "<field>": [...] } }`.',
           'A report is `{ "id", "owner", "title", "amountCents", "status", "approvedBy" }`.',
         ],
@@ -115,7 +115,11 @@ export const source: WebChallengeSource = {
         method: 'GET',
         path: '/api/reports/1',
         summary: 'One report (owner or admin).',
-        responses: ['200 OK with the report', '401 Unauthorized', '404 Not Found (also for someone else\'s report)'],
+        responses: [
+          '200 OK with the report',
+          '401 Unauthorized',
+          "404 Not Found (also for someone else's report)",
+        ],
       },
       {
         method: 'POST',
@@ -152,27 +156,35 @@ export const source: WebChallengeSource = {
       test('health-is-public', 'authentication', 'answers the health check without a token', [
         http.get('/api/health', { status: 200, json: [json.equals('status', 'ok')] }),
       ]),
-      test('requires-a-token', 'authentication', 'answers 401 with a Bearer challenge without a token', [
-        http.get('/api/reports', { status: 401, headers: bearerChallenge }),
-      ]),
-      test('employee-sees-own-reports', 'authorization', 'shows an employee only their own reports', [
-        user.alice(
-          http.get('/api/reports', {
-            status: 200,
-            json: [
-              json.contains('', { id: 1, owner: 'alice', title: 'Client dinner' }),
-              json.contains('', { id: 3, owner: 'alice', status: 'approved' }),
-              json.notContains('', { owner: 'bob' }),
-            ],
-          }),
-        ),
-        user.alice(
-          http.get('/api/reports/1', {
-            status: 200,
-            json: [json.equals('owner', 'alice'), json.equals('amountCents', 8450)],
-          }),
-        ),
-      ]),
+      test(
+        'requires-a-token',
+        'authentication',
+        'answers 401 with a Bearer challenge without a token',
+        [http.get('/api/reports', { status: 401, headers: bearerChallenge })],
+      ),
+      test(
+        'employee-sees-own-reports',
+        'authorization',
+        'shows an employee only their own reports',
+        [
+          user.alice(
+            http.get('/api/reports', {
+              status: 200,
+              json: [
+                json.contains('', { id: 1, owner: 'alice', title: 'Client dinner' }),
+                json.contains('', { id: 3, owner: 'alice', status: 'approved' }),
+                json.notContains('', { owner: 'bob' }),
+              ],
+            }),
+          ),
+          user.alice(
+            http.get('/api/reports/1', {
+              status: 200,
+              json: [json.equals('owner', 'alice'), json.equals('amountCents', 8450)],
+            }),
+          ),
+        ],
+      ),
       test('admin-sees-all-reports', 'authorization', 'shows an admin every report', [
         user.admin(
           http.get('/api/reports', {
@@ -247,7 +259,7 @@ export const source: WebChallengeSource = {
     test(
       'cannot-read-others-reports',
       'object-ownership',
-      'hides other people\'s reports from employees',
+      "hides other people's reports from employees",
       [
         user.alice(
           http.post(
@@ -332,20 +344,31 @@ export const source: WebChallengeSource = {
         http.get('/api/reports/1', { status: 200, json: [json.equals('title', 'Client dinner')] }),
       ),
     ]),
-    test('authorization-header-variants', 'authentication', 'accepts only a well-formed bearer token', [
-      withAuth('test-token-alice', http.get('/api/reports', { status: 401, headers: bearerChallenge })),
-      withAuth('Bearer', http.get('/api/reports', { status: 401 })),
-      withAuth('Bearer test-token-mallory', http.get('/api/reports', { status: 401, headers: bearerChallenge })),
-      withAuth('Basic dGVzdDp0ZXN0', http.get('/api/reports', { status: 401 })),
-      withAuth('Bearer TEST-TOKEN-ALICE', http.get('/api/reports', { status: 401 })),
-      withAuth(
-        'bearer test-token-alice',
-        http.get('/api/reports', {
-          status: 200,
-          json: [json.contains('', { id: 1, owner: 'alice' })],
-        }),
-      ),
-    ]),
+    test(
+      'authorization-header-variants',
+      'authentication',
+      'accepts only a well-formed bearer token',
+      [
+        withAuth(
+          'test-token-alice',
+          http.get('/api/reports', { status: 401, headers: bearerChallenge }),
+        ),
+        withAuth('Bearer', http.get('/api/reports', { status: 401 })),
+        withAuth(
+          'Bearer test-token-mallory',
+          http.get('/api/reports', { status: 401, headers: bearerChallenge }),
+        ),
+        withAuth('Basic dGVzdDp0ZXN0', http.get('/api/reports', { status: 401 })),
+        withAuth('Bearer TEST-TOKEN-ALICE', http.get('/api/reports', { status: 401 })),
+        withAuth(
+          'bearer test-token-alice',
+          http.get('/api/reports', {
+            status: 200,
+            json: [json.contains('', { id: 1, owner: 'alice' })],
+          }),
+        ),
+      ],
+    ),
     test(
       'authentication-comes-first',
       'authentication',
@@ -356,7 +379,10 @@ export const source: WebChallengeSource = {
         http.post('/api/reports', { title: 'No token', amountCents: 100 }, { status: 401 }),
         http.post('/api/reports', { title: '' }, { status: 401 }),
         http.post('/api/reports/2/approve', undefined, { status: 401, headers: bearerChallenge }),
-        withAuth('Bearer test-token-mallory', http.post('/api/reports/2/approve', undefined, { status: 401 })),
+        withAuth(
+          'Bearer test-token-mallory',
+          http.post('/api/reports/2/approve', undefined, { status: 401 }),
+        ),
         user.admin(
           http.get('/api/reports', {
             status: 200,
@@ -405,7 +431,10 @@ export const source: WebChallengeSource = {
         http.post(
           '/api/reports',
           { title: '  Printer paper  ', amountCents: 1_000_000 },
-          { status: 201, json: [json.equals('title', 'Printer paper'), json.equals('owner', 'alice')] },
+          {
+            status: 201,
+            json: [json.equals('title', 'Printer paper'), json.equals('owner', 'alice')],
+          },
         ),
       ),
     ]),

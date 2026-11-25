@@ -89,7 +89,10 @@ export const source: WebChallengeSource = {
           null,
           2,
         ),
-        responses: ['200 OK with the priced quote', '400 Bad Request with { "errors": { "lines": [...] } }'],
+        responses: [
+          '200 OK with the priced quote',
+          '400 Bad Request with { "errors": { "lines": [...] } }',
+        ],
       },
       {
         method: 'POST',
@@ -100,7 +103,10 @@ export const source: WebChallengeSource = {
           null,
           2,
         ),
-        responses: ['201 Created with the notification', '400 Bad Request with { "errors": { ... } }'],
+        responses: [
+          '201 Created with the notification',
+          '400 Bad Request with { "errors": { ... } }',
+        ],
       },
       {
         method: 'GET',
@@ -206,20 +212,25 @@ export const source: WebChallengeSource = {
         }),
       ],
     ),
-    test('discount-threshold', 'wrong-implementation', 'starts the discount at exactly 10000 cents', [
-      http.post('/api/quotes', quote([{ sku: 'PEN-01', quantity: 40 }]), {
-        status: 200,
-        json: [
-          json.equals('subtotalCents', 10000),
-          json.equals('discountCents', 1000),
-          json.equals('totalCents', 9000),
-        ],
-      }),
-      http.post('/api/quotes', quote([{ sku: 'PEN-01', quantity: 39 }]), {
-        status: 200,
-        json: [json.equals('subtotalCents', 9750), json.equals('discountCents', 0)],
-      }),
-    ]),
+    test(
+      'discount-threshold',
+      'wrong-implementation',
+      'starts the discount at exactly 10000 cents',
+      [
+        http.post('/api/quotes', quote([{ sku: 'PEN-01', quantity: 40 }]), {
+          status: 200,
+          json: [
+            json.equals('subtotalCents', 10000),
+            json.equals('discountCents', 1000),
+            json.equals('totalCents', 9000),
+          ],
+        }),
+        http.post('/api/quotes', quote([{ sku: 'PEN-01', quantity: 39 }]), {
+          status: 200,
+          json: [json.equals('subtotalCents', 9750), json.equals('discountCents', 0)],
+        }),
+      ],
+    ),
     test('discount-rounding', 'wrong-implementation', 'rounds the discount down to a whole cent', [
       http.post('/api/quotes', quote([{ sku: 'DESK-LAMP', quantity: 3 }]), {
         status: 200,
@@ -240,7 +251,10 @@ export const source: WebChallengeSource = {
           { recipient: '  procurement@example.org ', message: 'Quote 2 was updated.' },
           {
             status: 201,
-            json: [json.equals('recipient', 'procurement@example.org'), json.equals('channel', 'email')],
+            json: [
+              json.equals('recipient', 'procurement@example.org'),
+              json.equals('channel', 'email'),
+            ],
             capture: { id: 'id' },
           },
         ),

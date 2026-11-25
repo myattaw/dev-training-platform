@@ -1,0 +1,17 @@
+[
+  {"model":"products.product","pk":1,"fields":{"name":"Wireless Mouse","category":"Electronics","price":"24.99","in_stock":true}},
+  {"model":"products.product","pk":2,"fields":{"name":"Mechanical Keyboard","category":"Electronics","price":"89.00","in_stock":true}},
+  {"model":"products.product","pk":3,"fields":{"name":"USB-C Hub","category":"Electronics","price":"39.50","in_stock":false}},
+  {"model":"products.product","pk":4,"fields":{"name":"Noise Cancelling Headphones","category":"Electronics","price":"199.99","in_stock":true}},
+  {"model":"products.product","pk":5,"fields":{"name":"Desk Lamp","category":"Office","price":"34.95","in_stock":true}},
+  {"model":"products.product","pk":6,"fields":{"name":"Ergonomic Office Chair","category":"Office","price":"249.00","in_stock":false}},
+  {"model":"products.product","pk":7,"fields":{"name":"Standing Desk Mat","category":"Office","price":"19.99","in_stock":true}},
+  {"model":"products.product","pk":8,"fields":{"name":"Notebook Set","category":"Office","price":"12.50","in_stock":true}},
+  {"model":"products.product","pk":9,"fields":{"name":"Chef Knife","category":"Kitchen","price":"59.90","in_stock":true}},
+  {"model":"products.product","pk":10,"fields":{"name":"Cast Iron Skillet","category":"Kitchen","price":"44.00","in_stock":true}},
+  {"model":"products.product","pk":11,"fields":{"name":"Coffee Grinder","category":"Kitchen","price":"19.99","in_stock":false}},
+  {"model":"products.product","pk":12,"fields":{"name":"Camping Lantern","category":"Outdoor","price":"29.99","in_stock":true}},
+  {"model":"products.product","pk":13,"fields":{"name":"Hiking Backpack","category":"Outdoor","price":"119.00","in_stock":true}},
+  {"model":"products.product","pk":14,"fields":{"name":"Water Bottle","category":"Outdoor","price":"15.00","in_stock":true}},
+  {"model":"products.product","pk":15,"fields":{"name":"Lamp Oil Refill","category":"Outdoor","price":"9.99","in_stock":true}}
+]

@@ -776,6 +776,8 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       skill('aspnet-security'),
       skill('az-identity-security'),
       challenge('secure-customer-api', 'csharp'),
+      webChallenge('role-based-access-control'),
+      webChallenge('user-registration'),
     ],
     tracks: ['engineering-practices'],
   },
@@ -798,6 +800,8 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       skill('aspnet-http-rest'),
       challenge('employee-api', 'csharp'),
       webChallenge('employee-rest-api'),
+      webChallenge('product-search-api'),
+      webChallenge('pagination-sorting'),
     ],
     tracks: ['aspnet-core'],
   },
@@ -1131,6 +1135,7 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       skill('cs-exceptions'),
       challenge('legacy-invoice-refactor', 'csharp'),
       scenario('cicd-pipeline-failure'),
+      webChallenge('fix-broken-task-api'),
     ],
     coverage: 'partial',
     gap: {
@@ -1153,6 +1158,8 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       scenario('sql-performance-investigation'),
       scenario('cicd-pipeline-failure'),
       skill('mssql-performance'),
+      webChallenge('fix-broken-task-api'),
+      webChallenge('dependency-injection-troubleshooting'),
     ],
     coverage: 'conceptual',
   },
@@ -1249,7 +1256,11 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       'design documents',
       'solution design',
     ],
-    practice: [skill('cs-solid-di'), skill('aspnet-testing-architecture')],
+    practice: [
+      skill('cs-solid-di'),
+      skill('aspnet-testing-architecture'),
+      webChallenge('dependency-injection-troubleshooting'),
+    ],
     coverage: 'partial',
     gap: {
       notCovered:
@@ -1391,6 +1402,8 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       skill('aspnet-validation-errors'),
       challenge('employee-api', 'csharp'),
       challenge('transaction-batch', 'csharp'),
+      webChallenge('user-registration'),
+      webChallenge('order-service'),
     ],
   },
   {
@@ -1463,6 +1476,8 @@ export const TAXONOMY: readonly TaxonomyTerm[] = [
       webChallenge('employee-rest-api', 'aspnetcore'),
       webChallenge('employee-rest-api', 'spring-boot'),
       webChallenge('employee-rest-api', 'django'),
+      webChallenge('order-service'),
+      webChallenge('consistent-error-handling'),
     ],
     coverage: 'partial',
     gap: {
