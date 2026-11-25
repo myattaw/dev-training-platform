@@ -38,7 +38,10 @@
     "oracle:remove": "tsx scripts/oracle.mts remove",
     "sqlserver:start": "tsx scripts/sqlserver.mts start",
     "sqlserver:stop": "tsx scripts/sqlserver.mts stop",
-    "sqlserver:remove": "tsx scripts/sqlserver.mts remove"
+    "sqlserver:remove": "tsx scripts/sqlserver.mts remove",
+    "web-runners:build": "npm run build-images -w @pracstack/web-runner",
+    "content:check-programs": "tsx content/scripts/check-programs.ts",
+    "content:check-web": "tsx content/scripts/check-web-challenges.ts"
   },
   "dependencies": {
     "@angular/common": "^22.3.0",

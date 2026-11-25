@@ -34,13 +34,14 @@ for await (const chunk of process.stdin) chunks.push(chunk);
 const input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
 const { nonce, port, waitMs, requestTimeoutMs } = input;
 
+// Exit only after stdout has drained: exiting right after write() loses output
+// beyond the pipe buffer (~64 KB) and truncated large results.
 function finish(output) {
-  process.stdout.write(`\n${nonce}${JSON.stringify(output)}\n`);
-  process.exit(0);
+  process.stdout.write(`\n${nonce}${JSON.stringify(output)}\n`, () => process.exit(0));
 }
 
 if (!Number.isInteger(port) || port < 1024 || port > 65535) {
-  finish({ kind: 'error', message: 'invalid port' });
+  await finish({ kind: 'error', message: 'invalid port' });
 }
 
 /** Sends one request; resolves with a bounded, untrusted response. */
@@ -135,7 +136,7 @@ const inPath = (value) => encodeURIComponent(value);
 const inJson = (value) => JSON.stringify(value).slice(1, -1);
 
 if (waitMs > 0 && !(await waitForApp())) {
-  finish({ kind: 'not-ready' });
+  await finish({ kind: 'not-ready' });
 }
 
 const results = [];
@@ -166,4 +167,4 @@ for (const sequence of input.sequences ?? []) {
   }
   results.push(responses);
 }
-finish({ kind: 'completed', results });
+await finish({ kind: 'completed', results });
