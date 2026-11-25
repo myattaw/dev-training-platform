@@ -58,6 +58,9 @@ export interface PracStackAssets {
 
 export type RunnerName = 'typescript' | 'java' | 'csharp' | 'sql';
 
+/** Coding-challenge languages with a runner function in the stack (see services/runners). */
+export const CODE_RUNNER_LANGUAGES = ['typescript', 'java', 'csharp'] as const;
+
 /**
  * Construct id prefixes. Existing ids never change (renaming would replace the
  * functions); `Csharp` keeps the same pattern.
@@ -455,7 +458,7 @@ export class PracStackStack extends Stack {
     });
 
     const runners = {} as Record<RunnerName, lambda.DockerImageFunction>;
-    for (const name of ['typescript', 'java', 'csharp', 'sql'] as const) {
+    for (const name of [...CODE_RUNNER_LANGUAGES, 'sql'] as const) {
       const id = `${RUNNER_IDS[name]}Runner`;
       const runnerLogs = new logs.LogGroup(this, `${id}Logs`, {
         retention: logs.RetentionDays.TWO_WEEKS,
@@ -573,7 +576,7 @@ export class PracStackStack extends Stack {
         // Public settings only (see apps/web/src/app/core/config/runtime-config.ts).
         s3deploy.Source.jsonData(
           'config.json',
-          webConfig(cognitoOrigin, client.userPoolClientId, signInProviders),
+          webConfig(cognitoOrigin, client.userPoolClientId, signInProviders, CODE_RUNNER_LANGUAGES),
         ),
       ],
       destinationBucket: webBucket,
@@ -1008,8 +1011,12 @@ export function webConfig(
   cognitoOrigin: string,
   clientId: string,
   providers: readonly string[] = [],
+  codeLanguages: readonly string[] = CODE_RUNNER_LANGUAGES,
 ) {
   return {
+    // Languages with a runner function here; the app offers only these (Python and
+    // Swift run only in local Docker until their functions are added and verified).
+    codeLanguages: [...codeLanguages],
     auth: {
       mode: 'cognito',
       domain: cognitoOrigin,

@@ -1,3 +1,4 @@
+import { RuntimeConfigService } from '../../../../core/config/runtime-config';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -47,6 +48,7 @@ export class TimedPracticeSetup {
 
   private readonly api = inject(CompaniesApi);
   private readonly catalog = inject(ChallengeCatalogService);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
   private readonly router = inject(Router);
 
   protected readonly data = asyncResource(
@@ -61,7 +63,8 @@ export class TimedPracticeSetup {
       for (const r of recs.recommendations) {
         if (r.availability !== 'available' || r.locked) continue;
         const summary = await this.catalog.getSummary(r.challengeId);
-        if (summary) options.push({ rec: r, languages: summary.languages });
+        const languages = summary ? this.runtimeConfig.runnable(summary.languages) : [];
+        if (languages.length > 0) options.push({ rec: r, languages });
       }
       return {
         company: detail.company,

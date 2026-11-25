@@ -1,4 +1,5 @@
 import { NgTemplateOutlet } from '@angular/common';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -125,7 +126,7 @@ export class ChallengeWorkspace {
   });
   protected readonly languages = computed(() => {
     const challenge = this.challenge();
-    return challenge ? supportedLanguages(challenge) : [];
+    return challenge ? this.runtimeConfig.runnable(supportedLanguages(challenge)) : [];
   });
   /** The selected language: last used for this challenge, else the first offered. */
   protected readonly language = linkedSignal<LanguageId | undefined>(() => {
@@ -138,6 +139,7 @@ export class ChallengeWorkspace {
     return preferred && offered.includes(preferred) ? preferred : offered[0];
   });
   protected readonly languageLabels = LANGUAGE_LABELS;
+  private readonly runtimeConfig = inject(RuntimeConfigService);
   /** Java and C# run only on the server; TypeScript runs in the browser. */
   protected readonly runsInBrowser = computed(() => {
     const lang = this.language();

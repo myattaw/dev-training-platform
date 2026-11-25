@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isRuntimeConfig } from './runtime-config';
+import { isRuntimeConfig, RuntimeConfigService } from './runtime-config';
 
 const cognito = (extra: Record<string, unknown> = {}) => ({
   auth: {
@@ -25,5 +25,43 @@ describe('isRuntimeConfig', () => {
   it('rejects a non-HTTPS sign-in domain or a missing client', () => {
     expect(isRuntimeConfig(cognito({ domain: 'http://x.example' }))).toBe(false);
     expect(isRuntimeConfig(cognito({ clientId: '' }))).toBe(false);
+  });
+});
+
+describe('code languages', () => {
+  it('accepts a list of known languages and rejects anything else', () => {
+    expect(
+      isRuntimeConfig({ auth: { mode: 'local' }, codeLanguages: ['typescript', 'java'] }),
+    ).toBe(true);
+    expect(isRuntimeConfig({ auth: { mode: 'local' }, codeLanguages: ['cobol'] })).toBe(false);
+    expect(isRuntimeConfig({ auth: { mode: 'local' }, codeLanguages: 'java' })).toBe(false);
+  });
+
+  it('offers only the languages the server can run, or every language without a list', async () => {
+    const service = new RuntimeConfigService();
+    expect(service.runnable(['typescript', 'python', 'swift'])).toEqual([
+      'typescript',
+      'python',
+      'swift',
+    ]);
+    const original = globalThis.fetch;
+    globalThis.fetch = () =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            auth: { mode: 'local' },
+            codeLanguages: ['typescript', 'java', 'csharp'],
+          }),
+        ),
+      );
+    try {
+      await service.load();
+    } finally {
+      globalThis.fetch = original;
+    }
+    expect(service.runnable(['typescript', 'python', 'java', 'swift'])).toEqual([
+      'typescript',
+      'java',
+    ]);
   });
 });

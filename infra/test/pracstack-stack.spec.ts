@@ -554,6 +554,7 @@ describe('web hosting', () => {
 
   it('writes only public settings to config.json', () => {
     expect(webConfig('https://x.auth.us-east-2.amazoncognito.com', 'client', ['Google'])).toEqual({
+      codeLanguages: ['typescript', 'java', 'csharp'],
       auth: {
         mode: 'cognito',
         domain: 'https://x.auth.us-east-2.amazoncognito.com',
@@ -562,6 +563,8 @@ describe('web hosting', () => {
       },
     });
     expect(webConfig('https://x.auth.us-east-2.amazoncognito.com', 'client')).toEqual({
+      // Only languages with a runner function are offered; Python and Swift are not deployed.
+      codeLanguages: ['typescript', 'java', 'csharp'],
       auth: {
         mode: 'cognito',
         domain: 'https://x.auth.us-east-2.amazoncognito.com',
