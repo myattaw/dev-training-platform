@@ -1,5 +1,5 @@
 import type { JobRole } from '@pracstack/content-model';
-import { challenge, scenario, skills } from './activities';
+import { challenge, scenario, skills, webChallenge } from './activities';
 
 /*
  * Job roles. Available roles are ordered preparation paths through content
@@ -112,7 +112,10 @@ export const ROLES: readonly JobRole[] = [
         id: 'rest-apis',
         name: 'REST APIs',
         description: 'Resource design, HTTP methods and status codes, idempotency and pagination.',
-        activities: skills('aspnet-http-rest'),
+        activities: [
+          ...skills('aspnet-http-rest'),
+          webChallenge('employee-rest-api', 'aspnetcore'),
+        ],
       },
       {
         id: 'aspnet-core',
@@ -250,6 +253,7 @@ export const ROLES: readonly JobRole[] = [
         activities: [
           ...skills('aspnet-http-rest', 'aspnet-minimal-apis-routing', 'aspnet-validation-errors'),
           challenge('employee-api', 'csharp'),
+          webChallenge('employee-rest-api', 'aspnetcore'),
         ],
       },
       {
@@ -626,6 +630,331 @@ export const ROLES: readonly JobRole[] = [
         name: 'ALM and governance',
         description: 'Solutions, environments, pipelines and DLP policies.',
         activities: skills('pp-alm-governance'),
+      },
+    ],
+  },
+  {
+    id: 'java-backend-developer',
+    version: 1,
+    status: 'available',
+    title: 'Java Backend Developer',
+    summary:
+      'Server-side Java 21 and Spring Boot: the language, REST APIs, data access, testing and security.',
+    description:
+      'Builds the server side of business applications in Java with Spring Boot: domain logic, REST controllers, validation, data access with Spring Data JPA, tests and security. The path starts with modern Java, then Spring Boot concepts, then a real Spring Boot application built and graded over HTTP.',
+    technologies: [
+      'java',
+      'spring',
+      'spring-boot',
+      'spring-mvc',
+      'spring-data-jpa',
+      'rest',
+      'sql',
+      'unit-testing',
+      'security',
+      'backend-development',
+    ],
+    competencies: [
+      {
+        id: 'java-language',
+        name: 'Java language',
+        description:
+          'Types, equality, classes, interfaces and records: reading and writing modern Java.',
+        activities: [
+          ...skills(
+            'java-types-operators',
+            'java-equality-control-flow',
+            'java-classes-objects',
+            'java-inheritance-interfaces',
+            'java-records-enums',
+          ),
+          challenge('balanced-brackets', 'java'),
+        ],
+      },
+      {
+        id: 'collections-streams',
+        name: 'Collections, generics and streams',
+        description:
+          'Choosing collections, equals and hashCode, generics, lambdas, streams and Optional.',
+        activities: [
+          ...skills(
+            'java-collections',
+            'java-generics',
+            'java-lambdas',
+            'java-streams',
+            'java-optional',
+          ),
+          challenge('merge-intervals', 'java'),
+          challenge('lru-cache', 'java'),
+        ],
+      },
+      {
+        id: 'exceptions-concurrency',
+        name: 'Exceptions and concurrency',
+        description:
+          'Checked and unchecked exceptions, try-with-resources, executors and thread safety.',
+        activities: skills('java-exceptions', 'java-concurrency'),
+      },
+      {
+        id: 'spring-boot-fundamentals',
+        name: 'Spring Boot and dependency injection',
+        description:
+          'Application startup, beans, auto-configuration, constructor injection and configuration.',
+        activities: skills(
+          'sb-boot-startup',
+          'sb-beans-context',
+          'sb-dependency-injection',
+          'sb-configuration',
+        ),
+      },
+      {
+        id: 'rest-apis',
+        name: 'REST APIs with Spring MVC',
+        description:
+          'Controllers, status codes, ResponseEntity, DTOs, validation and consistent error responses.',
+        activities: [
+          ...skills(
+            'sb-rest-controllers',
+            'sb-http-behavior',
+            'sb-dtos-validation',
+            'sb-exception-handling',
+          ),
+          webChallenge('employee-rest-api', 'spring-boot'),
+        ],
+      },
+      {
+        id: 'data-access',
+        name: 'Data access',
+        description:
+          'Spring Data JPA repositories, queries, pagination and transactions, plus SQL.',
+        activities: [...skills('sb-data-jpa', 'sb-transactions', 'pg-joins-basics', 'pg-group-by')],
+      },
+      {
+        id: 'testing',
+        name: 'Testing',
+        description: 'JUnit 5, AssertJ and Mockito; controller tests with MockMvc.',
+        activities: skills('java-testing', 'sb-testing'),
+      },
+      {
+        id: 'security',
+        name: 'Security',
+        description:
+          'Authentication versus authorization, password hashing and endpoint access rules.',
+        activities: skills('sb-security'),
+      },
+    ],
+  },
+  {
+    id: 'python-backend-developer',
+    version: 1,
+    status: 'available',
+    title: 'Python Backend Developer',
+    summary:
+      'Python 3 with Django and Django REST Framework: the language, the ORM, APIs and testing.',
+    description:
+      'Builds web backends in Python with Django and Django REST Framework: models and the ORM, views and serializers, validation, authentication and tests. The path starts with Python itself, then Django and DRF, then a real API built and graded over HTTP.',
+    technologies: [
+      'python',
+      'django',
+      'django-rest-framework',
+      'rest',
+      'sql',
+      'unit-testing',
+      'backend-development',
+    ],
+    competencies: [
+      {
+        id: 'python-language',
+        name: 'Python language',
+        description: 'Types, strings, collections, functions and scope, comprehensions.',
+        activities: skills(
+          'py-types-operators',
+          'py-strings',
+          'py-collections',
+          'py-mutability-copying',
+          'py-functions',
+          'py-comprehensions',
+        ),
+      },
+      {
+        id: 'python-oop-errors',
+        name: 'Classes, errors and iteration',
+        description:
+          'Classes and dataclasses, exceptions and context managers, generators, type hints.',
+        activities: skills(
+          'py-classes',
+          'py-dataclasses-dunders',
+          'py-exceptions',
+          'py-iterators-generators',
+          'py-type-hints',
+        ),
+      },
+      {
+        id: 'django-core',
+        name: 'Django',
+        description: 'Project structure, URL routing, views, models, the ORM and migrations.',
+        activities: skills(
+          'dj-fundamentals',
+          'dj-url-routing',
+          'dj-views',
+          'dj-models',
+          'dj-orm',
+          'dj-migrations',
+        ),
+      },
+      {
+        id: 'drf-apis',
+        name: 'APIs with Django REST Framework',
+        description: 'Serializers and validation, API views, routers, pagination and permissions.',
+        activities: [
+          ...skills('dj-drf-serializers', 'dj-drf-views'),
+          webChallenge('employee-rest-api', 'django'),
+        ],
+      },
+      {
+        id: 'data-performance',
+        name: 'Data and performance',
+        description:
+          'Query efficiency (N+1, select_related, prefetch_related), transactions, and SQL.',
+        activities: [...skills('dj-performance', 'pg-joins-basics', 'pg-group-by')],
+      },
+      {
+        id: 'testing',
+        name: 'Testing',
+        description: 'unittest and Django test tools, the test client, API tests.',
+        activities: skills('py-testing-debugging', 'dj-testing'),
+      },
+      {
+        id: 'security-auth',
+        name: 'Authentication and security settings',
+        description: 'Users, permissions, CSRF and deployment security settings.',
+        activities: skills('dj-auth', 'dj-middleware', 'dj-operations'),
+      },
+    ],
+  },
+  {
+    id: 'swift-developer-fundamentals',
+    version: 1,
+    status: 'available',
+    title: 'Swift Language Fundamentals',
+    summary:
+      'The Swift 6 language: optionals, value types, protocols, generics, errors, memory and concurrency. Not iOS app development.',
+    description:
+      'Strong Swift language fundamentals, as needed before (or alongside) learning Apple platform development. PracStack runs Swift on Linux: SwiftUI, UIKit, Xcode and the iOS SDK are not covered, so this path is not complete iOS developer preparation.',
+    technologies: ['swift', 'oop', 'data-structures', 'unit-testing', 'ios'],
+    competencies: [
+      {
+        id: 'swift-basics',
+        name: 'Swift basics and optionals',
+        description:
+          'Constants and variables, strings, optionals and safe unwrapping, collections.',
+        activities: skills(
+          'swift-basics',
+          'swift-strings',
+          'swift-optionals',
+          'swift-collections',
+          'swift-control-flow',
+        ),
+      },
+      {
+        id: 'functions-closures',
+        name: 'Functions and closures',
+        description: 'Argument labels, inout, function types, closures and capture.',
+        activities: skills('swift-functions', 'swift-closures'),
+      },
+      {
+        id: 'types-protocols',
+        name: 'Types and protocol-oriented programming',
+        description:
+          'Structs versus classes, enums with associated values, protocols, extensions and generics.',
+        activities: skills(
+          'swift-structs-classes',
+          'swift-enums',
+          'swift-protocols',
+          'swift-generics',
+        ),
+      },
+      {
+        id: 'errors-memory-concurrency',
+        name: 'Errors, memory and concurrency',
+        description:
+          'Throwing functions and Result, ARC and retain cycles, async/await, tasks and actors.',
+        activities: skills('swift-error-handling', 'swift-memory', 'swift-concurrency'),
+      },
+      {
+        id: 'testing-debugging',
+        name: 'Testing and debugging',
+        description: 'Testable design, assertions and compiler diagnostics.',
+        activities: skills('swift-testing-debugging'),
+      },
+      {
+        id: 'ios-platform',
+        name: 'iOS platform (not covered)',
+        description: 'SwiftUI, UIKit, Xcode and the iOS SDK are not practiced on PracStack.',
+        activities: [],
+      },
+    ],
+  },
+  {
+    id: 'associate-software-engineer',
+    version: 1,
+    status: 'available',
+    title: 'Associate Software Engineer',
+    summary:
+      'Entry-level breadth: one language, OOP, SQL, APIs, testing, debugging, Git and agile basics.',
+    description:
+      'A first software engineering job asks for breadth more than depth: a solid language, object-oriented design, SQL, how web APIs work, testing and debugging, Git and the team process. Pick your language: the path uses Java, with Python and C# equivalents available in Skill Mastery.',
+    technologies: [
+      'java',
+      'python',
+      'oop',
+      'sql',
+      'rest',
+      'unit-testing',
+      'debugging',
+      'git',
+      'agile',
+      'cloud',
+    ],
+    competencies: [
+      {
+        id: 'programming-fundamentals',
+        name: 'Programming fundamentals',
+        description: 'Types, control flow, collections and functions in one language.',
+        activities: [
+          ...skills(
+            'java-types-operators',
+            'java-collections',
+            'py-types-operators',
+            'py-collections',
+          ),
+          challenge('reverse-string', 'java'),
+          challenge('pangram', 'java'),
+        ],
+      },
+      {
+        id: 'oop',
+        name: 'Object-oriented programming',
+        description: 'Classes, interfaces, inheritance versus composition.',
+        activities: skills('java-classes-objects', 'java-inheritance-interfaces', 'py-classes'),
+      },
+      {
+        id: 'sql',
+        name: 'SQL',
+        description: 'Selecting, joining and grouping data.',
+        activities: skills('pg-joins-basics', 'pg-group-by'),
+      },
+      {
+        id: 'apis',
+        name: 'Web APIs',
+        description: 'HTTP methods, status codes and a first REST API.',
+        activities: [webChallenge('employee-rest-api')],
+      },
+      {
+        id: 'testing-debugging',
+        name: 'Testing and debugging',
+        description: 'Unit tests, reading stack traces and fixing common bugs.',
+        activities: skills('java-testing', 'py-testing-debugging'),
       },
     ],
   },

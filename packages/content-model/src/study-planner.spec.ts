@@ -90,7 +90,9 @@ const key = (ref: ActivityRef) =>
     ? `skill:${ref.skillId}`
     : ref.kind === 'challenge'
       ? `challenge:${ref.challengeId}:${ref.language}`
-      : `scenario:${ref.scenarioId}`;
+      : ref.kind === 'scenario'
+        ? `scenario:${ref.scenarioId}`
+        : `web-challenge:${ref.challengeId}`;
 
 const REQS: PlanRequirement[] = [
   { termId: 'csharp', requirement: 'required', priority: 'high' },

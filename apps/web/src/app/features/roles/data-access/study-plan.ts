@@ -23,6 +23,7 @@ export function activityLookup(index: ActivityIndex): ActivityLookup {
     hasSkill: (id) => index.skills.has(id),
     challenge: (id) => index.challenges.get(id),
     scenario: (id) => index.scenarios?.get(id),
+    webChallenge: (id) => index.webChallenges?.get(id),
   };
 }
 
@@ -53,6 +54,16 @@ export function plannerProgress(
         if (!data.scenarios) return undefined;
         const p = data.scenarios.get(ref.scenarioId);
         return { kind: 'task', done: p?.completed ?? false, attempted: p !== undefined };
+      }
+      case 'web-challenge': {
+        if (!data.webChallenges) return undefined;
+        const p = data.webChallenges.get(ref.challengeId);
+        const done = p
+          ? ref.framework
+            ? p.frameworksSolved.includes(ref.framework)
+            : p.solved
+          : false;
+        return { kind: 'task', done, attempted: (p?.attempts ?? 0) > 0 };
       }
     }
   };

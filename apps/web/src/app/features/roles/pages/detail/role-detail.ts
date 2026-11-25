@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { WebChallengesService } from '../../../web-challenges/data-access/web-challenges.service';
 import type { ScenarioProgress } from '@pracstack/api-contracts';
 import { scenarioProgressSignal } from '../../../scenarios/data-access/scenario.service';
 import { RouterLink } from '@angular/router';
@@ -63,6 +64,9 @@ export class RoleDetail {
   private readonly content = inject(RoleContent);
   private readonly preparation = inject(PreparationApi);
   private readonly loader = inject(RoleProgressLoader);
+  private readonly webChallenges = inject(WebChallengesService);
+  // Web challenge progress for activity status (signed out: the request fails and nothing is tracked).
+  private readonly webProgressLoad = this.webChallenges.loadProgress().catch(() => undefined);
   private readonly practice = inject(PracticeApi);
   private readonly submissions = inject(ChallengeSubmissions);
   private readonly scenarioProgress = scenarioProgressSignal();
@@ -153,7 +157,12 @@ export class RoleDetail {
   protected readonly progressData = computed<ProgressData | undefined>(() => {
     const s = this.skillProgress.state();
     if (s.status !== 'ready' || !s.value) return undefined;
-    return { skills: s.value, challenges: this.submissions.progress(), ...this.scenariosPart() };
+    return {
+      skills: s.value,
+      challenges: this.submissions.progress(),
+      ...this.scenariosPart(),
+      webChallenges: this.webChallenges.progress(),
+    };
   });
   protected readonly progressError = computed(() => {
     const s = this.skillProgress.state();

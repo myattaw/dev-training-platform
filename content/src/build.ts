@@ -120,6 +120,12 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     challengeLanguages: new Map(
       sources.map((s) => [s.challenge.id, Object.keys(s.challenge.languages) as LanguageId[]]),
     ),
+    webChallengeFrameworks: new Map(
+      (options.webChallenges ?? WEB_CHALLENGES).map((w) => [
+        w.source.challenge.id,
+        w.source.implementations.filter((i) => i.status === 'available').map((i) => i.framework),
+      ]),
+    ),
   };
   issues.push(
     ...validateTaxonomy(taxonomy, {

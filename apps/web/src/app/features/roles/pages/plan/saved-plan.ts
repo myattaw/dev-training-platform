@@ -1,3 +1,4 @@
+import { WebChallengesService } from '../../../web-challenges/data-access/web-challenges.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -277,6 +278,9 @@ export class SavedPlanPage {
   private readonly content = inject(RoleContent);
   private readonly preparation = inject(PreparationApi);
   private readonly loader = inject(RoleProgressLoader);
+  private readonly webChallenges = inject(WebChallengesService);
+  // Web challenge progress for activity status (signed out: the request fails and nothing is tracked).
+  private readonly webProgressLoad = this.webChallenges.loadProgress().catch(() => undefined);
   private readonly practice = inject(PracticeApi);
   private readonly submissions = inject(ChallengeSubmissions);
   private readonly scenarioProgress = scenarioProgressSignal();
@@ -356,7 +360,12 @@ export class SavedPlanPage {
   private readonly progressData = computed<ProgressData | undefined>(() => {
     const s = this.skillProgress.state();
     return s.status === 'ready' && s.value
-      ? { skills: s.value, challenges: this.submissions.progress(), ...this.scenariosPart() }
+      ? {
+          skills: s.value,
+          challenges: this.submissions.progress(),
+          ...this.scenariosPart(),
+          webChallenges: this.webChallenges.progress(),
+        }
       : undefined;
   });
   protected readonly tracked = computed(() => this.progressData() !== undefined);

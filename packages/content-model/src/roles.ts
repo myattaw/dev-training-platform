@@ -1,4 +1,5 @@
 import type { LanguageId } from './challenge';
+import type { WebFramework } from './web-challenge';
 import { ID_PATTERN, type ValidationIssue } from './validate';
 
 /*
@@ -18,7 +19,13 @@ export type ActivityRef =
       readonly language?: LanguageId;
     }
   /** Reserved for Enterprise Scenarios; invalid until scenario ids are passed to the validators. */
-  | { readonly kind: 'scenario'; readonly scenarioId: string };
+  | { readonly kind: 'scenario'; readonly scenarioId: string }
+  /** A Web Development Challenge, in one framework (solved counts only in it). */
+  | {
+      readonly kind: 'web-challenge';
+      readonly challengeId: string;
+      readonly framework?: WebFramework;
+    };
 
 /** Stable key of an activity, e.g. `skill:cs-oop` or `challenge:pangram:csharp`. */
 export function activityKey(ref: ActivityRef): string {
@@ -31,6 +38,10 @@ export function activityKey(ref: ActivityRef): string {
         : `challenge:${ref.challengeId}`;
     case 'scenario':
       return `scenario:${ref.scenarioId}`;
+    case 'web-challenge':
+      return ref.framework
+        ? `web-challenge:${ref.challengeId}:${ref.framework}`
+        : `web-challenge:${ref.challengeId}`;
   }
 }
 
@@ -101,6 +112,8 @@ export interface ContentIds {
   readonly challengeLanguages?: ReadonlyMap<string, readonly LanguageId[]>;
   /** Enterprise Scenario ids. Until they exist, every scenario ref is invalid. */
   readonly scenarioIds?: ReadonlySet<string>;
+  /** Web challenges and their available (verified) frameworks. */
+  readonly webChallengeFrameworks?: ReadonlyMap<string, readonly WebFramework[]>;
 }
 
 /** Checks one activity reference; returns an error message or undefined. */
@@ -120,6 +133,14 @@ export function checkActivityRef(ref: ActivityRef, ids: ContentIds): string | un
       return ids.scenarioIds?.has(ref.scenarioId)
         ? undefined
         : `unknown scenario "${ref.scenarioId}" (Enterprise Scenarios are not registered)`;
+    case 'web-challenge': {
+      const frameworks = ids.webChallengeFrameworks?.get(ref.challengeId);
+      if (!frameworks) return `unknown web challenge "${ref.challengeId}"`;
+      if (ref.framework && !frameworks.includes(ref.framework)) {
+        return `web challenge "${ref.challengeId}" is not available in ${ref.framework}`;
+      }
+      return undefined;
+    }
   }
 }
 
