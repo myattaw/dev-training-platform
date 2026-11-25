@@ -1750,4 +1750,100 @@ public class Main {
       },
     ],
   ),
+  ...b.outputChoice(
+    'java-optional-refactoring',
+    4,
+    'Each `map` step turns a `null` result into an empty `Optional`; `filter`, `or` and `orElse` then decide what remains.',
+    [
+      {
+        key: 'null-chain',
+        code: `import java.util.Optional;
+
+public class Main {
+    record Address(String city) {}
+    record Customer(String name, Address address) {}
+    record Order(String id, Customer customer) {}
+
+    static String city(Order order) {
+        return Optional.ofNullable(order)
+            .map(Order::customer)
+            .map(Customer::address)
+            .map(Address::city)
+            .filter(c -> !c.isBlank())
+            .orElse("unknown");
+    }
+
+    public static void main(String[] args) {
+        System.out.println(city(new Order("o-1", new Customer("Ada", new Address("London")))) + ", "
+            + city(new Order("o-2", new Customer("Linus", null))) + ", "
+            + city(new Order("o-3", new Customer("Grace", new Address(" ")))) + ", "
+            + city(null));
+    }
+}`,
+        correct: 'London, unknown, unknown, unknown',
+        wrong: ['London, unknown,  , unknown', 'London, null, unknown, unknown', 'NullPointerException'],
+        why: 'The chain replaces nested `null` checks: a `null` order, a missing address or a `null` city all end as an empty `Optional`, because `map` turns a `null` result into `Optional.empty()` instead of throwing. `filter` also empties the blank city, so every case without a usable city falls back to `unknown`.',
+      },
+      {
+        key: 'or-vs-orelseget',
+        code: `import java.util.Optional;
+
+public class Main {
+    static int lookups = 0;
+
+    static Optional<String> fromCache(String key) {
+        lookups++;
+        return key.startsWith("c") ? Optional.of("cached-" + key) : Optional.empty();
+    }
+
+    static Optional<String> fromDatabase(String key) {
+        lookups++;
+        return key.startsWith("d") ? Optional.of("db-" + key) : Optional.empty();
+    }
+
+    static String find(String key) {
+        return fromCache(key)
+            .or(() -> fromDatabase(key))
+            .map(String::toUpperCase)
+            .orElseGet(() -> "missing-" + key);
+    }
+
+    public static void main(String[] args) {
+        String result = find("c1") + " " + find("d2") + " " + find("x3");
+        System.out.println(result + " " + lookups);
+    }
+}`,
+        correct: 'CACHED-C1 DB-D2 missing-x3 5',
+        wrong: ['CACHED-C1 DB-D2 MISSING-X3 6', 'CACHED-C1 DB-D2 missing-x3 6', 'cached-c1 db-d2 missing-x3 5'],
+        why: '`or` calls the database only when the cache is empty, so `c1` costs one lookup and `d2` and `x3` two each: 5 in total. `map` runs only on a present value, so the fallback from `orElseGet` is not uppercased.',
+      },
+      {
+        key: 'stream-of-optionals',
+        code: `import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+public class Main {
+    static final Map<String, String> MANAGERS = Map.of("ada", "grace", "linus", "ada");
+
+    static Optional<String> managerOf(String user) {
+        return Optional.ofNullable(MANAGERS.get(user));
+    }
+
+    public static void main(String[] args) {
+        List<String> secondLevel = List.of("linus", "ada", "bob").stream()
+            .map(Main::managerOf)
+            .flatMap(Optional::stream)
+            .map(Main::managerOf)
+            .flatMap(Optional::stream)
+            .toList();
+        System.out.println(secondLevel);
+    }
+}`,
+        correct: '[grace]',
+        wrong: ['[grace, null]', '[ada, grace]', '[grace, grace]'],
+        why: 'Linus’s manager is Ada, whose manager is Grace. Ada’s manager is Grace, who has no manager, and Bob has none at all. Each `flatMap(Optional::stream)` drops empty results, so only one second-level manager remains, without `get()` or `null` checks.',
+      },
+    ],
+  ),
 ];

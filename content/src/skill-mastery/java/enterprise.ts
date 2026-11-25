@@ -644,6 +644,96 @@ class ProductRepository {
       },
     ],
   ),
+  ...b.output(
+    'java-entity-identity',
+    5,
+    [
+      'Entities often define `equals` and `hashCode` by their database id, but the id is usually assigned only when the entity is saved.',
+      'A hash-based collection places an element using the hash code it had when it was added.',
+    ],
+    [
+      {
+        key: 'null-ids',
+        code: `import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+
+public class Main {
+    public static void main(String[] args) {
+        Set<OrderLine> lines = new HashSet<>();
+        lines.add(new OrderLine(null, "pen"));
+        lines.add(new OrderLine(null, "ink"));
+        System.out.println(lines.size());
+    }
+}
+
+class OrderLine {
+    Long id;
+    final String sku;
+
+    OrderLine(Long id, String sku) {
+        this.id = id;
+        this.sku = sku;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof OrderLine other && Objects.equals(id, other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
+}`,
+        output: '1',
+        why: 'Both new lines have a `null` id, and `Objects.equals(null, null)` is `true`, so the set treats the second line as a duplicate and drops it: an order silently loses a line before it is ever saved. Id-based equality must treat unsaved entities (null id) as different from each other, for example `id != null && id.equals(other.id)`.',
+      },
+      {
+        key: 'id-assigned-after-add',
+        code: `import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+
+public class Main {
+    static long sequence = 100;
+
+    static void save(Customer c) {
+        c.id = ++sequence;
+    }
+
+    public static void main(String[] args) {
+        Set<Customer> pending = new HashSet<>();
+        Customer ada = new Customer("ada@example.com");
+        pending.add(ada);
+        save(ada);
+        System.out.println(ada.id + " " + pending.contains(ada) + " " + pending.remove(ada) + " " + pending.size());
+    }
+}
+
+class Customer {
+    Long id;
+    final String email;
+
+    Customer(String email) {
+        this.email = email;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Customer other && id != null && id.equals(other.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
+    }
+}`,
+        output: '101 false false 1',
+        why: 'The customer was added with a `null` id (hash `0`). Saving assigns id `101`, which changes the hash code, so `contains` and `remove` search the wrong bucket and fail, even for the same object: the entry is stuck in the set. A common remedy is a hash code that does not change when the id is assigned (for example `getClass().hashCode()`), or a natural business key such as the email.',
+      },
+    ],
+  ),
 ];
 
 // ---------------------------------------------------------------- JSON and validation

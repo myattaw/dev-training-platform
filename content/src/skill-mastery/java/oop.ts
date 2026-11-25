@@ -1878,4 +1878,99 @@ class LimitedAccount extends Account {
       },
     ],
   ),
+  ...b.outputChoice(
+    'java-overloads-in-polymorphic-code',
+    5,
+    'Overloads are selected once, at compile time, from the static type of the argument. Only the receiver of a call is dispatched at run time.',
+    [
+      {
+        key: 'loop-over-supertype',
+        code: `import java.util.List;
+
+public class Main {
+    static String fee(Payment p) { return "standard"; }
+    static String fee(CardPayment p) { return "card"; }
+    static String fee(BankTransfer p) { return "transfer"; }
+
+    public static void main(String[] args) {
+        List<Payment> payments = List.of(new CardPayment(), new BankTransfer());
+        StringBuilder out = new StringBuilder();
+        for (Payment p : payments) out.append(fee(p)).append(' ');
+        out.append(fee(new CardPayment()));
+        System.out.println(out);
+    }
+}
+
+interface Payment {}
+class CardPayment implements Payment {}
+class BankTransfer implements Payment {}`,
+        correct: 'standard standard card',
+        wrong: ['card transfer card', 'standard standard standard', 'card transfer standard'],
+        why: 'Inside the loop, `p` has the static type `Payment`, so the compiler binds both calls to `fee(Payment)`; the run-time class never influences overload selection. Only the last call, whose argument is declared as `CardPayment`, picks `fee(CardPayment)`. To vary behavior by run-time type, use an overridden method, a pattern-matching `switch` over a sealed type, or double dispatch (the visitor pattern).',
+      },
+      {
+        key: 'visitor',
+        code: `import java.util.List;
+
+public class Main {
+    public static void main(String[] args) {
+        FeeCalculator calculator = new FeeCalculator();
+        StringBuilder out = new StringBuilder();
+        for (Payment p : List.of(new CardPayment(), new BankTransfer())) {
+            out.append(p.accept(calculator)).append(' ');
+        }
+        System.out.println(out.toString().strip());
+    }
+}
+
+interface PaymentVisitor<R> {
+    R visit(CardPayment p);
+    R visit(BankTransfer p);
+}
+
+interface Payment {
+    <R> R accept(PaymentVisitor<R> visitor);
+}
+
+class CardPayment implements Payment {
+    public <R> R accept(PaymentVisitor<R> visitor) { return visitor.visit(this); }
+}
+
+class BankTransfer implements Payment {
+    public <R> R accept(PaymentVisitor<R> visitor) { return visitor.visit(this); }
+}
+
+class FeeCalculator implements PaymentVisitor<String> {
+    public String visit(CardPayment p) { return "card"; }
+    public String visit(BankTransfer p) { return "transfer"; }
+}`,
+        correct: 'card transfer',
+        wrong: ['transfer transfer', 'card card', 'It does not compile: visit(this) is ambiguous'],
+        why: 'Double dispatch: `p.accept(...)` is dispatched on the run-time class of `p`, and inside each `accept`, `this` has the static type of that concrete class, so the compiler selects the matching `visit` overload. Each class picks its overload at compile time, which is why the result is correct without casts.',
+      },
+      {
+        key: 'override-with-overload',
+        code: `public class Main {
+    public static void main(String[] args) {
+        Notifier n = new SmsNotifier();
+        Object message = "Order shipped";
+        System.out.println(n.send(message) + " / " + n.send("Order shipped"));
+    }
+}
+
+class Notifier {
+    String send(Object message) { return "Notifier.object"; }
+    String send(String message) { return "Notifier.string"; }
+}
+
+class SmsNotifier extends Notifier {
+    @Override
+    String send(Object message) { return "Sms.object"; }
+}`,
+        correct: 'Sms.object / Notifier.string',
+        wrong: ['Sms.object / Sms.object', 'Notifier.string / Notifier.string', 'Notifier.object / Notifier.string'],
+        why: 'Two decisions happen in two phases. At compile time, the static argument type selects the signature: `send(Object)` for `message`, `send(String)` for the literal. At run time, the chosen signature is dispatched on the receiver: `SmsNotifier` overrides `send(Object)` but not `send(String)`, so the first call runs the subclass and the second the inherited `Notifier.send(String)`.',
+      },
+    ],
+  ),
 ];
