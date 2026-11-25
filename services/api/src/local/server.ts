@@ -27,6 +27,8 @@ import {
   SqlServerSqlEngine,
 } from '@pracstack/sql-engine';
 import { DockerCodeRunner } from '@pracstack/code-runner';
+import { DockerWebRunner } from '@pracstack/web-runner';
+import type { WebChallengeService } from '../web/web-challenge-service';
 import { securityHeadersFor } from '@pracstack/web-security';
 
 const MAX_BODY_BYTES = MAX_REQUEST_BODY_BYTES;
@@ -44,6 +46,9 @@ const { values: args } = parseArgs({
     'requests-per-minute': { type: 'string', default: '120' },
     'sql-per-minute': { type: 'string', default: '30' },
     'code-per-minute': { type: 'string', default: '10' },
+    'web-per-minute': { type: 'string', default: '6' },
+    // Web application runs per user per day (free plan; Pro gets the higher default).
+    'web-per-day': { type: 'string', default: '40' },
   },
 });
 
@@ -71,7 +76,9 @@ if (!sqlServerEngine) {
   );
 }
 const stop = () => {
-  void sqlEngine.close().finally(() => process.exit(0));
+  void Promise.allSettled([sqlEngine.close(), webService?.shutdown(), webRunner?.stopAll()]).finally(() =>
+    process.exit(0),
+  );
 };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
@@ -85,6 +92,21 @@ void codeRunner.check().then((status) => {
     );
   }
 });
+
+// Web Development Challenges build and run applications in Docker (see
+// docs/execution-security.md). Kill switch: PRACSTACK_WEB_EXECUTION=off makes
+// them browse-only. Containers left by an earlier crash are removed first.
+const webExecution = process.env['PRACSTACK_WEB_EXECUTION'] !== 'off';
+const webRunner = webExecution ? new DockerWebRunner({ maxConcurrent: 2, maxQueue: 6 }) : undefined;
+if (webRunner) {
+  void webRunner.removeLeftovers();
+  void webRunner.check().then((status) => {
+    if (!status.ok) {
+      console.warn(`Web runner unavailable: ${status.message} Web challenge runs will report an infrastructure error.`);
+    }
+  });
+}
+let webService: WebChallengeService | undefined;
 
 const store = new FileProgressStore(resolve(args.data));
 /** Try Pro features locally: PRACSTACK_LOCAL_PLAN=pro (or admin). Never used on AWS. */
@@ -110,6 +132,17 @@ const api = createApi({
   content: loadContentSource(resolve(args.content)),
   store,
   accounts: store.accounts,
+  webStore: store.web,
+  ...(webRunner ? { webRunner } : {}),
+  webPolicy: {
+    executionsPerDay: { free: Number(args['web-per-day']), pro: Math.max(200, Number(args['web-per-day'])) },
+    concurrentPerUser: 1,
+    sessionLifetimeMs: 10 * 60_000,
+    sessionIdleMs: 3 * 60_000,
+    sessionRequestLimit: 200,
+  },
+  webRateLimiter: new SlidingWindowRateLimiter(Number(args['web-per-minute']), 60_000),
+  onWebService: (service) => (webService = service),
   ...(localPlan && localPlan !== 'free' ? { localPlanOverride: localPlan } : {}),
   rateLimiter: new SlidingWindowRateLimiter(Number(args['requests-per-minute']), 60_000),
   sqlRateLimiter: new SlidingWindowRateLimiter(Number(args['sql-per-minute']), 60_000),

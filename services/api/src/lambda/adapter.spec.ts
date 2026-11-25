@@ -64,6 +64,7 @@ function setup() {
     content: fixtureContent(),
     store,
     accounts: store.accounts,
+    webStore: store.web,
     rateLimiter: new SlidingWindowRateLimiter(1000, 60_000),
     now: () => NOW,
     random: () => 0,

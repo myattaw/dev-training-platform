@@ -178,6 +178,7 @@ export function testApi(overrides: Partial<ApiDeps> = {}): TestApi {
     content,
     store,
     accounts: store.accounts,
+    webStore: store.web,
     rateLimiter: new SlidingWindowRateLimiter(1000, 60_000),
     now: () => new Date(now),
     random: () => 0,

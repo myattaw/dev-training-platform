@@ -378,6 +378,7 @@ describe('local developer user', () => {
       content: fixtureContent(),
       store,
       accounts: store.accounts,
+      webStore: store.web,
       rateLimiter: new SlidingWindowRateLimiter(10, 1000),
       now: () => new Date(),
       random: Math.random,

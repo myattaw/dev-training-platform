@@ -124,6 +124,7 @@ function describe(run: WebTestRun): string {
       return `build failed: ${run.diagnostics.map((d) => `${d.file ?? ''}:${d.line ?? ''} ${d.message}`).join('; ')}`;
     case 'startup-failed':
     case 'resource-limit':
+    case 'time-limit':
       return `${run.kind}: ${run.message}\n${run.logs.slice(-12).join('\n')}`;
     case 'unavailable':
       return `runner unavailable: ${run.message}`;

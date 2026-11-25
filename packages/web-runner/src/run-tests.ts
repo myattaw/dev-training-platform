@@ -13,8 +13,10 @@ export type WebTestRun =
     }
   | { readonly kind: 'build-failed'; readonly diagnostics: readonly BuildDiagnostic[]; readonly logs: readonly string[] }
   | { readonly kind: 'startup-failed'; readonly message: string; readonly logs: readonly string[] }
-  /** Out of memory, too much output, or a deadline: the learner's code hit a limit. */
+  /** Out of memory or too much output: the learner's code hit a limit. */
   | { readonly kind: 'resource-limit'; readonly message: string; readonly logs: readonly string[] }
+  /** The build or the application ran past its deadline. */
+  | { readonly kind: 'time-limit'; readonly message: string; readonly logs: readonly string[] }
   /** Docker, an image or the probe failed: never the learner's fault, never graded. */
   | { readonly kind: 'unavailable'; readonly message: string };
 
@@ -66,8 +68,9 @@ function notReady(app: WebApp, state: AppState, message?: string): WebTestRun {
     case 'build-failed':
       return { kind: 'build-failed', diagnostics: app.diagnostics, logs };
     case 'resource-limit':
-    case 'expired':
       return { kind: 'resource-limit', message: message ?? app.stateMessage ?? 'A resource limit was reached.', logs };
+    case 'expired':
+      return { kind: 'time-limit', message: app.stateMessage ?? 'A time limit was reached.', logs };
     case 'unavailable':
       return { kind: 'unavailable', message: app.stateMessage ?? 'The application runner is not available.' };
     default:

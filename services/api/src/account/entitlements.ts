@@ -30,6 +30,7 @@ const ALL_FEATURES: readonly Feature[] = [
   'advanced-preparation-plans',
   'advanced-mock-interviews',
   'progress-analytics',
+  'premium-web-challenges',
 ];
 
 export const PLAN_FEATURES: Readonly<Record<Plan, readonly Feature[]>> = {

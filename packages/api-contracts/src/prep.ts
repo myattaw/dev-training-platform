@@ -24,7 +24,9 @@ export type Feature =
   | 'premium-recommendations'
   | 'advanced-preparation-plans'
   | 'advanced-mock-interviews'
-  | 'progress-analytics';
+  | 'progress-analytics'
+  /** Pro-only Web Development Challenges and larger execution quotas. */
+  | 'premium-web-challenges';
 
 /** How the current plan was granted. `default`: nothing was granted (FREE). */
 export type EntitlementSource =
