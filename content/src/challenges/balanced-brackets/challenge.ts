@@ -1,9 +1,10 @@
 import { callTests, type ChallengeSource } from '@pracstack/content-model';
+import { callAdapter } from '../swift-adapter';
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'balanced-brackets',
-    version: 1,
+    version: 2,
     title: 'Balanced Brackets',
     summary: 'Decide whether every bracket in a string is matched and correctly nested.',
     category: 'parsing',
@@ -72,6 +73,24 @@ export function isBalanced(text: string): boolean {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'isBalanced',
+        starterCode: `def is_balanced(text: str) -> bool:
+    """Returns True if every bracket in text is matched and correctly nested."""
+    # TODO: implement me
+    raise NotImplementedError("Remove this line and implement the function")
+`,
+      },
+      swift: {
+        entryPoint: 'isBalanced',
+        starterCode: `/// Returns true if every bracket in \`text\` is matched and correctly nested.
+func isBalanced(_ text: String) -> Bool {
+    // TODO: implement me
+    fatalError("Remove this line and implement the function")
+}
+`,
+        supportCode: callAdapter('isBalanced(try arg(args, 0))'),
       },
     },
     visibleTests: callTests<(text: string) => boolean>([

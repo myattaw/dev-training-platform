@@ -123,6 +123,20 @@
         </span>
       </app-alert>
     }
+    @if (timedSession(); as t) {
+      @if (timedOver()) {
+        <app-alert type="info" class="banner" heading="Timed session summary">
+          {{ labels[t.framework] }} · {{ t.durationMinutes }} minutes allowed · {{ timeUsed() }} used ·
+          {{ t.submissions }} {{ t.submissions === 1 ? 'submission' : 'submissions' }} accepted before the deadline.
+          @if (t.best; as b) {
+            Best verified result: {{ verdictLabel(b.verdict) }} ({{ b.visiblePassed + b.hiddenPassed }}/{{ b.visibleTotal + b.hiddenTotal }} tests).
+          } @else {
+            No submission was graded.
+          }
+          Follow-up practice: the skills listed on the challenge page.
+        </app-alert>
+      }
+    }
     @if (stale()) {
       <app-alert type="warning" class="banner">
         You changed the code since the application started. Restart the application to run your

@@ -1,9 +1,10 @@
 import { callTests, type ChallengeSource } from '@pracstack/content-model';
+import { callAdapter } from '../swift-adapter';
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'reverse-string',
-    version: 1,
+    version: 2,
     title: 'Reverse String',
     summary: 'Return the characters of a string in reverse order.',
     category: 'strings',
@@ -51,6 +52,25 @@ export const source: ChallengeSource = {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'reverse',
+        starterCode: `def reverse(input: str) -> str:
+    """Returns the characters of input in reverse order."""
+    # TODO: implement me
+    raise NotImplementedError("Remove this line and implement the function")
+`,
+      },
+      swift: {
+        entryPoint: 'reverse',
+        starterCode: `/// Returns the characters of \`input\` in reverse order.
+/// The tests use plain ASCII text, where every Character is a single code point.
+func reverse(_ input: String) -> String {
+    // TODO: implement me
+    fatalError("Remove this line and implement the function")
+}
+`,
+        supportCode: callAdapter('reverse(try arg(args, 0))'),
       },
     },
     visibleTests: callTests<(input: string) => string>([

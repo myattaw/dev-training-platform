@@ -1,10 +1,11 @@
 import { type ChallengeSource, operationTests } from '@pracstack/content-model';
+import { operationsAdapter } from '../swift-adapter';
 import type { LRUCache } from './reference';
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'lru-cache',
-    version: 1,
+    version: 2,
     title: 'LRU Cache',
     summary: 'Build a fixed-size cache that evicts the least recently used entry.',
     category: 'data-structures',
@@ -33,7 +34,7 @@ export const source: ChallengeSource = {
       { kind: 'heading', text: 'Going further' },
       {
         kind: 'paragraph',
-        text: 'Aim for `get` and `put` in constant time on average. A hash map that remembers insertion order (`Map` in TypeScript, `LinkedHashMap` in Java), or a hash map plus a doubly linked list (`LinkedList<T>` in C#), helps.',
+        text: 'Aim for `get` and `put` in constant time on average. A hash map that remembers insertion order (`Map` in TypeScript, `LinkedHashMap` in Java, `OrderedDict` in Python), or a hash map plus a doubly linked list (`LinkedList<T>` in C#, your own node class in Swift), helps.',
       },
     ],
     languages: {
@@ -96,6 +97,50 @@ export const source: ChallengeSource = {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'LRUCache',
+        starterCode: `class LRUCache:
+    def __init__(self, capacity: int):
+        """Creates an empty cache that holds at most capacity entries."""
+        # TODO: set up your storage
+
+    def get(self, key: int) -> int:
+        """Returns the value for key, or -1 if it is not in the cache."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def put(self, key: int, value: int) -> None:
+        """Inserts or updates key, evicting the least recently used key when full."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+`,
+      },
+      swift: {
+        entryPoint: 'LRUCache',
+        starterCode: `final class LRUCache {
+    /// Creates an empty cache that holds at most \`capacity\` entries.
+    init(capacity: Int) {
+        // TODO: set up your storage
+    }
+
+    /// Returns the value for \`key\`, or -1 if it is not in the cache.
+    func get(_ key: Int) -> Int {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Inserts or updates \`key\`, evicting the least recently used key when full.
+    func put(_ key: Int, _ value: Int) {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+}
+`,
+        supportCode: operationsAdapter('LRUCache', 'LRUCache(capacity: try arg(args, 0))', {
+          get: 'return object.get(try arg(args, 0))',
+          put: 'object.put(try arg(args, 0), try arg(args, 1)); return PracStackVoid()',
+        }),
       },
     },
     visibleTests: operationTests<typeof LRUCache>([

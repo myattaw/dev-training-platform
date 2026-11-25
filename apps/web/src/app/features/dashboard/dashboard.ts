@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { WEB_FRAMEWORK_LABELS } from '@pracstack/content-model';
+import { WebChallengesService } from '../web-challenges/data-access/web-challenges.service';
 import { RouterLink } from '@angular/router';
 import { DIFFICULTIES } from '@pracstack/content-model';
 import { AuthService } from '../../core/auth/auth.service';
@@ -62,6 +64,28 @@ export class Dashboard {
   private readonly submissions = inject(ChallengeSubmissions);
   private readonly skillCatalog = inject(SkillCatalog);
   private readonly practiceApi = inject(PracticeApi);
+  private readonly webChallenges = inject(WebChallengesService);
+
+  /** Web challenges with graded attempts but not solved yet (needs the API; empty when signed out). */
+  protected readonly webInProgress = asyncResource(
+    () => this.auth.canUseApi(),
+    async (ok) => {
+      if (!ok) return [];
+      await this.webChallenges.loadProgress();
+      const summaries = await this.webChallenges.summaries();
+      return [...this.webChallenges.progress().values()]
+        .filter((p) => p.attempts > 0 && !p.solved)
+        .sort((a, b) => (b.lastSubmittedAt ?? '').localeCompare(a.lastSubmittedAt ?? ''))
+        .slice(0, CONTINUE_LIMIT)
+        .flatMap((p) => {
+          const summary = summaries.find((s) => s.id === p.challengeId);
+          const framework = p.frameworksAttempted[0] ?? summary?.frameworks[0];
+          return summary && framework
+            ? [{ id: summary.id, title: summary.title, framework, frameworkLabel: WEB_FRAMEWORK_LABELS[framework] }]
+            : [];
+        });
+    },
+  );
 
   /** "Welcome back, Ada": the first name from the ID token, if there is one. */
   protected readonly greeting = computed(() => {

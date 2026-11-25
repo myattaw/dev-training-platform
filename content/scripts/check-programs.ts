@@ -37,7 +37,24 @@ const structural = validateTracks(tracks);
 for (const issue of structural)
   console.log(`${issue.severity === 'error' ? '✗' : '!'} ${issue.path}
     ${issue.message}`);
-const structuralErrors = structural.filter((i) => i.severity === 'error').length;
+// The mastery rule of content.spec.ts: two first-time correct answers promote, so every tier
+// needs at least two questions, and a perfect run to 100 answers seven at tiers 4 and 5.
+let masteryErrors = 0;
+for (const t of tracks) {
+  for (const skill of t.topics.flatMap((topic) => topic.skills)) {
+    const at = (d: number) => skill.questions.filter((q) => q.difficulty === d).length;
+    const problems: string[] = [];
+    for (const d of [1, 2, 3, 4, 5]) if (at(d) < 2) problems.push(`tier ${d} has ${at(d)} (needs 2)`);
+    if (at(4) + at(5) < 7) problems.push(`tiers 4-5 have ${at(4) + at(5)} (needs 7)`);
+    if (skill.questions.length < 15) problems.push(`${skill.questions.length} questions (needs 15)`);
+    if (problems.length > 0) {
+      masteryErrors++;
+      console.log(`✗ track:${t.id}/${skill.id} (mastery rule)
+    ${problems.join('; ')}`);
+    }
+  }
+}
+const structuralErrors = structural.filter((i) => i.severity === 'error').length + masteryErrors;
 let questions = 0;
 for (const t of tracks)
   for (const topic of t.topics)

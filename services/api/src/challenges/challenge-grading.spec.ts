@@ -15,8 +15,9 @@ import { testApi } from '../testing/fixtures';
 
 /*
  * End-to-end grading through the real runner containers. Proves that every
- * reference solution (TypeScript, Java and C#) passes all visible and hidden
- * tests, and that starter code does not. Needs Docker and the runner images
+ * reference solution (TypeScript, Python, Java, C# and Swift) passes all
+ * visible and hidden tests, and that starter code does not. Swift solutions run
+ * with the challenge's adapter (support code). Needs Docker and the runner images
  * (`npm run runners:build`); set PRACSTACK_SKIP_DOCKER_TESTS=1 to skip.
  */
 const skip = process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1';
@@ -63,6 +64,8 @@ describe.skipIf(skip)('grading real challenges in containers', { timeout: 120_00
       ...(entry.reference ? { typescript: typescriptReference(id) } : {}),
       ...(entry.javaReference ? { java: entry.javaReference } : {}),
       ...(entry.csharpReference ? { csharp: entry.csharpReference } : {}),
+      ...(entry.pythonReference ? { python: entry.pythonReference } : {}),
+      ...(entry.swiftReference ? { swift: entry.swiftReference } : {}),
     };
     for (const [language, code] of Object.entries(references) as [LanguageId, string][]) {
       it(`${id}: the ${LANGUAGE_LABELS[language]} reference is accepted`, async () => {

@@ -106,4 +106,25 @@ test.describe('web development challenges', () => {
     // Read-only template files are marked and cannot be edited.
     await expect(page.getByRole('treeitem', { name: /Program\.cs.*read-only/ })).toBeVisible();
   });
+
+  test('timed mode: the server deadline survives a reload', async ({ page }) => {
+    await page.goto('/web-challenges/employee-rest-api');
+    await page.getByText('Timed interview mode').click();
+    await page.getByLabel('Duration').selectOption('30');
+    await page.getByRole('button', { name: 'Start timed session' }).click();
+    await expect(page).toHaveURL(/workspace\?timed=/);
+    const url = page.url();
+    const timer = page.getByRole('timer', { name: 'Time remaining' });
+    await expect(timer).toContainText(/^\s*[12]?\d:\d\d\s*$/);
+    await page.reload();
+    expect(page.url()).toBe(url);
+    await expect(timer).toContainText(/^\s*[12]?\d:\d\d\s*$/);
+    // Starting again resumes the same session instead of resetting the clock.
+    await page.goto('/web-challenges/employee-rest-api');
+    await page.getByText('Timed interview mode').click();
+    await page.getByRole('button', { name: 'Start timed session' }).click();
+    await expect(page).toHaveURL(url);
+    await page.getByRole('button', { name: 'Finish session' }).click();
+    await expect(page.getByText('Timed session summary')).toBeVisible();
+  });
 });

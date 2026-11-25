@@ -196,3 +196,9 @@
     transition: none;
   }
 }
+
+.subheading {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
