@@ -1,5 +1,5 @@
-import { splitQuestion, type SqlDatabase } from '@pracstack/content-model';
-import { ChildProcessSqlEngine } from '@pracstack/sql-engine';
+import { splitQuestion, type SqlDatabase, tablesToSql } from '@pracstack/content-model';
+import { ChildProcessSqlEngine, runEachSequentially, type SqlEngine } from '@pracstack/sql-engine';
 import { afterAll, describe, expect, it } from 'vitest';
 import { ApiError } from '../http';
 import { SqlGrader } from './sql-grading';
@@ -145,5 +145,74 @@ describe('SqlGrader', { timeout: 60_000 }, () => {
       kind: 'error',
       message: 'column "nope" does not exist',
     });
+  });
+});
+
+describe('SqlGrader: speed', { timeout: 60_000 }, () => {
+  /** Counts what reaches the engine: batches, and single runs. */
+  const counting = () => {
+    const calls: { kind: 'batch' | 'run'; query: string; databases: number }[] = [];
+    const counted: SqlEngine = {
+      run: (request) => {
+        calls.push({ kind: 'run', query: request.query, databases: 1 });
+        return engine.run(request);
+      },
+      runEach: (request) => {
+        calls.push({ kind: 'batch', query: request.query, databases: request.databases.length });
+        return runEachSequentially(engine, request);
+      },
+      close: () => Promise.resolve(),
+    };
+    return { calls, grader: new SqlGrader(counted) };
+  };
+
+  it('grades against recorded reference results, in one batch for all datasets', async () => {
+    const { calls, grader } = counting();
+    const sample = await engine.run({
+      database: { schemaSql: db.schema, dataSql: tablesToSql(db.sample) },
+      query: 'SELECT name FROM items WHERE price > 3',
+      maxRows: 1000,
+    });
+    const hidden = await engine.run({
+      database: { schemaSql: db.schema, dataSql: tablesToSql(db.hidden[0]!) },
+      query: 'SELECT name FROM items WHERE price > 3',
+      maxRows: 1000,
+    });
+    if (sample.kind !== 'rows' || hidden.kind !== 'rows') throw new Error('reference failed');
+    const key = { ...expensive.key, expected: [sample, hidden] };
+
+    const grade = await grader.grade(
+      expensive.question,
+      key,
+      'SELECT name FROM items WHERE price > 3',
+    );
+    expect(grade.result).toBe('correct');
+    // The reference query never runs: only the learner's, once, on both datasets.
+    expect(calls).toEqual([
+      { kind: 'batch', query: 'SELECT name FROM items WHERE price > 3', databases: 2 },
+    ]);
+  });
+
+  it('runs the reference query once per question when no results were recorded', async () => {
+    const { calls, grader } = counting();
+    const fresh = split(false, 'SELECT name FROM items WHERE price > 2');
+    for (let i = 0; i < 2; i++) await grader.grade(fresh.question, fresh.key, 'SELECT 1');
+    const references = calls.filter((c) => c.query === 'SELECT name FROM items WHERE price > 2');
+    expect(references).toEqual([
+      { kind: 'batch', query: 'SELECT name FROM items WHERE price > 2', databases: 2 },
+    ]);
+  });
+
+  it('ignores recorded results that do not match the datasets', async () => {
+    const { calls, grader } = counting();
+    // A stale recording (wrong number of datasets) is ignored, not trusted.
+    const key = { ...expensive.key, expected: [{ columns: [], rows: [] }] };
+    const grade = await grader.grade(
+      expensive.question,
+      key,
+      'SELECT name FROM items WHERE price > 3',
+    );
+    expect(grade.result).toBe('correct');
+    expect(calls.some((c) => c.query === expensive.key.referenceQuery)).toBe(true);
   });
 });

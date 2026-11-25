@@ -5,7 +5,13 @@ import {
   type SqlTable,
   tablesToSql,
 } from '@pracstack/content-model';
-import { compareResults, type SqlEngine, type SqlRunResult } from '@pracstack/sql-engine';
+import {
+  compareResults,
+  type ResultSet,
+  runEach,
+  type SqlEngine,
+  type SqlRunResult,
+} from '@pracstack/sql-engine';
 import { ApiError, badRequest } from '../http';
 import type { Grade } from './grading';
 
@@ -25,26 +31,36 @@ const GRADING_ROWS = 1000;
  * learner. For hidden datasets the learner only learns that the query was
  * wrong there, so hidden data cannot be read out through error messages or
  * result details.
+ *
+ * Speed: the reference results usually come with the content (recorded by the
+ * content build), and the learner's query runs on all datasets in one batch,
+ * which is a single runner invocation on AWS.
  */
 export class SqlGrader {
   /** Reference results never change for a question version, so compute them once. */
-  private readonly referenceCache = new Map<string, Promise<SqlRunResult>>();
+  private readonly referenceCache = new Map<string, Promise<readonly ResultSet[]>>();
 
   constructor(private readonly engine: SqlEngine) {}
 
   async grade(question: SqlQueryQuestion, key: SqlKey, query: string): Promise<Grade> {
     const revealed: RevealedAnswer = { format: 'sql-query', referenceQuery: key.referenceQuery };
     const datasets = [question.sampleTables, ...key.hiddenData];
+    const references = await this.references(question, key, datasets);
+    // Stops at the first dataset where the query fails, so a slow query is stopped once.
+    const results = await runEach(this.engine, {
+      databases: datasets.map((tables) => database(question, tables)),
+      query,
+      maxRows: GRADING_ROWS,
+    });
     let close: string | undefined;
 
-    for (const [i, tables] of datasets.entries()) {
+    for (const [i, expected] of references.entries()) {
       const isSample = i === 0;
-      const expected = await this.reference(question, key, i, tables);
-      const actual = await this.engine.run({
-        database: database(question, tables),
-        query,
-        maxRows: GRADING_ROWS,
-      });
+      const actual = results[i];
+      if (!actual) {
+        // Only possible if the engine broke its contract (all results until a failure).
+        throw new ApiError('internal', 'This question could not be graded right now. Try again.');
+      }
 
       if (actual.kind === 'rejected') {
         // Not a query at all (empty, too long, not SELECT): a usage error, not a wrong answer.
@@ -88,29 +104,34 @@ export class SqlGrader {
     };
   }
 
-  private async reference(
+  /** The reference query's results on each dataset: recorded with the content, or run once. */
+  private async references(
     question: SqlQueryQuestion,
     key: SqlKey,
-    index: number,
-    tables: readonly SqlTable[],
-  ): Promise<Extract<SqlRunResult, { kind: 'rows' }>> {
-    const cacheKey = `${question.id}@${question.version}#${index}`;
+    datasets: readonly (readonly SqlTable[])[],
+  ): Promise<readonly ResultSet[]> {
+    if (key.expected?.length === datasets.length) return key.expected;
+    const cacheKey = `${question.id}@${question.version}`;
     let run = this.referenceCache.get(cacheKey);
     if (!run) {
-      run = this.engine.run({
-        database: database(question, tables),
+      run = runEach(this.engine, {
+        databases: datasets.map((tables) => database(question, tables)),
         query: key.referenceQuery,
         maxRows: GRADING_ROWS,
+      }).then((results) => {
+        const rows = results.filter((r) => r.kind === 'rows');
+        if (rows.length !== datasets.length) throw new Error('reference query failed');
+        return rows;
       });
+      // Temporary failures (busy, restarted engine) should not stick in the cache.
+      run.catch(() => this.referenceCache.delete(cacheKey));
       this.referenceCache.set(cacheKey, run);
     }
-    const result = await run;
-    if (result.kind !== 'rows') {
-      // Temporary failures (busy, restarted engine) should not stick in the cache.
-      this.referenceCache.delete(cacheKey);
+    try {
+      return await run;
+    } catch {
       throw new ApiError('internal', 'This question could not be graded right now. Try again.');
     }
-    return result;
   }
 }
 

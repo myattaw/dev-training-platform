@@ -78,6 +78,11 @@ export class ChildProcessSqlEngine implements SqlEngine {
     });
   }
 
+  /** Starts the runner process (and its database) ahead of the first query. */
+  warm(): void {
+    this.ensureChild();
+  }
+
   close(): Promise<void> {
     this.failAll('The SQL service was stopped.');
     this.child?.kill();

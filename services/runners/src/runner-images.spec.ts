@@ -570,4 +570,41 @@ describe.skipIf(skip)('SQL runner function', { timeout: 60_000 }, () => {
     const next = await fn.invoke({ database, query: 'SELECT 1 AS one', maxRows: 10 });
     expect(next.body).toMatchObject({ kind: 'rows', rows: [[1]] });
   });
+
+  it('grades on every dataset in one invocation, each in its own database', async () => {
+    const other = { ...database, dataSql: "INSERT INTO t VALUES (3, 'c');" };
+    const res = await fn.invoke({
+      batch: { databases: [database, other], query: 'SELECT name FROM t ORDER BY id', maxRows: 10 },
+    });
+    expect(res.body).toMatchObject({
+      results: [
+        { kind: 'rows', rows: [['a'], ['b']] },
+        { kind: 'rows', rows: [['c']] },
+      ],
+    });
+  });
+
+  it('stops a batch at the first dataset where the query fails', async () => {
+    const res = await fn.invoke({
+      batch: { databases: [database, database], query: 'SELECT nope FROM t', maxRows: 10 },
+    });
+    const body = res.body as { results: SqlRunResult[] };
+    expect(body.results).toHaveLength(1);
+    expect(body.results[0]?.kind).toBe('error');
+  });
+
+  it('ships an empty cluster, so runs never wait for initdb', async () => {
+    const { stdout } = await exec('docker', [
+      'run',
+      '--rm',
+      '--entrypoint',
+      'stat',
+      localImage('sql'),
+      '-c',
+      '%s',
+      '/var/task/sql-base.tar',
+    ]);
+    // A PostgreSQL data directory: tens of megabytes.
+    expect(Number(stdout.trim())).toBeGreaterThan(10_000_000);
+  });
 });

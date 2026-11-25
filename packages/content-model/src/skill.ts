@@ -1,5 +1,5 @@
 import type { InstructionBlock } from './instruction';
-import type { SqlDatabase, SqlTable } from './sql';
+import type { SqlDatabase, SqlResultSet, SqlTable } from './sql';
 
 /**
  * Skill Mastery hierarchy: Technology → Topic → Skill → Questions.
@@ -184,6 +184,13 @@ export type QuestionAnswer =
       readonly checkColumnNames: boolean;
       /** Extra datasets the submission must also pass (same tables as the sample). */
       readonly hiddenData: readonly (readonly SqlTable[])[];
+      /**
+       * The reference query's results on the sample and on each hidden
+       * dataset, in that order, recorded by the content build (which runs
+       * every reference query anyway). The API grades against these instead
+       * of running the reference query again; without them it runs it.
+       */
+      readonly expected?: readonly SqlResultSet[];
     };
 
 /** Private: grading data, hints and explanation, revealed only by the API. */

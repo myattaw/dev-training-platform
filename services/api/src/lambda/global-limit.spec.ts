@@ -42,4 +42,30 @@ describe('global runner limits', () => {
       message: expect.stringContaining('busy'),
     });
   });
+
+  it('counts a SQL grading batch once (one runner invocation)', async () => {
+    const batches: number[] = [];
+    const inner: SqlEngine = {
+      run: () => Promise.reject(new Error('batches must not be split up')),
+      runEach: (request) => {
+        batches.push(request.databases.length);
+        return Promise.resolve(
+          request.databases.map(() => ({ kind: 'rejected' as const, message: 'inner' })),
+        );
+      },
+      close: () => Promise.resolve(),
+    };
+    const engine = new GloballyLimitedSqlEngine(
+      inner,
+      new SlidingWindowRateLimiter(1, 60_000),
+      () => 0,
+    );
+    const database = { schemaSql: '', dataSql: '' };
+    const batch = { databases: [database, database, database], query: 'SELECT 1', maxRows: 1 };
+    expect(await engine.runEach(batch)).toHaveLength(3);
+    expect(batches).toEqual([3]);
+    expect(await engine.runEach(batch)).toEqual([
+      { kind: 'rejected', message: expect.stringContaining('busy') },
+    ]);
+  });
 });

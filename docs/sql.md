@@ -17,8 +17,13 @@ API process ──IPC──▶ SQL runner process (packages/sql-engine/src/runti
 
 1. The supervisor rejects obviously invalid input with a friendly message (empty, too long,
    not a SELECT/WITH/VALUES/TABLE). This is for clarity only; it is **not** a security control.
-2. The worker clones a prepared database (schema + data, created once per dataset and cached)
-   and switches the session to the `learner` role: `SET SESSION AUTHORIZATION learner`.
+2. The worker starts a fresh database from an empty PostgreSQL cluster (`base-cluster.ts`),
+   creates the exercise's tables and rows as the setup superuser, grants the `learner` role
+   `SELECT` on them, and switches the session to it: `SET SESSION AUTHORIZATION learner`.
+   Initializing a cluster (initdb) takes about a second, loading the empty one a fraction of
+   that, and the tables and rows milliseconds; so the cluster is made once per worker, and the
+   AWS runner image ships one made at image build time (`sql-base.tar`), so even a cold runner
+   never runs initdb.
 3. It runs `BEGIN READ ONLY`, then `DECLARE pracstack_cursor NO SCROLL CURSOR FOR <query>`,
    fetches at most `maxRows + 1` rows, and rolls back.
 4. Values are normalized to JSON-safe primitives (numeric as text, dates as ISO strings).
@@ -55,8 +60,12 @@ attack itself.
 
 Queries are compared by **behavior, never by SQL text** (`services/api/src/practice/sql-grading.ts`):
 
-1. The learner's query and the private reference query run on the sample data and on every
-   hidden dataset. Reference results are cached per question version.
+1. The learner's query runs on the sample data and on every hidden dataset, in **one batch**
+   (on AWS, one runner invocation; it stops at the first dataset where the query fails). It is
+   compared with the reference query's results on the same datasets, which the content build
+   records in the private grading data (`expected` on the answer key); without a recording (or
+   when it does not match the datasets) the API runs the reference query once per question
+   version and caches the results.
 2. Results are compared as multisets of rows (or in order, when the question has
    `ordered: true`). Numbers compare numerically, so `2.50` equals `2.5`.
 3. Outcomes:
@@ -96,7 +105,10 @@ The content build runs every reference query on every dataset through the same e
 - fails if setup or the reference query errors, or returns more than 1,000 rows;
 - fails if an `ordered` question's reference has no `ORDER BY`;
 - warns if the hidden datasets give the same result as the sample (they would not catch
-  hard-coded answers).
+  hard-coded answers);
+- records the PostgreSQL reference results in the grading data, so grading never reruns them.
+  (Only PostgreSQL: its engine is part of every build, so the output does not depend on whether
+  the local Oracle or SQL Server is running.)
 
 For ordered questions, make sure the sort key has no ties in any dataset, or a correct query
 could legitimately return tied rows in another order.

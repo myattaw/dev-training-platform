@@ -1,5 +1,11 @@
 import type { CodeRunner, CodeRunRequest, CodeRunResult } from '@pracstack/code-runner';
-import type { SqlEngine, SqlRunRequest, SqlRunResult } from '@pracstack/sql-engine';
+import {
+  runEach,
+  type SqlBatchRequest,
+  type SqlEngine,
+  type SqlRunRequest,
+  type SqlRunResult,
+} from '@pracstack/sql-engine';
 import type { RateLimiter } from '../rate-limit';
 
 /**
@@ -35,6 +41,13 @@ export class GloballyLimitedSqlEngine implements SqlEngine {
     if ((await this.limiter.hit(GLOBAL_KEY, this.now())) > 0)
       return { kind: 'rejected', message: 'The SQL service is busy. Try again in a minute.' };
     return this.inner.run(request);
+  }
+
+  /** One grading batch counts once: it is one runner invocation. */
+  async runEach(request: SqlBatchRequest): Promise<SqlRunResult[]> {
+    if ((await this.limiter.hit(GLOBAL_KEY, this.now())) > 0)
+      return [{ kind: 'rejected', message: 'The SQL service is busy. Try again in a minute.' }];
+    return runEach(this.inner, request);
   }
 
   close(): Promise<void> {

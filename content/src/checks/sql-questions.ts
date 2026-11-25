@@ -2,6 +2,7 @@ import {
   SQL_DIALECT_LABELS,
   type SqlDialect,
   type SqlQuestionSource,
+  type SqlResultSet,
   type SqlTable,
   tablesToSql,
   type TrackSource,
@@ -11,6 +12,10 @@ import { compareResults, type SqlEngine, type SqlRunResult } from '@pracstack/sq
 
 const MAX_REFERENCE_ROWS = 1000;
 
+/** Key of a question version in the `record` map of `checkSqlQuestions`. */
+export const questionKey = (q: { readonly id: string; readonly version: number }): string =>
+  `${q.id}@${q.version}`;
+
 /**
  * Runs every SQL question's reference query against the sample data and
  * each hidden dataset, using the same isolated engine learners use:
@@ -19,10 +24,17 @@ const MAX_REFERENCE_ROWS = 1000;
  * - `ordered` questions must actually sort (`ORDER BY` in the reference);
  * - warns when the hidden datasets give the same result as the sample,
  *   because then they cannot catch answers hard-coded from the sample.
+ *
+ * With `record`, the PostgreSQL reference results of every question that
+ * passed are stored there by `questionKey` (sample first, then each hidden
+ * dataset), so the API can grade against them without rerunning the
+ * reference query. Only PostgreSQL: its engine (PGlite) is part of every
+ * build, so the build output does not depend on which local databases run.
  */
 export async function checkSqlQuestions(
   tracks: readonly TrackSource[],
   engines: Partial<Record<SqlDialect, SqlEngine>>,
+  record?: Map<string, SqlResultSet[]>,
 ): Promise<ValidationIssue[]> {
   const unchecked = new Map<SqlDialect, number>();
   const checks: { path: string; q: SqlQuestionSource; engine: SqlEngine }[] = [];
@@ -54,7 +66,12 @@ export async function checkSqlQuestions(
       Array.from({ length: Math.min(width, mine.length) }, async () => {
         while (next < mine.length) {
           const c = mine[next++]!;
-          results[c.i] = await checkQuestion(c.path, c.q, engine);
+          results[c.i] = await checkQuestion(
+            c.path,
+            c.q,
+            engine,
+            c.q.dialect === 'postgresql' ? record : undefined,
+          );
         }
       }),
     );
@@ -81,6 +98,7 @@ async function checkQuestion(
   path: string,
   q: SqlQuestionSource,
   engine: SqlEngine,
+  record: Map<string, SqlResultSet[]> | undefined,
 ): Promise<ValidationIssue[]> {
   const issues: ValidationIssue[] = [];
   const error = (message: string) => issues.push({ severity: 'error', path, message });
@@ -115,7 +133,12 @@ async function checkQuestion(
   }
   if (issues.some((i) => i.severity === 'error')) return issues;
 
-  const [sample, ...hidden] = results.filter((r) => r.kind === 'rows');
+  const rows = results.filter((r) => r.kind === 'rows');
+  record?.set(
+    questionKey(q),
+    rows.map(({ columns, rows }) => ({ columns, rows })),
+  );
+  const [sample, ...hidden] = rows;
   if (sample && sample.rows.length === 0)
     warning('reference query returns no rows on the sample data');
   if (

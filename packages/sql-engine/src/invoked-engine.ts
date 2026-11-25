@@ -1,4 +1,13 @@
-import type { SqlColumn, SqlEngine, SqlRunRequest, SqlRunResult, SqlValue } from './types';
+import {
+  MAX_BATCH_DATABASES,
+  type SqlBatchRequest,
+  type SqlColumn,
+  type SqlDatabaseSpec,
+  type SqlEngine,
+  type SqlRunRequest,
+  type SqlRunResult,
+  type SqlValue,
+} from './types';
 
 /** Result of invoking a remote function (same shape as @pracstack/code-runner's). */
 export type SqlInvokeOutcome =
@@ -74,21 +83,30 @@ export class InvokedSqlEngine implements SqlEngine {
 
   async run(request: SqlRunRequest): Promise<SqlRunResult> {
     const outcome = await this.invoke(this.functionName, request);
-    switch (outcome.kind) {
-      case 'refused':
-        return { kind: 'rejected', message: 'The SQL service is busy. Try again in a moment.' };
-      case 'function-error':
-        return /timed out/i.test(outcome.error)
-          ? { kind: 'timeout', timeoutMs: 0 }
-          : { kind: 'error', message: 'The SQL engine stopped unexpectedly. Try again.' };
-      case 'returned':
-        return (
-          parseSqlRunResult(outcome.payload, request.maxRows + 1) ?? {
-            kind: 'error',
-            message: 'The SQL engine produced an unreadable result.',
-          }
-        );
+    if (outcome.kind !== 'returned') return failure(outcome);
+    return parseSqlRunResult(outcome.payload, request.maxRows + 1) ?? UNREADABLE;
+  }
+
+  /** All datasets in one invocation: one round trip, and one warm runner does them all. */
+  async runEach(request: SqlBatchRequest): Promise<SqlRunResult[]> {
+    const outcome = await this.invoke(this.functionName, { batch: request });
+    if (outcome.kind !== 'returned') return [failure(outcome)];
+    const payload = outcome.payload;
+    const results = isObj(payload) ? payload['results'] : undefined;
+    if (
+      !Array.isArray(results) ||
+      results.length === 0 ||
+      results.length > request.databases.length
+    )
+      return [UNREADABLE];
+    const parsed: SqlRunResult[] = [];
+    for (const [i, value] of results.entries()) {
+      const result = parseSqlRunResult(value, request.maxRows + 1) ?? UNREADABLE;
+      parsed.push(result);
+      // Same contract as locally: nothing after the first result that is not rows.
+      if (result.kind !== 'rows' || i === request.databases.length - 1) break;
     }
+    return parsed;
   }
 
   close(): Promise<void> {
@@ -96,14 +114,52 @@ export class InvokedSqlEngine implements SqlEngine {
   }
 }
 
+const UNREADABLE: SqlRunResult = {
+  kind: 'error',
+  message: 'The SQL engine produced an unreadable result.',
+};
+
+function failure(outcome: Exclude<SqlInvokeOutcome, { kind: 'returned' }>): SqlRunResult {
+  if (outcome.kind === 'refused')
+    return { kind: 'rejected', message: 'The SQL service is busy. Try again in a moment.' };
+  return /timed out/i.test(outcome.error)
+    ? { kind: 'timeout', timeoutMs: 0 }
+    : { kind: 'error', message: 'The SQL engine stopped unexpectedly. Try again.' };
+}
+
+function parseDatabase(value: unknown): SqlDatabaseSpec | undefined {
+  if (!isObj(value)) return undefined;
+  const { schemaSql, dataSql } = value;
+  return isText(schemaSql, 200_000) && isText(dataSql, 2_000_000)
+    ? { schemaSql, dataSql }
+    : undefined;
+}
+
+const isMaxRows = (v: unknown): boolean =>
+  Number.isSafeInteger(v) && Number(v) >= 0 && Number(v) <= MAX_ROWS_RETURNED;
+
 /** Validates a request arriving at the SQL runner function. */
 export function parseSqlRunRequest(value: unknown): SqlRunRequest | undefined {
-  if (!isObj(value) || !isObj(value['database'])) return undefined;
-  const { schemaSql, dataSql } = value['database'];
+  if (!isObj(value)) return undefined;
+  const database = parseDatabase(value['database']);
   const { query, maxRows } = value;
-  if (!isText(schemaSql, 200_000) || !isText(dataSql, 2_000_000) || !isText(query, 20_000))
+  if (!database || !isText(query, 20_000) || !isMaxRows(maxRows)) return undefined;
+  return { database, query, maxRows: Number(maxRows) };
+}
+
+/** Validates a batch request (`{ batch: … }`) arriving at the SQL runner function. */
+export function parseSqlBatchRequest(value: unknown): SqlBatchRequest | undefined {
+  if (!isObj(value) || !isObj(value['batch'])) return undefined;
+  const { databases, query, maxRows } = value['batch'];
+  if (
+    !Array.isArray(databases) ||
+    databases.length === 0 ||
+    databases.length > MAX_BATCH_DATABASES ||
+    !isText(query, 20_000) ||
+    !isMaxRows(maxRows)
+  )
     return undefined;
-  if (!Number.isSafeInteger(maxRows) || Number(maxRows) < 0 || Number(maxRows) > MAX_ROWS_RETURNED)
-    return undefined;
-  return { database: { schemaSql, dataSql }, query, maxRows: Number(maxRows) };
+  const parsed = databases.map(parseDatabase);
+  if (!parsed.every((d): d is SqlDatabaseSpec => d !== undefined)) return undefined;
+  return { databases: parsed, query, maxRows: Number(maxRows) };
 }

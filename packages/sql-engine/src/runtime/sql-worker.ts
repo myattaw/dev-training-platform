@@ -3,7 +3,7 @@
  * WebAssembly). Runs inside the SQL runner process, never in the API.
  *
  * Isolation layers (see docs/sql.md):
- * - a fresh database per run, cloned from a prepared template;
+ * - a fresh database per run, started from an empty cluster (base-cluster.ts);
  * - the session user is switched to `learner`, a role that can only SELECT
  *   the exercise tables; `set_config` is revoked so the role cannot be reset;
  * - the query runs inside `DECLARE CURSOR` (one read-only query, no
@@ -11,11 +11,12 @@
  * - PGlite has no network or process access, and only a virtual filesystem;
  * - the supervising thread kills this worker on timeout or memory overuse.
  */
-import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { parentPort } from 'node:worker_threads';
 import { PGlite } from '@electric-sql/pglite';
 import type { SqlColumn, SqlDatabaseSpec, SqlRunResult, SqlValue } from '../types';
 import { cursorBody } from '../statement';
+import { makeBaseCluster } from './base-cluster';
 
 export interface WorkerJob {
   readonly database: SqlDatabaseSpec;
@@ -30,10 +31,6 @@ const LEARNER_SETUP = `
   REVOKE CREATE ON SCHEMA public FROM PUBLIC;
   REVOKE EXECUTE ON FUNCTION set_config(text, text, boolean) FROM PUBLIC;
 `;
-
-/** Prepared databases (data directory dumps), keyed by a hash of their setup SQL. */
-const templates = new Map<string, Promise<File | Blob>>();
-const MAX_TEMPLATES = 16;
 
 const TYPE_NAMES: Readonly<Record<number, string>> = {
   16: 'bool',
@@ -68,50 +65,52 @@ function collectGarbage(): void {
 /** Sent before the learner's query starts (see runner.ts). */
 export const PREPARED = 'prepared';
 
-function template(spec: SqlDatabaseSpec): Promise<File | Blob> {
-  const key = createHash('sha256')
-    .update(spec.schemaSql)
-    .update('\0')
-    .update(spec.dataSql)
-    .digest('hex');
-  let cached = templates.get(key);
-  if (!cached) {
-    cached = (async () => {
-      const admin = await PGlite.create();
+/**
+ * The empty cluster every run starts from: the dump shipped in the AWS runner
+ * image (PRACSTACK_SQL_BASE), or one made on first use (about a second).
+ */
+let base: Promise<Blob> | undefined;
+function baseCluster(): Promise<Blob> {
+  base ??= (async () => {
+    const shipped = process.env['PRACSTACK_SQL_BASE'];
+    if (shipped) {
       try {
-        await admin.exec(spec.schemaSql);
-        await admin.exec(spec.dataSql);
-        await admin.exec(LEARNER_SETUP);
-        return await admin.dumpDataDir('none');
-      } finally {
-        await admin.close();
-        collectGarbage();
+        return new Blob([await readFile(shipped)]);
+      } catch {
+        /* missing or unreadable: make one */
       }
-    })();
-    cached.catch(() => templates.delete(key));
-    if (templates.size >= MAX_TEMPLATES) templates.delete(templates.keys().next().value!);
-    templates.set(key, cached);
-  }
-  return cached;
+    }
+    const made = await makeBaseCluster();
+    collectGarbage();
+    return made;
+  })();
+  base.catch(() => (base = undefined));
+  return base;
 }
 
 async function run(job: WorkerJob): Promise<SqlRunResult> {
   const started = performance.now();
-  let dataDir: File | Blob;
+  let db: PGlite;
   try {
-    dataDir = await template(job.database);
+    db = await PGlite.create({ loadDataDir: await baseCluster() });
   } catch (err) {
-    // Exercise setup is authored content; a failure here is a content bug.
-    return {
-      kind: 'error',
-      message: `The exercise database could not be created: ${messageOf(err)}`,
-    };
+    return { kind: 'error', message: `The SQL engine could not start: ${messageOf(err)}` };
   }
-
-  const db = await PGlite.create({ loadDataDir: dataDir });
-  // Setup done (our own work); from here on the learner's query is timed.
-  parentPort?.postMessage(PREPARED);
   try {
+    try {
+      // As the setup superuser: the exercise's tables and rows (milliseconds), then the role.
+      await db.exec(job.database.schemaSql);
+      await db.exec(job.database.dataSql);
+      await db.exec(LEARNER_SETUP);
+    } catch (err) {
+      // Exercise setup is authored content; a failure here is a content bug.
+      return {
+        kind: 'error',
+        message: `The exercise database could not be created: ${messageOf(err)}`,
+      };
+    }
+    // Setup done (our own work); from here on the learner's query is timed.
+    parentPort?.postMessage(PREPARED);
     await db.exec('SET SESSION AUTHORIZATION learner');
     await db.exec('BEGIN READ ONLY');
     try {
@@ -171,4 +170,6 @@ parentPort?.on('message', (job: WorkerJob) => {
       parentPort?.postMessage({ kind: 'error', message: messageOf(err) } satisfies SqlRunResult),
   );
 });
+// Start on the empty cluster now, so the first query does not wait for it.
+if (parentPort) void baseCluster().catch(() => undefined);
 parentPort?.postMessage('ready');

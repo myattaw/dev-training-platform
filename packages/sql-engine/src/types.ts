@@ -37,8 +37,26 @@ export type SqlRunResult =
   | { readonly kind: 'timeout'; readonly timeoutMs: number }
   | { readonly kind: 'resource-limit'; readonly message: string };
 
+/** One query against several databases (the sample data and the hidden datasets). */
+export interface SqlBatchRequest {
+  readonly databases: readonly SqlDatabaseSpec[];
+  readonly query: string;
+  readonly maxRows: number;
+}
+
+/** Most databases in one batch (a question has the sample plus a few hidden datasets). */
+export const MAX_BATCH_DATABASES = 10;
+
 export interface SqlEngine {
   run(request: SqlRunRequest): Promise<SqlRunResult>;
+  /**
+   * Runs the query on each database in order, each in a fresh database, and
+   * stops after the first result that is not rows (so the result can be
+   * shorter than `databases`). Optional: engines without it are called once
+   * per database (see `runEach`). Remote engines implement it to make one
+   * round trip instead of one per database.
+   */
+  runEach?(request: SqlBatchRequest): Promise<SqlRunResult[]>;
   /** Stops background processes. */
   close(): Promise<void>;
 }

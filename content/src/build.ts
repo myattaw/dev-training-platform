@@ -23,6 +23,8 @@ import {
   type TaxonomyTerm,
   type ValidationIssue,
   type SqlDialect,
+  type SqlResultSet,
+  type SplitQuestion,
   SCENARIOS_FILE,
   scenarioFile,
   type ScenarioSource,
@@ -36,7 +38,7 @@ import { CHALLENGES, type ChallengeEntry } from './challenges';
 import { checkReferenceSolutions } from './checks/reference-solutions';
 import { type SqlEngine } from '@pracstack/sql-engine';
 import { SqlCheckPool } from './checks/sql-check-pool';
-import { checkSqlQuestions } from './checks/sql-questions';
+import { checkSqlQuestions, questionKey } from './checks/sql-questions';
 import { checkTypeScriptSnippets } from './checks/typescript-snippets';
 import { TRACKS } from './skill-mastery';
 import { buildCompanies } from './companies/build-companies';
@@ -77,8 +79,14 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
   const sources = challenges.map((c) => c.source);
   const engine = options.sqlEngine ?? new SqlCheckPool();
   let sqlIssues: ValidationIssue[];
+  // Reference results, saved with the grading data (see QuestionAnswer's `expected`).
+  const referenceResults = new Map<string, SqlResultSet[]>();
   try {
-    sqlIssues = await checkSqlQuestions(tracks, { ...options.sqlEngines, postgresql: engine });
+    sqlIssues = await checkSqlQuestions(
+      tracks,
+      { ...options.sqlEngines, postgresql: engine },
+      referenceResults,
+    );
   } finally {
     if (!options.sqlEngine) await engine.close();
   }
@@ -149,7 +157,10 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     technologies.push({ ...catalog.technology, skillCount: catalog.skills.length });
     publicFiles.set(trackFile(track.id), catalog);
     for (const [skillId, questions] of Object.entries(questionsBySkill)) {
-      privateFiles.set(`skill-mastery/${track.id}/${skillId}.questions.json`, questions);
+      privateFiles.set(
+        `skill-mastery/${track.id}/${skillId}.questions.json`,
+        questions.map((q) => withReferenceResults(q, referenceResults)),
+      );
     }
   }
 
@@ -166,6 +177,17 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
   privateFiles.set(MANIFEST_FILE, { schemaVersion: SCHEMA_VERSION, contentVersion });
 
   return { issues, contentVersion, publicFiles, privateFiles };
+}
+
+/** Adds the recorded reference results to a SQL question's answer key. */
+function withReferenceResults(
+  q: SplitQuestion,
+  recorded: ReadonlyMap<string, SqlResultSet[]>,
+): SplitQuestion {
+  const answer = q.grading.answer;
+  const expected = recorded.get(questionKey(q.question));
+  if (answer.format !== 'sql-query' || !expected) return q;
+  return { ...q, grading: { ...q.grading, answer: { ...answer, expected } } };
 }
 
 function hashFiles(files: readonly (readonly [string, unknown])[]): string {

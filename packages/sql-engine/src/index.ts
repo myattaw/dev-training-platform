@@ -4,7 +4,13 @@ export { compareResults, valuesEqual } from './compare';
 export type { CompareOptions, Comparison, ResultSet } from './compare';
 export { precheckQuery, splitStatements, stripComments } from './statement';
 export * from './types';
-export { InvokedSqlEngine, parseSqlRunRequest, parseSqlRunResult } from './invoked-engine';
+export { runEach, runEachSequentially } from './batch';
+export {
+  InvokedSqlEngine,
+  parseSqlBatchRequest,
+  parseSqlRunRequest,
+  parseSqlRunResult,
+} from './invoked-engine';
 export type { SqlInvoke, SqlInvokeOutcome } from './invoked-engine';
 export { OracleSqlEngine, classifyError, dateValue, numberValue } from './oracle-engine';
 export type { OracleConnectionInfo, OracleEngineOptions } from './oracle-engine';

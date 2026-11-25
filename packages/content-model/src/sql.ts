@@ -27,6 +27,15 @@ export interface SqlDatabase {
   readonly hidden: readonly (readonly SqlTable[])[];
 }
 
+/**
+ * A query result as the SQL engine reports it (same shape as the engine's
+ * result sets): column names and engine type names, rows of JSON-safe values.
+ */
+export interface SqlResultSet {
+  readonly columns: readonly { readonly name: string; readonly type: string }[];
+  readonly rows: readonly (readonly SqlLiteral[])[];
+}
+
 export const SQL_IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
 
 /** INSERT statements for a dataset. Identifiers must match {@link SQL_IDENTIFIER}. */

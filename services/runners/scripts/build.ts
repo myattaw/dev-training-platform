@@ -90,6 +90,12 @@ export async function buildContexts(): Promise<void> {
     join(sql, 'sql-worker.mjs'),
     pglite,
   );
+  // Run once while building the image: the empty cluster every query starts from.
+  await bundle(
+    join(packages, 'sql-engine', 'src', 'runtime', 'make-base-cluster.ts'),
+    join(sql, 'make-base-cluster.mjs'),
+    pglite,
+  );
   writeFileSync(
     join(sql, 'package.json'),
     JSON.stringify(
