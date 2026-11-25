@@ -1,4 +1,20 @@
 import type { TrackSource } from '@pracstack/content-model';
+import {
+  apiViewsAdvanced,
+  authAdvanced,
+  middlewareAdvanced,
+  performanceAdvanced,
+  serializersAdvanced,
+  testingAdvanced,
+} from './advanced-api';
+import {
+  formsAdvanced,
+  migrationsAdvanced,
+  modelsAdvanced,
+  ormAdvanced,
+  routingAdvanced,
+  viewsAdvanced,
+} from './advanced-web';
 import { authFamilies } from './auth';
 import { apiViewFamilies, serializerFamilies } from './drf';
 import { formsFamilies } from './forms';
@@ -63,7 +79,7 @@ export const djangoTrack: TrackSource = {
             'Fix `NoReverseMatch` errors and pattern-order bugs.',
             'Explain how `APPEND_SLASH` and `CommonMiddleware` handle missing slashes.',
           ],
-          questions: routingFamilies,
+          questions: [...routingFamilies, ...routingAdvanced],
         },
         {
           id: 'dj-views',
@@ -77,7 +93,7 @@ export const djangoTrack: TrackSource = {
             'Restrict views to the HTTP methods they support.',
             'Avoid state that leaks between requests in class-based views.',
           ],
-          questions: viewsFamilies,
+          questions: [...viewsFamilies, ...viewsAdvanced],
         },
         {
           id: 'dj-templates',
@@ -112,7 +128,7 @@ export const djangoTrack: TrackSource = {
             'Enforce data rules with unique and check constraints.',
             'Fix `IntegrityError`s caused by missing values and violated constraints.',
           ],
-          questions: modelsFamilies,
+          questions: [...modelsFamilies, ...modelsAdvanced],
         },
         {
           id: 'dj-orm',
@@ -126,7 +142,7 @@ export const djangoTrack: TrackSource = {
             'Compute totals and per-group values with `aggregate()` and `annotate()`.',
             'Handle `DoesNotExist` and `MultipleObjectsReturned` correctly.',
           ],
-          questions: ormFamilies,
+          questions: [...ormFamilies, ...ormAdvanced],
         },
         {
           id: 'dj-migrations',
@@ -140,7 +156,7 @@ export const djangoTrack: TrackSource = {
             'Read generated migrations, including dependencies and one-off defaults.',
             'Resolve unapplied, conflicting and edited migrations.',
           ],
-          questions: migrationsFamilies,
+          questions: [...migrationsFamilies, ...migrationsAdvanced],
         },
       ],
     },
@@ -161,7 +177,7 @@ export const djangoTrack: TrackSource = {
             'Use `ModelForm` with `save(commit=False)` and explicit `fields`.',
             'Fix forms that lose values or crash on invalid input.',
           ],
-          questions: formsFamilies,
+          questions: [...formsFamilies, ...formsAdvanced],
         },
         {
           id: 'dj-auth',
@@ -175,7 +191,7 @@ export const djangoTrack: TrackSource = {
             'Protect views with `login_required` and permission checks.',
             'Prevent users from reaching other users’ objects.',
           ],
-          questions: authFamilies,
+          questions: [...authFamilies, ...authAdvanced],
         },
         {
           id: 'dj-middleware',
@@ -189,7 +205,7 @@ export const djangoTrack: TrackSource = {
             'Order built-in middleware correctly and explain CSRF checks.',
             'Avoid per-request state on middleware instances.',
           ],
-          questions: middlewareFamilies,
+          questions: [...middlewareFamilies, ...middlewareAdvanced],
         },
       ],
     },
@@ -211,7 +227,7 @@ export const djangoTrack: TrackSource = {
             'Write field-level and object-level validation.',
             'Handle nested representations and know when custom `create()` is needed.',
           ],
-          questions: serializerFamilies,
+          questions: [...serializerFamilies, ...serializersAdvanced],
         },
         {
           id: 'dj-drf-views',
@@ -225,7 +241,7 @@ export const djangoTrack: TrackSource = {
             'Configure pagination and read its response envelope.',
             'Choose permission classes and scope querysets so users only reach their own data.',
           ],
-          questions: apiViewFamilies,
+          questions: [...apiViewFamilies, ...apiViewsAdvanced],
         },
       ],
     },
@@ -246,7 +262,7 @@ export const djangoTrack: TrackSource = {
             'Choose between `SimpleTestCase`, `TestCase` and `RequestFactory`.',
             'Catch N+1 regressions with `assertNumQueries`.',
           ],
-          questions: testingFamilies,
+          questions: [...testingFamilies, ...testingAdvanced],
         },
         {
           id: 'dj-performance',
@@ -260,7 +276,7 @@ export const djangoTrack: TrackSource = {
             'Use bulk operations knowing what they skip.',
             'Use `transaction.atomic()` and savepoints correctly.',
           ],
-          questions: performanceFamilies,
+          questions: [...performanceFamilies, ...performanceAdvanced],
         },
         {
           id: 'dj-operations',

@@ -34,7 +34,7 @@ for name in ["Ada", "Grace", "Linus"]:
     Book.objects.create(title=name + " I", author=author)
     Book.objects.create(title=name + " II", author=author)`;
 
-const library = (code: string, imports = '') =>
+export const library = (code: string, imports = '') =>
   dbProgram(`${imports ? `${imports.trim()}\n` : ''}${LIBRARY}
 
 ${code.trim()}`);

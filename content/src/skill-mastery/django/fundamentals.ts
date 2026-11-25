@@ -363,6 +363,47 @@ c.get("/nowhere/")`,
         output: 'view\nafter view 410\nyes\nafter view 404',
         why: 'Code after `get_response()` runs once the view has returned, so it sees the view’s status (410). For `/nowhere/` no pattern matches: Django converts the `Resolver404` into a 404 response inside the chain, and the middleware still sees that response on the way out. Middleware therefore runs for unknown URLs too.',
       },
+      {
+        key: 'signals',
+        question:
+          'Request signals, a middleware and the view each print a line. What does this program print?',
+        code: djangoProgram(
+          `from django.core.signals import request_finished, request_started
+from django.http import HttpResponse
+from django.test import Client
+from django.urls import path
+
+def on_started(sender, **kwargs):
+    print("request_started")
+
+def on_finished(sender, **kwargs):
+    print("request_finished")
+
+request_started.connect(on_started)
+request_finished.connect(on_finished)
+
+class Trace:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        print("middleware in")
+        response = self.get_response(request)
+        print("middleware out")
+        return response
+
+def home(request):
+    print("view")
+    return HttpResponse("ok")
+
+urlpatterns = [path("", home)]
+
+Client().get("/")`,
+          { urls: true, settings: ['MIDDLEWARE=["__main__.Trace"]'] },
+        ),
+        output: 'request_started\nmiddleware in\nview\nmiddleware out\nrequest_finished',
+        why: '`request_started` fires when the handler receives the request, before any middleware. `request_finished` fires when the response is closed, after the whole middleware chain has returned; Django uses it, for example, to close database connections that exceeded `CONN_MAX_AGE`.',
+      },
     ],
   ),
   ...b.multi(
@@ -444,6 +485,56 @@ print(hasattr(settings, "FEATURE_FLAGS"))`),
           '`from shop import settings` is a syntax error in Python 3.',
         ],
         why: 'A direct import binds the code to one specific file: it misses defaults for unset values, breaks when production uses `shop.settings_prod`, and does not see `override_settings` in tests. Modules are imported once and cached, so speed is not the issue.',
+      },
+    ],
+  ),
+  ...b.output(
+    'dj-fund-settings-captured',
+    4,
+    [
+      'A value copied from `settings` keeps the value it had when it was copied.',
+      '`override_settings` changes what `settings.X` returns, not copies made earlier.',
+    ],
+    [
+      {
+        key: 'module-constant',
+        code: djangoProgram(
+          `from django.test import override_settings
+
+PAGE_SIZE = settings.PAGE_SIZE  # read once, at import time
+
+def page_size_constant():
+    return PAGE_SIZE
+
+def page_size_live():
+    return settings.PAGE_SIZE
+
+with override_settings(PAGE_SIZE=50):
+    print(page_size_constant(), page_size_live())`,
+          { settings: ['PAGE_SIZE=20'] },
+        ),
+        output: '20 50',
+        why: 'The module-level constant copied the setting when the module was imported, so overriding the setting later (in a test, for example) does not affect it. Reading `settings.PAGE_SIZE` when the value is needed sees the override. Tests that "override a setting with no effect" are usually hitting a copy like this.',
+      },
+      {
+        key: 'cached-function',
+        code: djangoProgram(
+          `from functools import cache
+from django.test import override_settings
+
+@cache
+def feature_enabled():
+    return settings.FEATURES.get("beta", False)
+
+print(feature_enabled())
+with override_settings(FEATURES={"beta": True}):
+    print(feature_enabled())
+    feature_enabled.cache_clear()
+    print(feature_enabled())`,
+          { settings: ['FEATURES={}'] },
+        ),
+        output: 'False\nFalse\nTrue',
+        why: 'The cached function computed its answer once, so the override is invisible until the cache is cleared. Django’s own caches have the same issue, which is why it clears some of them when the `setting_changed` signal fires; your own caches need the same care (connect a `setting_changed` receiver or avoid caching setting values).',
       },
     ],
   ),
