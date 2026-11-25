@@ -49,6 +49,8 @@ test.describe('web development challenges', () => {
     await page.goto('/web-challenges/employee-rest-api/django/workspace');
     await expect(page.getByRole('tree', { name: 'Project files' })).toBeVisible();
     await expect(page.locator('.tab.active')).toContainText('views.py');
+    // The framework picker shows the project's framework (it once showed the first option).
+    await expect(page.getByLabel('Framework')).toHaveValue('django');
 
     // A syntax error is reported with its file and line.
     await setEditor(page, 'def broken(:\n');

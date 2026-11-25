@@ -24,12 +24,15 @@
           <span class="sr-only">Framework</span>
           <select
             class="select select--sm"
-            [value]="framework()"
             (change)="switchFramework($event)"
             [disabled]="!!timedSession()"
           >
             @for (impl of l.challenge.implementations; track impl.framework) {
-              <option [value]="impl.framework" [disabled]="impl.status !== 'available'">
+              <option
+                [value]="impl.framework"
+                [selected]="impl.framework === framework()"
+                [disabled]="impl.status !== 'available'"
+              >
                 {{ labels[impl.framework]
                 }}{{ impl.status !== 'available' ? ' (coming soon)' : '' }}
               </option>
