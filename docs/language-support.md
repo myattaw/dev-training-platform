@@ -16,13 +16,13 @@ role say so.
 
 ## Skill Mastery tracks added in this milestone
 
-| Track       | Skills        | Families | Questions | Snippets run                                    |
-| ----------- | ------------- | -------- | --------- | ----------------------------------------------- |
-| Python      | 18            | 166      | 412       | 418/418 on Python 3.14                          |
-| Java        | 18            | 162      | 464       | 460/460 on Java 21                              |
-| Swift       | 15            | 123      | 304       | 358/358 in Swift 6 mode                         |
-| Django      | 15            | 133      | 289       | 259/259 on Django 5.2 / DRF 3.16                |
-| Spring Boot | see the track |          |           | `npm run content:check-programs -- spring-boot` |
+| Track       | Skills | Families | Questions | Snippets run                                                         |
+| ----------- | ------ | -------- | --------- | -------------------------------------------------------------------- |
+| Python      | 18     | 174      | 430       | 436/436 on Python 3.14                                               |
+| Java        | 18     | 165      | 472       | 468/468 on Java 21                                                   |
+| Swift       | 15     | 130      | 320       | 374/374 in Swift 6 mode                                              |
+| Django      | 15     | 155      | 325       | 295/295 on Django 5.2 / DRF 3.16                                     |
+| Spring Boot | 15     | 136      | 274       | 242/242 on Spring Boot 4.1 (JPA and Actuator questions compile-only) |
 
 Counts come from `npm run content:check-programs -- <track>`, which prints them.
 
