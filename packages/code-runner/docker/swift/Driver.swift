@@ -153,7 +153,7 @@ func run(_ input: [String: Any]) -> String {
     }
 
     let compile = runProcess("/usr/bin/swiftc", [
-        "-Onone", "-module-name", "Solution", "-module-cache-path", "/opt/swift-module-cache",
+        "-Onone", "-swift-version", "6", "-module-name", "Solution", "-module-cache-path", "/opt/swift-module-cache",
         "-suppress-warnings", "-o", "/tmp/work/program",
     ] + files.map { "/tmp/work/\($0)" })
     if compile.status != 0 {

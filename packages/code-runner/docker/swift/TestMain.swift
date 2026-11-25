@@ -194,7 +194,7 @@ func pracstackMain() {
     func emit(_ json: String) {
         // print goes through the same buffered stdout as the learner's prints, so order is kept.
         print("\n" + nonce + json)
-        fflush(stdout)
+        fflush(nil)
     }
 
     if kind == "call" {

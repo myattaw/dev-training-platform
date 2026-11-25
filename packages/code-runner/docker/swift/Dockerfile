@@ -14,10 +14,10 @@ RUN swiftc -O -o /harness/driver Driver.swift && rm Driver.swift
 # compiles only the learner's code. Read-only at run time.
 COPY warmup ./warmup
 RUN mkdir -p /opt/swift-module-cache && cp TestMain.swift warmup/main.swift \
-    && swiftc -Onone -module-name Solution -module-cache-path /opt/swift-module-cache \
+    && swiftc -Onone -swift-version 6 -module-name Solution -module-cache-path /opt/swift-module-cache \
          -o /tmp/warm warmup/Solution.swift warmup/Support.swift warmup/main.swift \
     && printf 'import Foundation\nprint("ok")\n' > /tmp/main.swift \
-    && swiftc -Onone -module-cache-path /opt/swift-module-cache -o /tmp/warm2 /tmp/main.swift \
+    && swiftc -Onone -swift-version 6 -module-cache-path /opt/swift-module-cache -o /tmp/warm2 /tmp/main.swift \
     && rm -rf /tmp/warm /tmp/warm2 /tmp/main.swift warmup \
     && chmod -R a+rX /opt/swift-module-cache
 

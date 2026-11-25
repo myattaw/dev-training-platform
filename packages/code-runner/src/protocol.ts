@@ -87,5 +87,5 @@ export const RUNNER_IMAGES: Readonly<Record<RunnerLanguage, string>> = {
   java: 'pracstack-runner-java:2',
   csharp: 'pracstack-runner-csharp:1',
   python: 'pracstack-runner-python:1',
-  swift: 'pracstack-runner-swift:1',
+  swift: 'pracstack-runner-swift:2',
 };
