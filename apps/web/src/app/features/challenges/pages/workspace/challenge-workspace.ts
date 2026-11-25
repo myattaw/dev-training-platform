@@ -51,6 +51,8 @@ const SOURCE_FILES: Readonly<Record<LanguageId, string>> = {
   typescript: 'solution.ts',
   java: 'Solution.java',
   csharp: 'Solution.cs',
+  python: 'solution.py',
+  swift: 'Solution.swift',
 };
 
 /**

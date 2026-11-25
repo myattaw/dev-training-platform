@@ -115,6 +115,8 @@ const LANGUAGE_TERMS: Readonly<Record<LanguageId, string>> = {
   typescript: 'typescript',
   java: 'java',
   csharp: 'csharp',
+  python: 'python',
+  swift: 'swift',
 };
 
 /**

@@ -19,6 +19,13 @@ export interface DockerRunnerLimits {
   /** Output read from the container before it is killed. */
   readonly maxOutputBytes: number;
   readonly maxLogLines: number;
+  /** Size of the writable /tmp (tmpfs). */
+  readonly tmpfsMb: number;
+  /**
+   * Whether programs may be executed from /tmp. Only Swift needs it: it compiles
+   * the learner's code to a native binary there and runs it.
+   */
+  readonly tmpExec: boolean;
 }
 
 export const DEFAULT_LIMITS: Readonly<Record<RunnerLanguage, DockerRunnerLimits>> = {
@@ -29,14 +36,19 @@ export const DEFAULT_LIMITS: Readonly<Record<RunnerLanguage, DockerRunnerLimits>
     pidsLimit: 64,
     maxOutputBytes: 1_000_000,
     maxLogLines: 200,
+    tmpfsMb: 64,
+    tmpExec: false,
   },
+  // Spring Boot snippets start an application context: a few seconds and more heap.
   java: {
-    timeoutMs: 15_000,
-    memoryMb: 512,
+    timeoutMs: 20_000,
+    memoryMb: 768,
     cpus: 1,
     pidsLimit: 128,
     maxOutputBytes: 1_000_000,
     maxLogLines: 200,
+    tmpfsMb: 64,
+    tmpExec: false,
   },
   // .NET runtime start plus an in-memory Roslyn compile: about 1 s warm, several when busy.
   csharp: {
@@ -46,6 +58,30 @@ export const DEFAULT_LIMITS: Readonly<Record<RunnerLanguage, DockerRunnerLimits>
     pidsLimit: 128,
     maxOutputBytes: 1_000_000,
     maxLogLines: 200,
+    tmpfsMb: 64,
+    tmpExec: false,
+  },
+  // CPython with Django and Django REST Framework importable (no network, no pip).
+  python: {
+    timeoutMs: 10_000,
+    memoryMb: 256,
+    cpus: 1,
+    pidsLimit: 64,
+    maxOutputBytes: 1_000_000,
+    maxLogLines: 200,
+    tmpfsMb: 64,
+    tmpExec: false,
+  },
+  // swiftc compiles to a native binary in /tmp (about 1 s warm), then each test runs it.
+  swift: {
+    timeoutMs: 30_000,
+    memoryMb: 1024,
+    cpus: 1,
+    pidsLimit: 128,
+    maxOutputBytes: 1_000_000,
+    maxLogLines: 200,
+    tmpfsMb: 256,
+    tmpExec: true,
   },
 };
 
@@ -86,6 +122,8 @@ export class DockerCodeRunner implements CodeRunner {
       typescript: { ...DEFAULT_LIMITS.typescript, ...options.limits?.typescript },
       java: { ...DEFAULT_LIMITS.java, ...options.limits?.java },
       csharp: { ...DEFAULT_LIMITS.csharp, ...options.limits?.csharp },
+      python: { ...DEFAULT_LIMITS.python, ...options.limits?.python },
+      swift: { ...DEFAULT_LIMITS.swift, ...options.limits?.swift },
     };
     this.maxConcurrent = options.maxConcurrent ?? 2;
     this.maxQueue = options.maxQueue ?? 20;
@@ -155,7 +193,7 @@ export class DockerCodeRunner implements CodeRunner {
       String(limits.pidsLimit),
       '--read-only',
       '--tmpfs',
-      '/tmp:rw,nosuid,nodev,size=64m',
+      `/tmp:rw,nosuid,nodev,${limits.tmpExec ? 'exec' : 'noexec'},size=${limits.tmpfsMb}m`,
       '--cap-drop',
       'ALL',
       '--security-opt',
