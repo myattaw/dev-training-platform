@@ -1,4 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { Language, Parser } from 'web-tree-sitter';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -20,11 +21,11 @@ const parsers: Record<'csharp' | 'java', Parser> = {} as never;
 beforeAll(async () => {
   await Parser.init();
   for (const [language, file] of [
-    ['csharp', 'tree-sitter-c_sharp.wasm'],
-    ['java', 'tree-sitter-java.wasm'],
+    ['csharp', 'tree-sitter-c_sharp.wasm.gz'],
+    ['java', 'tree-sitter-java.wasm.gz'],
   ] as const) {
     const parser = new Parser();
-    parser.setLanguage(await Language.load(grammar(file)));
+    parser.setLanguage(await Language.load(gunzipSync(readFileSync(grammar(file)))));
     parsers[language] = parser;
   }
 });

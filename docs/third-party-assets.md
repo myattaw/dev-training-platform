@@ -39,16 +39,19 @@ The PracStack wordmark is drawn from Fira Code Bold glyph outlines (SIL Open Fon
 The challenge editor checks C# and Java syntax as you type, in the browser, with
 [Tree-sitter](https://tree-sitter.github.io/) (MIT): the `web-tree-sitter` 0.27.2 runtime (an npm
 dependency; its `web-tree-sitter.wasm` is copied to `/grammars/` by the Angular build) and two
-grammars compiled to WebAssembly, vendored in `apps/web/public/grammars/` with their licenses:
+grammars compiled to WebAssembly, vendored gzip-compressed in `apps/web/public/grammars/` (`.wasm.gz`, unpacked
+in the browser with `DecompressionStream`: CloudFront does not compress WebAssembly, and the C#
+grammar is 7 MB raw, 400 KB compressed) with their licenses. The SHA-256 is of the uncompressed file:
 
-| File                       | Package                            | SHA-256                                                            |
-| -------------------------- | ---------------------------------- | ------------------------------------------------------------------ |
-| `tree-sitter-c_sharp.wasm` | `tree-sitter-c-sharp` 0.24.0 (MIT) | `e137386fcdfc2562a058f8048c76ab77b0663a318cb62d8026cd4d2e94944231` |
-| `tree-sitter-java.wasm`    | `tree-sitter-java` 0.23.5 (MIT)    | `4fdeac4ca6ca089f06c6f7e562abcac1733cd465728cc7031ebb73c2019122c4` |
+| File                          | Package                            | SHA-256                                                            |
+| ----------------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `tree-sitter-c_sharp.wasm.gz` | `tree-sitter-c-sharp` 0.24.0 (MIT) | `e137386fcdfc2562a058f8048c76ab77b0663a318cb62d8026cd4d2e94944231` |
+| `tree-sitter-java.wasm.gz`    | `tree-sitter-java` 0.23.5 (MIT)    | `4fdeac4ca6ca089f06c6f7e562abcac1733cd465728cc7031ebb73c2019122c4` |
 
 The grammar packages are not installed as dependencies: they build native Node.js bindings on
 install, which the browser does not need. To update one, take the `.wasm` file from the package's
-npm tarball (`npm pack tree-sitter-c-sharp@<version>`) and update the row above.
+npm tarball (`npm pack tree-sitter-c-sharp@<version>`), compress it with `gzip -9 -n`, and update the
+row above.
 
 Besides syntax errors, it flags lowercase names declared nowhere in the file (`return ew;`; see
 `undefined-names.ts`, checked against all C# and Java content by `content/src/checks/editor-name-check.spec.ts`).

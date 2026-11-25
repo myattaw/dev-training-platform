@@ -92,6 +92,9 @@ test.describe('coding workspace', () => {
     );
     await expect(status).toHaveText('1 error, line 3', { timeout: 15_000 });
 
+    // The grammars are downloaded compressed (CloudFront does not compress WebAssembly).
+    expect(requests).toContain('GET /grammars/tree-sitter-c_sharp.wasm.gz');
+
     // Checked in the browser: no code went to the API.
     expect(requests.filter((r) => r.startsWith('POST /api/'))).toEqual([]);
   });

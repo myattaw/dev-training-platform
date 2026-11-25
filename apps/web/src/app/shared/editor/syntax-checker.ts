@@ -2,11 +2,15 @@ import { Injectable } from '@angular/core';
 import type { CompileDiagnostic } from './compile.models';
 import type { SyntaxLanguage, SyntaxRequest, SyntaxResponse } from './workers/syntax.models';
 
-/** Served from public/grammars (MIT-licensed Tree-sitter grammars; see docs/third-party-assets.md). */
+/**
+ * Served from public/grammars (MIT-licensed Tree-sitter grammars; see docs/third-party-assets.md).
+ * The grammars are stored gzip-compressed (`.gz`) and unpacked here: CloudFront does not
+ * compress WebAssembly, and the C# grammar is 7 MB raw, about 400 KB compressed.
+ */
 const FILES = {
   runtime: '/grammars/web-tree-sitter.wasm',
-  csharp: '/grammars/tree-sitter-c_sharp.wasm',
-  java: '/grammars/tree-sitter-java.wasm',
+  csharp: '/grammars/tree-sitter-c_sharp.wasm.gz',
+  java: '/grammars/tree-sitter-java.wasm.gz',
 } as const;
 
 export const hasSyntaxCheck = (language: string): language is SyntaxLanguage =>
@@ -89,8 +93,9 @@ export class SyntaxChecker {
     let file = this.downloads.get(path);
     if (!file) {
       file = fetch(path).then((res) => {
-        if (!res.ok) throw new Error(`${path}: ${res.status}`);
-        return res.arrayBuffer();
+        if (!res.ok || !res.body) throw new Error(`${path}: ${res.status}`);
+        if (!path.endsWith('.gz')) return res.arrayBuffer();
+        return new Response(res.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
       });
       file.catch(() => this.downloads.delete(path));
       this.downloads.set(path, file);
