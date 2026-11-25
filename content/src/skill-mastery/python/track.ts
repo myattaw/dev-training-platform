@@ -1,4 +1,12 @@
 import type { TrackSource } from '@pracstack/content-model';
+import {
+  classesAdvanced,
+  conditionalsAdvanced,
+  modulesAdvanced,
+  mutabilityAdvanced,
+  stringsAdvanced,
+  testingAdvanced,
+} from './advanced';
 import { collectionsFamilies, mutabilityFamilies } from './collections';
 import { exceptionsFamilies, iteratorsFamilies } from './errors-iteration';
 import { comprehensionsFamilies, controlFlowFamilies, functionsFamilies } from './flow-functions';
@@ -50,7 +58,7 @@ export const pythonTrack: TrackSource = {
             'Fix bugs caused by `x or default` replacing valid falsy values',
             'Read `match` statements with sequence, mapping and class patterns',
           ],
-          questions: conditionalsFamilies,
+          questions: [...conditionalsFamilies, ...conditionalsAdvanced],
         },
       ],
     },
@@ -71,7 +79,7 @@ export const pythonTrack: TrackSource = {
             'Avoid `strip` and `split` pitfalls with `removesuffix` and explicit separators',
             'Explain why string methods return new strings',
           ],
-          questions: stringsFamilies,
+          questions: [...stringsFamilies, ...stringsAdvanced],
         },
       ],
     },
@@ -106,7 +114,7 @@ export const pythonTrack: TrackSource = {
             'Fix functions that unexpectedly mutate their arguments',
             'Explain the tuple-containing-a-list `+=` trap',
           ],
-          questions: mutabilityFamilies,
+          questions: [...mutabilityFamilies, ...mutabilityAdvanced],
         },
       ],
     },
@@ -190,7 +198,7 @@ export const pythonTrack: TrackSource = {
             'Fix missing `self` and missing `super().__init__` bugs',
             'Prefer composition where inheritance exposes too much',
           ],
-          questions: classesFamilies,
+          questions: [...classesFamilies, ...classesAdvanced],
         },
         {
           id: 'py-dataclasses-dunders',
@@ -267,7 +275,7 @@ export const pythonTrack: TrackSource = {
             'Explain why `from module import name` copies a binding',
             'Choose practices for environments, pinning and entry points',
           ],
-          questions: modulesFamilies,
+          questions: [...modulesFamilies, ...modulesAdvanced],
         },
       ],
     },
@@ -330,7 +338,7 @@ export const pythonTrack: TrackSource = {
             'Patch dependencies where they are looked up, using autospec',
             'Find the cause of a bug from its traceback',
           ],
-          questions: testingFamilies,
+          questions: [...testingFamilies, ...testingAdvanced],
         },
       ],
     },
