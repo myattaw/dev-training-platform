@@ -107,6 +107,8 @@ export class ChallengeWorkspace {
   private readonly submissions = inject(ChallengeSubmissions);
   protected readonly auth = inject(AuthService);
   private readonly editor = viewChild(CodeEditor);
+  /** Errors underlined in the editor (any language), counted above it. */
+  protected readonly editorErrors = computed(() => this.editor()?.errors() ?? []);
 
   protected readonly isNarrow = mediaQuery('(max-width: 899px)');
 

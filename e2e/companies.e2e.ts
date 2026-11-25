@@ -183,7 +183,9 @@ test.describe('account', () => {
     await expect(page.getByRole('button', { name: /buy|upgrade|subscribe|purchase/i })).toHaveCount(
       0,
     );
-    await expect(page.getByText(/Add another way to sign in and keep one account/)).toBeVisible();
+    // Local mode has no sign-in, so there is nothing to connect.
+    await expect(page.getByText('None: local mode has no sign-in.')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Connect / })).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Import into my account' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Imported' })).toContainText(

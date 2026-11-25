@@ -16,6 +16,7 @@ import {
 import type * as Monaco from 'monaco-editor';
 import type { CompileDiagnostic } from './compile.models';
 import { loadMonaco, MONACO_THEME, type MonacoApi } from './monaco-loader';
+import { hasSyntaxCheck, SyntaxChecker } from './syntax-checker';
 
 export type EditorLanguage = 'typescript' | 'java' | 'csharp' | 'sql';
 
@@ -33,6 +34,9 @@ export type CompileResult =
 const ERROR_CATEGORY = 1;
 /** Marker owner for diagnostics passed in (Monaco's TypeScript checker has its own). */
 const DIAGNOSTICS_OWNER = 'pracstack';
+/** Marker owner for the live syntax check (C#, Java). */
+const SYNTAX_OWNER = 'pracstack-syntax';
+const SYNTAX_CHECK_DELAY_MS = 300;
 
 /**
  * A Monaco-powered TypeScript editor.
@@ -96,8 +100,17 @@ export class CodeEditor {
    */
   readonly diagnostics = input<readonly CompileDiagnostic[]>([]);
 
+  /**
+   * Every error underlined in the current file, by line: TypeScript's (Monaco's
+   * checker, as you type), the C# and Java syntax check (as you type), and
+   * compile errors from the server (after a run).
+   */
+  readonly errors = signal<readonly CompileDiagnostic[]>([]);
+  private markersListener: Monaco.IDisposable | undefined;
+
   protected readonly ready = signal(false);
   protected readonly failed = signal(false);
+  private readonly syntax = inject(SyntaxChecker);
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
   private monaco: MonacoApi | undefined;
@@ -126,6 +139,25 @@ export class CodeEditor {
       if (this.ready()) untracked(() => this.showDiagnostics(diagnostics));
     });
 
+    // Check C# and Java syntax shortly after typing stops.
+    effect((onCleanup) => {
+      const code = this.code();
+      const language = this.language();
+      const fileName = this.fileName();
+      if (!this.ready()) return;
+      if (!hasSyntaxCheck(language)) {
+        untracked(() => this.showSyntaxErrors([]));
+        return;
+      }
+      const timer = setTimeout(() => {
+        void this.syntax.check(language, code).then((errors) => {
+          // Only if nothing changed meanwhile (a newer check is on its way otherwise).
+          if (this.code() === code && this.fileName() === fileName) this.showSyntaxErrors(errors);
+        });
+      }, SYNTAX_CHECK_DELAY_MS);
+      onCleanup(() => clearTimeout(timer));
+    });
+
     // Push external code changes (e.g. "Reset") into the editor.
     effect(() => {
       const code = this.code();
@@ -136,6 +168,7 @@ export class CodeEditor {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.editor?.getModel()?.dispose();
+      this.markersListener?.dispose();
       this.editor?.dispose();
     });
   }
@@ -224,8 +257,29 @@ export class CodeEditor {
       this.runRequested.emit(),
     );
 
+    this.markersListener = monaco.editor.onDidChangeMarkers((uris) => {
+      const current = this.editor?.getModel()?.uri.toString();
+      if (current && uris.some((u) => u.toString() === current)) this.refreshErrors();
+    });
+
     this.useModel(this.fileName());
     this.ready.set(true);
+  }
+
+  private refreshErrors(): void {
+    const monaco = this.monaco;
+    const model = this.editor?.getModel();
+    if (!monaco || !model) {
+      this.errors.set([]);
+      return;
+    }
+    this.errors.set(
+      monaco.editor
+        .getModelMarkers({ resource: model.uri })
+        .filter((m) => m.severity === monaco.MarkerSeverity.Error)
+        .sort((a, b) => a.startLineNumber - b.startLineNumber || a.startColumn - b.startColumn)
+        .map((m) => ({ line: m.startLineNumber, column: m.startColumn, message: m.message })),
+    );
   }
 
   private useModel(fileName: string): void {
@@ -244,6 +298,7 @@ export class CodeEditor {
     editor.setModel(model);
     // Keep only the active file in the TypeScript program, so challenges can't clash.
     previous?.dispose();
+    this.refreshErrors();
   }
 
   private showDiagnostics(diagnostics: readonly CompileDiagnostic[]): void {
@@ -266,6 +321,31 @@ export class CodeEditor {
       };
     });
     monaco.editor.setModelMarkers(model, DIAGNOSTICS_OWNER, markers);
+  }
+
+  private showSyntaxErrors(errors: readonly CompileDiagnostic[]): void {
+    const monaco = this.monaco;
+    const model = this.editor?.getModel();
+    if (!monaco || !model) return;
+    monaco.editor.setModelMarkers(
+      model,
+      SYNTAX_OWNER,
+      errors.map((d) => {
+        const line = Math.min(Math.max(1, d.line), model.getLineCount());
+        const column = Math.min(Math.max(1, d.column), model.getLineMaxColumn(line));
+        // At least one character wide, so the error is visible at the end of a line too.
+        const end = Math.min(column + 1, model.getLineMaxColumn(line));
+        return {
+          severity: monaco.MarkerSeverity.Error,
+          message: d.message,
+          source: 'syntax',
+          startLineNumber: line,
+          startColumn: end > column ? column : Math.max(1, column - 1),
+          endLineNumber: line,
+          endColumn: end > column ? end : column,
+        };
+      }),
+    );
   }
 
   /** Edited lines lose their markers: the reported error may be fixed there. */

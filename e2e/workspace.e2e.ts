@@ -31,11 +31,51 @@ test.describe('coding workspace', () => {
     await page.goto('/challenges/reverse-string/workspace');
     await waitForEditor(page);
     await replaceCode(page, 'export function reverse(input: string): string {\n  return 42;\n}\n');
+    // Monaco's TypeScript checker finds it as you type; the status above the editor counts it.
+    await expect(page.locator('.error-status')).toHaveText('1 error, line 2', { timeout: 15_000 });
     await page.keyboard.press('ControlOrMeta+Enter');
     await expect(
       page.getByText('TypeScript errors. Fix them before running the tests.'),
     ).toBeVisible();
     await expect(page.getByText(/Line 2, column \d+/)).toBeVisible();
+  });
+
+  test('C# and Java syntax errors are shown while typing, before anything runs', async ({
+    page,
+  }) => {
+    const requests: string[] = [];
+    page.on('request', (r) => requests.push(`${r.method()} ${new URL(r.url()).pathname}`));
+    await page.goto('/challenges/pangram/workspace');
+    await waitForEditor(page);
+    await page.getByRole('combobox', { name: 'Language' }).selectOption('csharp');
+    await expect(page.locator('.file-name')).toHaveText('Solution.cs');
+
+    const status = page.locator('.error-status');
+    const squiggles = page.locator('.monaco-editor .squiggly-error');
+    await replaceCode(
+      page,
+      'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        return e.;\n    }\n}\n',
+    );
+    await expect(status).toHaveText('1 error, line 5', { timeout: 15_000 });
+    await expect(squiggles.first()).toBeVisible();
+
+    await replaceCode(
+      page,
+      'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        return sentence.Length > 0;\n    }\n}\n',
+    );
+    await expect(status).toBeEmpty();
+    await expect(squiggles).toHaveCount(0);
+
+    await page.getByRole('combobox', { name: 'Language' }).selectOption('java');
+    await expect(page.locator('.file-name')).toHaveText('Solution.java');
+    await replaceCode(
+      page,
+      'class Solution {\n    static boolean isPangram(String s) {\n        return s.;\n    }\n}\n',
+    );
+    await expect(status).toHaveText('1 error, line 3', { timeout: 15_000 });
+
+    // Checked in the browser: no code went to the API.
+    expect(requests.filter((r) => r.startsWith('POST /api/'))).toEqual([]);
   });
 
   test('console output appears in the Console tab', async ({ page }) => {

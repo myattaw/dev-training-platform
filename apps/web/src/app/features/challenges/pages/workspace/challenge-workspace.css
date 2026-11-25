@@ -195,3 +195,14 @@
   margin-left: var(--space-3);
   font-size: var(--font-size-xs);
 }
+
+.error-status {
+  margin-left: var(--space-3);
+  color: var(--color-error);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.error-status:empty {
+  display: none;
+}

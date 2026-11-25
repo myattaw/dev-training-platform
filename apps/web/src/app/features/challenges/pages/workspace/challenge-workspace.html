@@ -207,6 +207,14 @@
       @if (!runsInBrowser()) {
         <span class="run-where text-secondary">Runs on the server</span>
       }
+      <!-- Always present, so screen readers announce changes. -->
+      <span class="error-status" role="status">
+        @let errors = editorErrors();
+        @if (errors.length > 0) {
+          {{ errors.length === 1 ? '1 error' : errors.length + ' errors' }}, line
+          {{ errors[0]!.line }}
+        }
+      </span>
       <span class="hint text-secondary"
         ><kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>Enter</kbd> to run</span
       >

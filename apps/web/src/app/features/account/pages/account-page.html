@@ -99,40 +99,45 @@
 <app-panel heading="Sign-in methods">
   @let ids = identities.state();
   @if (ids.status === 'ready') {
-    <ul class="identities">
-      @for (i of ids.value.identities; track i.provider) {
-        <li>{{ i.provider }}</li>
-      } @empty {
-        <li class="text-secondary">
-          {{
-            auth.status() === 'local' ? 'None: local mode has no sign-in.' : 'None recorded yet.'
-          }}
-        </li>
-      }
-    </ul>
+    @if (ids.value.identities.length === 0 && linkable().length === 0) {
+      <p class="text-secondary">
+        {{ auth.status() === 'local' ? 'None: local mode has no sign-in.' : 'None recorded yet.' }}
+      </p>
+    } @else {
+      <ul class="methods">
+        @for (i of ids.value.identities; track i.provider) {
+          <li>
+            <span class="method-name">{{ i.provider }}</span>
+            <span class="connected">Connected</span>
+          </li>
+        }
+        @for (provider of linkable(); track provider) {
+          <li>
+            <span class="method-name">{{ provider }}</span>
+            <button
+              type="button"
+              class="btn btn--sm"
+              [disabled]="linking()"
+              [attr.aria-label]="'Connect ' + provider + ' to this account'"
+              (click)="addSignInMethod(provider)"
+            >
+              Connect
+            </button>
+          </li>
+        }
+      </ul>
+    }
   }
   @if (linkMessage(); as m) {
     <app-alert [type]="m.ok ? 'success' : 'error'">{{ m.text }}</app-alert>
   }
   @if (linkable().length > 0) {
-    <div class="link-actions">
-      @for (provider of linkable(); track provider) {
-        <button
-          type="button"
-          class="btn"
-          [disabled]="linking()"
-          (click)="addSignInMethod(provider)"
-        >
-          Add {{ provider }} to this account
-        </button>
-      }
-    </div>
+    <p class="text-secondary small">
+      Connect another way to sign in and keep one account, with the same progress, whichever way you
+      sign in. You confirm by signing in with it. Accounts are never merged just because they share
+      an email address, and a sign-in method that already has its own progress is not connected.
+    </p>
   }
-  <p class="text-secondary small">
-    Add another way to sign in and keep one account, with the same progress, whichever way you sign
-    in. You confirm by signing in with the new method. Accounts are never merged just because they
-    share an email address, and a sign-in method that already has its own progress is not linked.
-  </p>
 </app-panel>
 
 <app-panel heading="Progress in this browser">

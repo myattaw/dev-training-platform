@@ -8,17 +8,17 @@ everywhere else. The glyphs come from [Simple Icons](https://simpleicons.org) 16
 the logos remain trademarks of their owners, and PracStack is not affiliated with or endorsed by
 them. Code: `apps/web/src/app/features/home/tech-logos.ts`.
 
-| Track | Shown as | Owner and terms |
-| --- | --- | --- |
-| TypeScript | Logo | Microsoft; [TypeScript branding](https://www.typescriptlang.org/branding) |
-| Angular | Logo | Google; [Angular press kit](https://angular.dev/press-kit). The Angular logo is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); attribution: "Angular logo by Google, CC BY 4.0" (shown on the Skill Mastery page) |
-| PostgreSQL | Logo | PostgreSQL Community Association; [trademark policy](https://www.postgresql.org/about/policies/trademarks/) |
-| ASP.NET Core | .NET logo | .NET Foundation; [dotnet/brand](https://github.com/dotnet/brand) (CC0 1.0) |
-| C# | Text "C#" | No logo with permissive terms is available |
-| SQL Server, Azure, Power Platform | Text | Microsoft does not permit third-party use of these logos without permission |
-| Oracle SQL | Text | Oracle does not permit third-party use of its logo |
-| AWS | Text | Amazon's trademark guidelines restrict use of the AWS logo |
-| Engineering practices, Coding Challenges | Text | Not products |
+| Track                                    | Shown as  | Owner and terms                                                                                                                                                                                                                              |
+| ---------------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript                               | Logo      | Microsoft; [TypeScript branding](https://www.typescriptlang.org/branding)                                                                                                                                                                    |
+| Angular                                  | Logo      | Google; [Angular press kit](https://angular.dev/press-kit). The Angular logo is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); attribution: "Angular logo by Google, CC BY 4.0" (shown on the Skill Mastery page) |
+| PostgreSQL                               | Logo      | PostgreSQL Community Association; [trademark policy](https://www.postgresql.org/about/policies/trademarks/)                                                                                                                                  |
+| ASP.NET Core                             | .NET logo | .NET Foundation; [dotnet/brand](https://github.com/dotnet/brand) (CC0 1.0)                                                                                                                                                                   |
+| C#                                       | Text "C#" | No logo with permissive terms is available                                                                                                                                                                                                   |
+| SQL Server, Azure, Power Platform        | Text      | Microsoft does not permit third-party use of these logos without permission                                                                                                                                                                  |
+| Oracle SQL                               | Text      | Oracle does not permit third-party use of its logo                                                                                                                                                                                           |
+| AWS                                      | Text      | Amazon's trademark guidelines restrict use of the AWS logo                                                                                                                                                                                   |
+| Engineering practices, Coding Challenges | Text      | Not products                                                                                                                                                                                                                                 |
 
 To add a logo: check the owner's brand guidelines first, then add the glyph to `tech-logos.ts`
 and a row here.
@@ -33,3 +33,24 @@ allow. Google's button icon is Cognito's own.
 ## Fonts
 
 The PracStack wordmark is drawn from Fira Code Bold glyph outlines (SIL Open Font License 1.1).
+
+## Live syntax check (C# and Java)
+
+The challenge editor checks C# and Java syntax as you type, in the browser, with
+[Tree-sitter](https://tree-sitter.github.io/) (MIT): the `web-tree-sitter` 0.27.2 runtime (an npm
+dependency; its `web-tree-sitter.wasm` is copied to `/grammars/` by the Angular build) and two
+grammars compiled to WebAssembly, vendored in `apps/web/public/grammars/` with their licenses:
+
+| File                       | Package                            | SHA-256                                                            |
+| -------------------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `tree-sitter-c_sharp.wasm` | `tree-sitter-c-sharp` 0.24.0 (MIT) | `e137386fcdfc2562a058f8048c76ab77b0663a318cb62d8026cd4d2e94944231` |
+| `tree-sitter-java.wasm`    | `tree-sitter-java` 0.23.5 (MIT)    | `4fdeac4ca6ca089f06c6f7e562abcac1733cd465728cc7031ebb73c2019122c4` |
+
+The grammar packages are not installed as dependencies: they build native Node.js bindings on
+install, which the browser does not need. To update one, take the `.wasm` file from the package's
+npm tarball (`npm pack tree-sitter-c-sharp@<version>`) and update the row above.
+
+Syntax only: names and types (`return e;` with no `e`) are checked by the real compiler when the
+code runs on the server, and those errors are underlined too. The parser runs in a Web Worker
+(`apps/web/src/app/shared/editor/workers/syntax.worker.ts`) under the worker policy, which allows
+compiling WebAssembly and denies network access; the page fetches the files and passes them in.

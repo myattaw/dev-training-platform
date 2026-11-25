@@ -10,7 +10,7 @@
 | Protected routes                                     | `requireSignIn` guard (company pages, timed practice, account); the API also rejects unauthenticated calls (API Gateway JWT authorizer plus a re-check in the function)                                                                                                    |
 | Profile                                              | `GET`/`PATCH /api/me`: display name (sanitized, 1–60 characters)                                                                                                                                                                                                           |
 | Saved progress across devices                        | Everything is stored per user in DynamoDB                                                                                                                                                                                                                                  |
-| Local mode                                           | `npm start`: the unauthenticated "Local developer" user, loopback only, clearly labeled                                                                                                                                                                                   |
+| Local mode                                           | `npm start`: the unauthenticated "Local developer" user, loopback only, clearly labeled                                                                                                                                                                                    |
 
 Open redirects are prevented: return paths must start with a single `/` (`safeReturnPath`), and
 the OAuth `state` is checked before a code is exchanged.
@@ -67,15 +67,15 @@ Cognito has it as the OIDC provider **GitHub**.
    or signs in a Cognito user `GitHub_<github user id>`. The app receives Cognito tokens as with
    any other sign-in.
 
-| Safeguard | How |
-| --- | --- |
-| No stored GitHub secret | Cognito sends the app's client secret to `/token` (as any OIDC client does); the bridge passes it to GitHub and keeps nothing |
-| Only verified email | The token's email is GitHub's **primary, verified** address; without one, sign-in is refused. Unverified addresses could otherwise sign someone into another person's account |
-| Stable identity | `sub` is GitHub's numeric user ID (logins can be renamed) |
-| No open redirect | `/authorize` and `/token` accept only Cognito's `/oauth2/idpresponse` as the redirect URI |
+| Safeguard                  | How                                                                                                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No stored GitHub secret    | Cognito sends the app's client secret to `/token` (as any OIDC client does); the bridge passes it to GitHub and keeps nothing                                                            |
+| Only verified email        | The token's email is GitHub's **primary, verified** address; without one, sign-in is refused. Unverified addresses could otherwise sign someone into another person's account            |
+| Stable identity            | `sub` is GitHub's numeric user ID (logins can be renamed)                                                                                                                                |
+| No open redirect           | `/authorize` and `/token` accept only Cognito's `/oauth2/idpresponse` as the redirect URI                                                                                                |
 | Signed, short-lived tokens | RS256 with a key in an SSM SecureString that only this function can read (`ssm:GetParameter` on that parameter, `kms:Decrypt` only via SSM); 5-minute lifetime; audience = the client ID |
-| Isolation | Its own function, role and bundle: no table access, no content, no API code |
-| Invite-only staging | The sign-up allowlist trigger applies to GitHub users too |
+| Isolation                  | Its own function, role and bundle: no table access, no content, no API code                                                                                                              |
+| Invite-only staging        | The sign-up allowlist trigger applies to GitHub users too                                                                                                                                |
 
 Tests: `bridge.spec.ts` (discovery, open redirects, token signing and claims, unverified and
 non-primary emails, bad grants, userinfo), `infra/test/pracstack-stack.spec.ts` (provider,
@@ -84,7 +84,7 @@ function permissions, unauthenticated routes, cdk-nag), and the web sign-in and 
 ### Linking GitHub to an existing account
 
 A GitHub sign-in is its own Cognito user. To use it with an existing account, the Account page
-offers **Add GitHub to this account**: it creates a link token while signed in to the account,
+lists each sign-in method as **Connected**, or with **Connect** for a configured provider not linked yet. Connect: it creates a link token while signed in to the account,
 keeps it in this tab's `sessionStorage` (never in a URL), signs in with GitHub, and redeems the
 token (see "Stable user ids and account linking" above). Linked identities are listed by how they
 sign in (`identities` claim: "GitHub", "Google"; "Email and password" otherwise). A GitHub

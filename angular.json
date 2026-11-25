@@ -4,9 +4,7 @@
   "cli": {
     "packageManager": "npm",
     "analytics": false,
-    "schematicCollections": [
-      "angular-eslint"
-    ]
+    "schematicCollections": ["angular-eslint"]
   },
   "newProjectRoot": "apps",
   "projects": {
@@ -31,6 +29,11 @@
                 "glob": "**/*.json",
                 "input": "content/dist/public",
                 "output": "content"
+              },
+              {
+                "glob": "web-tree-sitter.wasm",
+                "input": "node_modules/web-tree-sitter",
+                "output": "grammars"
               }
             ],
             "styles": [
@@ -103,10 +106,7 @@
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": [
-              "apps/web/src/**/*.ts",
-              "apps/web/src/**/*.html"
-            ]
+            "lintFilePatterns": ["apps/web/src/**/*.ts", "apps/web/src/**/*.html"]
           }
         }
       }

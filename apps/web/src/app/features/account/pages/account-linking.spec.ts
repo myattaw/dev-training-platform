@@ -13,6 +13,8 @@ import { AccountPage } from './account-page';
 const DOMAIN = 'https://pracstack-test.auth.us-east-2.amazoncognito.com';
 const TOKEN = '0b6e1f4c-8c2a-4a57-9b0e-3d3a3f1e9c11';
 const text = (node: Element | null | undefined) => node?.textContent?.replace(/\s+/g, ' ').trim();
+/** A sign-in method row: its name and its status or action, e.g. `GitHub Connected`. */
+const row = (li: Element) => [...li.children].map((c) => text(c)).join(' ');
 const settle = () => new Promise((r) => setTimeout(r));
 
 function api(identities: string[]) {
@@ -63,18 +65,29 @@ async function render(fake: FakeApiClient) {
 afterEach(() => sessionStorage.clear());
 
 describe('AccountPage: adding a sign-in method', () => {
-  it('offers configured providers that are not linked yet', async () => {
+  it('lists connected methods, and offers configured providers that are not connected', async () => {
     const { el } = await render(api(['Email and password', 'Google']));
-    const buttons = [...el.querySelectorAll('.link-actions button')].map((b) => text(b));
-    expect(buttons).toEqual(['Add GitHub to this account']);
+    const rows = [...el.querySelectorAll('.methods li')].map(row);
+    expect(rows).toEqual(['Email and password Connected', 'Google Connected', 'GitHub Connect']);
+    const buttons = [...el.querySelectorAll('.methods button')].map((b) =>
+      b.getAttribute('aria-label'),
+    );
+    expect(buttons).toEqual(['Connect GitHub to this account']);
+  });
+
+  it('offers nothing to connect when every provider is connected', async () => {
+    const { el } = await render(api(['GitHub', 'Google']));
+    expect([...el.querySelectorAll('.methods li')].map(row)).toEqual([
+      'GitHub Connected',
+      'Google Connected',
+    ]);
+    expect(el.querySelectorAll('.methods button')).toHaveLength(0);
   });
 
   it('creates a link token, keeps it in this tab, and signs in with GitHub', async () => {
     const fake = api(['Email and password']);
     const { el, visited } = await render(fake);
-    [...el.querySelectorAll<HTMLButtonElement>('.link-actions button')]
-      .find((b) => text(b) === 'Add GitHub to this account')
-      ?.click();
+    el.querySelector<HTMLButtonElement>('[aria-label="Connect GitHub to this account"]')?.click();
     await settle();
     await settle();
     expect(fake.calls.some((c) => c.route === 'POST /me/identities/link-intents')).toBe(true);
