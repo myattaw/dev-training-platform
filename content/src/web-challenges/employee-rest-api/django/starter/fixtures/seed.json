@@ -1,0 +1,5 @@
+[
+  {"model": "employees.employee", "pk": 1, "fields": {"name": "Ada Lovelace", "email": "ada@example.com", "department": "Engineering"}},
+  {"model": "employees.employee", "pk": 2, "fields": {"name": "Grace Hopper", "email": "grace@example.com", "department": "Engineering"}},
+  {"model": "employees.employee", "pk": 3, "fields": {"name": "Linus Torvalds", "email": "linus@example.com", "department": "Support"}}
+]
