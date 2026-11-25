@@ -139,7 +139,17 @@ describe('program snippet checks (logic)', () => {
 
 describe.skipIf(skipDocker)('Java, Python and Swift Skill Mastery questions (real runners)', () => {
   it('compile, run and match their answer keys', { timeout: 3_600_000 }, async () => {
-    const runner = new DockerCodeRunner({ maxConcurrent: 4, maxQueue: 100_000 });
+    const runner = new DockerCodeRunner({
+      maxConcurrent: 4,
+      maxQueue: 100_000,
+      // Content checks verify answer keys, not learner time limits (tested in
+      // docker-runner.spec.ts): allow for container start-up when many specs run at once.
+      limits: {
+        java: { timeoutMs: 90_000 },
+        python: { timeoutMs: 60_000 },
+        swift: { timeoutMs: 120_000 },
+      },
+    });
     const status = await runner.check();
     if (!status.ok) {
       throw new Error(`${status.message} (set PRACSTACK_SKIP_DOCKER_TESTS=1 to skip)`);

@@ -124,7 +124,15 @@ export async function checkProgramSnippets(
 ): Promise<ValidationIssue[]> {
   const wanted = new Set(options.languages ?? PROGRAM_LANGUAGES);
   const snippets = collectProgramSnippets(tracks).filter((s) => wanted.has(s.language));
-  const results = await pooled(snippets, options.concurrency ?? 4, (s) => runProgram(runner, s));
+  // A runner timeout is retried once: under heavy load (several specs starting containers at
+  // once) even trivial programs can miss the deadline. A program that really hangs fails twice;
+  // wrong outputs and wrong answer keys are never retried.
+  const results = await pooled(snippets, options.concurrency ?? 4, async (s) => {
+    const first = await runProgram(runner, s);
+    return first.kind === 'failed' && /^timeout/.test(first.message)
+      ? runProgram(runner, s)
+      : first;
+  });
   const issues: ValidationIssue[] = [];
   const error = (path: string, message: string) =>
     issues.push({ severity: 'error', path, message });

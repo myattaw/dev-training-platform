@@ -15,6 +15,14 @@ export const SCHEMA_VOCABULARY: ReadonlySet<string> = new Set<string>([
   ...Object.keys(COMPETENCIES),
   ...Object.keys(OBSERVATION_WINDOW_LABELS),
   'timed-session',
+  // Reviewed values that are public on purpose but also appear as exact values in
+  // private files. Each entry needs a reason; never add real content here.
+  // Synthetic seed data shown in the public Employee Management scenario and in the
+  // web challenges' starter projects (their test data is private).
+  'ada@example.com',
+  // A Swift standard-library protocol named in the public Swift skill description;
+  // also the answer to one fill-in-blank question about that very protocol.
+  'CaseIterable',
 ]);
 
 /**

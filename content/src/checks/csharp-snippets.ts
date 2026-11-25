@@ -91,7 +91,16 @@ export async function checkCSharpSnippets(
   runner: CSharpProgramRunner,
 ): Promise<ValidationIssue[]> {
   const snippets = collectCSharpSnippets(tracks);
-  const results = await Promise.all(snippets.map((s) => runProgram(runner, s.source)));
+  // A runner timeout is retried once (heavy load can delay trivial programs); a program that
+  // really hangs fails twice, and wrong outputs or keys are never retried.
+  const results = await Promise.all(
+    snippets.map(async (s) => {
+      const first = await runProgram(runner, s.source);
+      return first.kind === 'failed' && /^timeout/.test(first.message)
+        ? runProgram(runner, s.source)
+        : first;
+    }),
+  );
   const issues: ValidationIssue[] = [];
   const error = (path: string, message: string) =>
     issues.push({ severity: 'error', path, message });

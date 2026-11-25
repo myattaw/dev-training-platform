@@ -74,7 +74,17 @@ console.log(
 const count = collectProgramSnippets(tracks).length;
 console.log(`Checking ${count} snippets in ${tracks.map((t) => t.id).join(', ')}…`);
 
-const runner = new DockerCodeRunner({ maxConcurrent: 4, maxQueue: 100_000 });
+const runner = new DockerCodeRunner({
+  maxConcurrent: 4,
+  maxQueue: 100_000,
+  // Content checks verify answer keys, not learner time limits (tested in
+  // docker-runner.spec.ts): allow for container start-up when many specs run at once.
+  limits: {
+    java: { timeoutMs: 90_000 },
+    python: { timeoutMs: 60_000 },
+    swift: { timeoutMs: 120_000 },
+  },
+});
 const status = await runner.check();
 if (!status.ok) {
   console.error(status.message);
