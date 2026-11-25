@@ -31,6 +31,8 @@ export type CompileResult =
   | { readonly ok: false; readonly diagnostics: readonly CompileDiagnostic[] };
 
 const ERROR_CATEGORY = 1;
+/** Marker owner for diagnostics passed in (Monaco's TypeScript checker has its own). */
+const DIAGNOSTICS_OWNER = 'pracstack';
 
 /**
  * A Monaco-powered TypeScript editor.
@@ -87,6 +89,12 @@ export class CodeEditor {
   readonly runRequested = output<void>();
   /** Read-only, e.g. when a timed session has ended. */
   readonly readOnly = input(false);
+  /**
+   * Errors to underline in the code, e.g. a server compiler's (C#, Java), which
+   * Monaco cannot check itself. A marker goes away when its line is edited, and
+   * all of them when new diagnostics arrive. (TypeScript is checked live by Monaco.)
+   */
+  readonly diagnostics = input<readonly CompileDiagnostic[]>([]);
 
   protected readonly ready = signal(false);
   protected readonly failed = signal(false);
@@ -109,6 +117,13 @@ export class CodeEditor {
     effect(() => {
       const readOnly = this.readOnly();
       if (this.ready()) this.editor?.updateOptions({ readOnly });
+    });
+
+    // Underline reported errors in the current file (after the model is in place).
+    effect(() => {
+      const diagnostics = this.diagnostics();
+      this.fileName();
+      if (this.ready()) untracked(() => this.showDiagnostics(diagnostics));
     });
 
     // Push external code changes (e.g. "Reset") into the editor.
@@ -200,9 +215,10 @@ export class CodeEditor {
       fixedOverflowWidgets: true,
       padding: { top: 8, bottom: 8 },
     });
-    this.editor.onDidChangeModelContent(() => {
+    this.editor.onDidChangeModelContent((event) => {
       const value = this.editor?.getValue() ?? '';
       if (value !== this.code()) this.code.set(value);
+      this.clearEditedDiagnostics(event.changes);
     });
     this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
       this.runRequested.emit(),
@@ -228,6 +244,51 @@ export class CodeEditor {
     editor.setModel(model);
     // Keep only the active file in the TypeScript program, so challenges can't clash.
     previous?.dispose();
+  }
+
+  private showDiagnostics(diagnostics: readonly CompileDiagnostic[]): void {
+    const monaco = this.monaco;
+    const model = this.editor?.getModel();
+    if (!monaco || !model) return;
+    const lines = model.getLineCount();
+    const markers = diagnostics.map((d): Monaco.editor.IMarkerData => {
+      const line = Math.min(Math.max(1, d.line), lines);
+      const column = Math.min(Math.max(1, d.column), model.getLineMaxColumn(line));
+      // Underline the word at the reported position (the whole line if there is none).
+      const word = model.getWordAtPosition({ lineNumber: line, column });
+      return {
+        severity: monaco.MarkerSeverity.Error,
+        message: d.message,
+        startLineNumber: line,
+        startColumn: word?.startColumn ?? column,
+        endLineNumber: line,
+        endColumn: word?.endColumn ?? model.getLineMaxColumn(line),
+      };
+    });
+    monaco.editor.setModelMarkers(model, DIAGNOSTICS_OWNER, markers);
+  }
+
+  /** Edited lines lose their markers: the reported error may be fixed there. */
+  private clearEditedDiagnostics(changes: readonly Monaco.editor.IModelContentChange[]): void {
+    const monaco = this.monaco;
+    const model = this.editor?.getModel();
+    if (!monaco || !model) return;
+    const current = monaco.editor.getModelMarkers({
+      owner: DIAGNOSTICS_OWNER,
+      resource: model.uri,
+    });
+    if (current.length === 0) return;
+    const edited = (m: Monaco.editor.IMarker) =>
+      changes.some((c) => {
+        const first = c.range.startLineNumber;
+        const last = first + c.text.split('\n').length - 1;
+        return (
+          m.startLineNumber >= first && m.startLineNumber <= Math.max(last, c.range.endLineNumber)
+        );
+      });
+    const kept = current.filter((m) => !edited(m));
+    if (kept.length !== current.length)
+      monaco.editor.setModelMarkers(model, DIAGNOSTICS_OWNER, kept);
   }
 }
 

@@ -157,7 +157,23 @@ describe('signInMethod', () => {
     expect(signInMethod(JSON.stringify([{ providerName: 'Google' }]))).toEqual({
       method: 'Google',
     });
-    for (const value of [undefined, [], 'not json', [{ providerName: '<script>' }], [{}]])
+    // API Gateway's JWT authorizer prints the claim in Go's format, not JSON.
+    expect(
+      signInMethod(
+        '[map[dateCreated:1732500000000 issuer:<nil> primary:true providerName:GitHub providerType:OIDC userId:39500954]]',
+      ),
+    ).toEqual({ method: 'GitHub' });
+    expect(signInMethod('[map[providerName:Google providerType:Google userId:1]]')).toEqual({
+      method: 'Google',
+    });
+    for (const value of [
+      undefined,
+      [],
+      'not json',
+      [{ providerName: '<script>' }],
+      [{}],
+      '[map[providerName:<script> userId:1]]',
+    ])
       expect(signInMethod(value), JSON.stringify(value)).toEqual({});
   });
 });

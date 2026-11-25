@@ -164,6 +164,35 @@ export class DynamoAccountStore implements AccountStore {
     }
   }
 
+  async setIdentityMethod(identity: IdentityRecord & { method: string }): Promise<boolean> {
+    const sk = `IDENTITY#${identity.provider}#${identity.subject}`;
+    // Both copies: the mapping, and the user's list entry. Only while the mapping is unchanged.
+    const update = (pk: string, skValue: string) => ({
+      Update: {
+        TableName: this.table,
+        Key: { pk, sk: skValue },
+        UpdateExpression: 'SET #d.#m = :method',
+        ConditionExpression: '#d.userId = :user',
+        ExpressionAttributeNames: { '#d': 'data', '#m': 'method' },
+        ExpressionAttributeValues: { ':method': identity.method, ':user': identity.userId },
+      },
+    });
+    try {
+      await this.db.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            update(`IDENTITY#${identity.provider}#${identity.subject}`, 'IDENTITY'),
+            update(user(identity.userId), sk),
+          ],
+        }),
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof TransactionCanceledException) return false;
+      throw err;
+    }
+  }
+
   async listIdentities(userId: string): Promise<readonly IdentityRecord[]> {
     const items = await this.query(user(userId), 'IDENTITY#');
     return items

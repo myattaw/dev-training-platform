@@ -65,6 +65,11 @@ main:focus {
 
 /* Full-bleed pages own the whole area below the header and manage their own scrolling. */
 main.full-bleed {
+  /* The containing block of absolutely positioned descendants (such as .sr-only
+     labels deep inside scrolling panes), so `overflow: hidden` clips them too.
+     Without it they belong to .shell, and a long test list made the whole page
+     taller than the window: scrolling showed an empty page below the workspace. */
+  position: relative;
   height: calc(100dvh - var(--header-height));
   padding: 0;
   overflow: hidden;

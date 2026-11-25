@@ -118,12 +118,20 @@ export function parseGroups(value: unknown): readonly string[] {
     .filter((g) => /^[\w.-]+$/.test(g));
 }
 
-/** The federated provider of a Cognito ID token (`identities` claim), when there is one. */
+/**
+ * The federated provider of a Cognito ID token (`identities` claim), when there
+ * is one. Tests and other adapters pass the claim as an array or JSON text; API
+ * Gateway's JWT authorizer passes it in Go's print format instead, like
+ * `[map[dateCreated:1732… providerName:GitHub providerType:OIDC userId:42]]`,
+ * which is not JSON, so the provider name is also read from that form.
+ */
 export function signInMethod(identities: unknown): { method?: string } {
   const list = typeof identities === 'string' ? safeJson(identities) : identities;
   const name = Array.isArray(list)
     ? (list[0] as { providerName?: unknown } | undefined)?.providerName
-    : undefined;
+    : typeof identities === 'string'
+      ? /\bproviderName:([A-Za-z0-9._-]{1,32})(?=[\s\]])/.exec(identities)?.[1]
+      : undefined;
   return typeof name === 'string' && /^[A-Za-z0-9 ._-]{1,32}$/.test(name) ? { method: name } : {};
 }
 

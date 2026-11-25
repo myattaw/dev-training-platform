@@ -217,6 +217,7 @@
       [fileName]="ch.id + '-' + language() + (interview() ? '-timed' : '')"
       [code]="code()"
       [readOnly]="locked()"
+      [diagnostics]="editorDiagnostics()"
       (codeChange)="updateCode($event)"
       (runRequested)="runTests()"
     />

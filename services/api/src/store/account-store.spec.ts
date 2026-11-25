@@ -75,6 +75,17 @@ function accountContract(name: string, create: () => Promise<AccountStore>): voi
       expect(await store.listIdentities('alice')).toHaveLength(1);
     });
 
+    it('labels an identity with its sign-in method, only for the user it maps to', async () => {
+      const id = { provider: 'pool', subject: '7', userId: 'u7', linkedAt: '2026-11-22T10:00:00Z' };
+      await store.putIdentityIfAbsent(id);
+      expect(await store.setIdentityMethod({ ...id, userId: 'other', method: 'GitHub' })).toBe(
+        false,
+      );
+      expect(await store.setIdentityMethod({ ...id, method: 'GitHub' })).toBe(true);
+      expect(await store.getIdentity('pool', '7')).toEqual({ ...id, method: 'GitHub' });
+      expect(await store.listIdentities('u7')).toEqual([{ ...id, method: 'GitHub' }]);
+    });
+
     it('consumes link intents once and not after expiry', async () => {
       await store.putLinkIntent({
         token: 't1',

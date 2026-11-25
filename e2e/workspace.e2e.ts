@@ -12,6 +12,11 @@ test.describe('coding workspace', () => {
     // The starter code throws, so every test fails.
     await page.getByRole('button', { name: 'Run tests' }).click();
     await expect(page.getByText('0 of 10 visible tests passed')).toBeVisible({ timeout: 20_000 });
+    // A long result list scrolls inside its pane; the page itself never grows (it used
+    // to, through the hidden screen-reader labels, leaving an empty page to scroll into).
+    expect(
+      await page.evaluate(() => document.scrollingElement!.scrollHeight - window.innerHeight),
+    ).toBeLessThanOrEqual(0);
 
     await replaceCode(page, PANGRAM_SOLUTION);
     await page.getByRole('button', { name: 'Run tests' }).click();

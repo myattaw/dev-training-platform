@@ -36,7 +36,7 @@ describe('SignInPage social providers', () => {
     expect(github?.disabled).toBe(false);
     expect(text(github)).not.toContain('Coming soon');
     github?.click();
-    await new Promise((r) => setTimeout(r));
+    await navigated(visited);
     const url = new URL(visited[0] ?? '');
     expect(url.origin).toBe(DOMAIN);
     expect(url.searchParams.get('identity_provider')).toBe('GitHub');
@@ -73,7 +73,7 @@ describe('SignInPage layout and modes', () => {
     const { el, visited } = await renderWith({ mode: 'signup', returnTo: '/skills' });
     expect(text(el.querySelector('h1'))).toBe('Create your PracStack account');
     el.querySelector<HTMLButtonElement>('.email-btn')?.click();
-    await new Promise((r) => setTimeout(r));
+    await navigated(visited);
     const url = new URL(visited[0] ?? '');
     expect(url.pathname).toBe('/signup');
     expect(url.searchParams.has('identity_provider')).toBe(false);
@@ -86,3 +86,8 @@ describe('SignInPage layout and modes', () => {
     expect(link?.getAttribute('href')).toBe('/account/sign-in?returnTo=%2Fskills&mode=signup');
   });
 });
+
+/** Sign-in hashes the PKCE verifier (async crypto) before it navigates: wait for that. */
+async function navigated(visited: readonly string[]): Promise<void> {
+  for (let i = 0; i < 100 && visited.length === 0; i++) await new Promise((r) => setTimeout(r, 10));
+}

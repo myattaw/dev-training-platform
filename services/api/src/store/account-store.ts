@@ -150,6 +150,11 @@ export interface AccountStore {
   putIdentityIfAbsent(identity: IdentityRecord): Promise<IdentityRecord>;
   /** Moves an identity to another user (account linking). */
   replaceIdentity(identity: IdentityRecord, previousUserId: string): Promise<boolean>;
+  /**
+   * Records the sign-in method label of an identity saved without one; the
+   * mapping itself (which user) is unchanged. False when it changed meanwhile.
+   */
+  setIdentityMethod(identity: IdentityRecord & { readonly method: string }): Promise<boolean>;
   listIdentities(userId: string): Promise<readonly IdentityRecord[]>;
   putLinkIntent(intent: LinkIntentRecord): Promise<void>;
   /** Marks an unused, unexpired intent used; returns it, or undefined if it cannot be used. */

@@ -104,6 +104,15 @@ export class InMemoryAccountStore implements AccountStore {
     return true;
   }
 
+  async setIdentityMethod(identity: IdentityRecord & { method: string }): Promise<boolean> {
+    const k = key(identity.provider, identity.subject);
+    const current = this.data.identities[k];
+    if (current?.userId !== identity.userId) return false;
+    this.data.identities[k] = { ...current, method: identity.method };
+    await this.persist();
+    return true;
+  }
+
   listIdentities(userId: string): Promise<readonly IdentityRecord[]> {
     return Promise.resolve(
       Object.values(this.data.identities)

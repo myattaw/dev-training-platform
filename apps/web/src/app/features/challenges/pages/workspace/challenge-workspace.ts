@@ -21,7 +21,11 @@ import { type TabItem, Tabs } from '../../../../shared/ui/tabs/tabs';
 import { ChallengeCatalogService } from '../../data-access/challenge-catalog.service';
 import { ChallengeProgressService } from '../../data-access/challenge-progress.service';
 import { describeTest } from '@pracstack/challenge-runtime';
-import type { ChallengeCodeRequest, SubmissionResponse } from '@pracstack/api-contracts';
+import type {
+  ChallengeCodeRequest,
+  CodeDiagnostic,
+  SubmissionResponse,
+} from '@pracstack/api-contracts';
 import type { Breadcrumb } from '../../../../shared/ui/breadcrumbs/breadcrumbs';
 import {
   BROWSER_LANGUAGES,
@@ -184,6 +188,16 @@ export class ChallengeWorkspace {
     computation: () => null,
   });
 
+  /**
+   * Compile errors from the server (C#, Java), underlined in the editor. Monaco
+   * checks TypeScript itself as you type; other languages are only compiled
+   * when they run, so their errors show after Run tests or Submit.
+   */
+  protected readonly editorDiagnostics = linkedSignal<string, readonly CodeDiagnostic[]>({
+    source: () => `${this.challenge()?.id ?? ''}:${this.language() ?? ''}`,
+    computation: () => [],
+  });
+
   protected readonly submitting = signal(false);
   protected readonly lastSubmission = linkedSignal<unknown, SubmissionResponse | null>({
     source: this.challenge,
@@ -291,6 +305,9 @@ export class ChallengeWorkspace {
         } catch (err) {
           outcome = { status: 'load-error', message: errorMessage(err), logs: [] };
         }
+        if (this.challenge() === challenge && this.language() === lang) {
+          this.editorDiagnostics.set(outcome.status === 'compile-error' ? outcome.diagnostics : []);
+        }
       }
 
       // Ignore stale results if the learner navigated away mid-run.
@@ -324,6 +341,12 @@ export class ChallengeWorkspace {
         ? await interview.submit(request)
         : await this.submissions.submit(challenge.id, request);
       if (this.challenge() === challenge) this.lastSubmission.set(response);
+      // TypeScript errors are already underlined live by Monaco.
+      if (this.challenge() === challenge && this.language() === lang && !this.runsInBrowser()) {
+        this.editorDiagnostics.set(
+          response.detail.status === 'compile-error' ? response.detail.diagnostics : [],
+        );
+      }
     } catch (err) {
       if (this.challenge() === challenge) this.submitError.set(errorMessage(err));
     } finally {

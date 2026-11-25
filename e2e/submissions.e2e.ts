@@ -86,4 +86,29 @@ test.describe('server-graded submissions', () => {
     await expect(panel).toContainText('some hidden tests fail');
     await expect(panel).not.toContainText('leading and trailing spaces');
   });
+
+  test('C# compile errors are underlined in the editor, until that line is edited', async ({
+    page,
+  }) => {
+    await page.goto('/challenges/pangram/workspace');
+    await waitForEditor(page);
+    await page.getByRole('combobox', { name: 'Language' }).selectOption('csharp');
+    await expect(page.locator('.file-name')).toHaveText('Solution.cs');
+    await replaceCode(
+      page,
+      'public static class Solution\n{\n    public static bool IsPangram(string sentence)\n    {\n        return e;\n    }\n}\n',
+    );
+    const squiggle = page.locator('.monaco-editor .squiggly-error');
+    await expect(squiggle).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'Run tests' }).click();
+    await expect(page.getByText(/Line 5, column \d+/)).toBeVisible({ timeout: 60_000 });
+    await expect(squiggle).toHaveCount(1);
+
+    // Editing the reported line removes its marker (the error may be fixed there).
+    await page.locator('.monaco-editor .view-line', { hasText: 'return e;' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' ');
+    await expect(squiggle).toHaveCount(0);
+  });
 });

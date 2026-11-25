@@ -57,6 +57,13 @@ export class IdentityService {
           ...(caller.method ? { method: caller.method } : {}),
         }));
       userId = record.userId;
+      if (existing && !existing.method && caller.method) {
+        // Saved before the method could be read (e.g. as "Email and password" for a
+        // GitHub sign-in): label it now. Only a label; a failure changes nothing.
+        await this.store
+          .setIdentityMethod({ ...existing, method: caller.method })
+          .catch(() => false);
+      }
       if (this.cache.size >= CACHE_LIMIT) this.cache.clear();
       this.cache.set(key, userId);
     }
