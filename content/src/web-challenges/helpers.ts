@@ -68,12 +68,12 @@ export function implementation(
   };
 }
 
-type Expect = {
+interface Expect {
   readonly status: number | readonly number[];
   readonly json?: readonly JsonAssertion[];
   readonly headers?: readonly HeaderAssertion[];
   readonly capture?: Readonly<Record<string, string>>;
-};
+}
 
 const step = (
   method: HttpTestStep['request']['method'],

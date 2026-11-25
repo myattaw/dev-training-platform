@@ -293,7 +293,13 @@ export function splitWebChallenge(source: WebChallengeSource): {
     hints: [...c.hints],
     visibleTests: c.visibleTests,
     hiddenTestCategories: [...categories].map(([category, count]) => ({ category, count })),
-    implementations: projects.map(({ files: _files, ...rest }) => rest),
+    implementations: projects.map((p) => ({
+      framework: p.framework,
+      status: p.status,
+      runtime: p.runtime,
+      database: p.database,
+      entryFile: p.entryFile,
+    })),
   };
   const available = source.implementations.filter((i) => i.status === 'available');
   return {

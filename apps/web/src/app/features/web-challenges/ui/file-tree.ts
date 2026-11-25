@@ -36,8 +36,12 @@ interface Row {
   imports: [Icon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <!-- Keys bubble up from the focused tree item (roving tabindex), as in the WAI-ARIA tree pattern. -->
+    <!-- eslint-disable-next-line @angular-eslint/template/interactive-supports-focus -->
     <ul role="tree" [attr.aria-label]="label()" (keydown)="onKeydown($event)">
       @for (row of rows(); track row.key) {
+        <!-- Focusable through [tabIndex]; Enter and Space are handled by the tree's keydown. -->
+        <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
         <li
           role="treeitem"
           [attr.aria-level]="row.depth + 1"

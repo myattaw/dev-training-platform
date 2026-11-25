@@ -466,8 +466,15 @@ export class WebChallengeService {
     await this.accessible(user, challengeId);
     const record = await this.deps.store.getWebDraft(user.id, challengeId, framework);
     if (!record) return { draft: null };
-    const { userId: _userId, ...draft } = record;
-    return { draft };
+    return {
+      draft: {
+        challengeId: record.challengeId,
+        framework: record.framework,
+        challengeVersion: record.challengeVersion,
+        files: record.files,
+        updatedAt: record.updatedAt,
+      },
+    };
   }
 
   async saveDraft(
@@ -809,8 +816,18 @@ function summaryOf(s: WebSubmissionRecord): WebSubmissionSummary {
 }
 
 function publicTimed(r: WebTimedSessionRecord): WebTimedSession {
-  const { userId: _userId, revision: _revision, ...session } = r;
-  return session;
+  return {
+    id: r.id,
+    challengeId: r.challengeId,
+    framework: r.framework,
+    durationMinutes: r.durationMinutes,
+    startedAt: r.startedAt,
+    deadline: r.deadline,
+    status: r.status,
+    submissions: r.submissions,
+    ...(r.finishedAt ? { finishedAt: r.finishedAt } : {}),
+    ...(r.best ? { best: r.best } : {}),
+  };
 }
 
 const score = (s: WebSubmissionSummary): number =>
