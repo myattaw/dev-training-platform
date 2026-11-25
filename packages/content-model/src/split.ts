@@ -95,6 +95,7 @@ export function splitTrack(track: TrackSource): SplitTrack {
         name: skill.name,
         description: skill.description,
         ...(skill.prerequisites?.length ? { prerequisites: [...skill.prerequisites] } : {}),
+        ...(skill.objectives?.length ? { objectives: [...skill.objectives] } : {}),
         questionCount: skill.questions.length,
       });
       questionsBySkill[skill.id] = skill.questions.map((q) => splitQuestion(q, skill.id));

@@ -193,6 +193,7 @@ describe('premium recommendations and entitlements', () => {
       content: companyContent(),
       store,
       accounts: store.accounts,
+      webStore: store.web,
       rateLimiter: new SlidingWindowRateLimiter(10, 1000),
       now: () => new Date(),
       random: Math.random,

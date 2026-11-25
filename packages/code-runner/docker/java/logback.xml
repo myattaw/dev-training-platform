@@ -1,0 +1,9 @@
+<!-- Runner logging: warnings and errors only, without timestamps, so program
+     output stays deterministic (Spring, Hibernate and Hibernate Validator log
+     at INFO on startup). -->
+<configuration>
+  <appender name="OUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder><pattern>%level %logger{0} - %msg%n</pattern></encoder>
+  </appender>
+  <root level="WARN"><appender-ref ref="OUT"/></root>
+</configuration>

@@ -15,8 +15,12 @@ import { type IsolationLimits, runIsolated } from './isolate';
 
 const COMMON = { maxOutputBytes: 1_000_000, maxOpenFiles: 256, maxFileBytes: 16 * 1024 * 1024 };
 
-/** Languages with a Lambda runner image (all of them). */
-export type LambdaRunnerLanguage = RunnerLanguage;
+/**
+ * Languages with a Lambda runner image. Python and Swift run only in local
+ * Docker so far (see docs/language-support.md); on AWS the API reports them as
+ * not available until a function is added and verified.
+ */
+export type LambdaRunnerLanguage = Exclude<RunnerLanguage, 'python' | 'swift'>;
 
 export const LIMITS: Readonly<Record<LambdaRunnerLanguage, IsolationLimits>> = {
   typescript: { ...COMMON, timeoutMs: 10_000, maxRssMb: 384, maxProcesses: 256 },

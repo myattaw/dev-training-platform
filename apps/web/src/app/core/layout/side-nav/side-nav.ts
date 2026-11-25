@@ -28,6 +28,12 @@ const GROUPS: readonly NavGroup[] = [
     items: [
       { label: 'Skill Mastery', link: '/skills', icon: 'target', exact: false },
       { label: 'Coding Challenges', link: '/challenges', icon: 'code', exact: false },
+      {
+        label: 'Web Development Challenges',
+        link: '/web-challenges',
+        icon: 'terminal',
+        exact: false,
+      },
       { label: 'Enterprise Scenarios', link: '/scenarios', icon: 'workflow', exact: false },
     ],
   },

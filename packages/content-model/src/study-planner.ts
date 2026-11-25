@@ -115,6 +115,8 @@ const LANGUAGE_TERMS: Readonly<Record<LanguageId, string>> = {
   typescript: 'typescript',
   java: 'java',
   csharp: 'csharp',
+  python: 'python',
+  swift: 'swift',
 };
 
 /**
@@ -280,7 +282,8 @@ export interface ActivityInfo {
   readonly minutes: number;
 }
 
-export type PlanItemKind = 'skill' | 'challenge' | 'scenario' | 'external' | 'review' | 'mock';
+export type PlanItemKind =
+  'skill' | 'challenge' | 'scenario' | 'web-challenge' | 'external' | 'review' | 'mock';
 
 export interface PlanItem {
   /** Activity key (`skill:…`, `challenge:…:csharp`), `external:<term>`, `review:<n>` or `mock:interview`. */
@@ -952,6 +955,10 @@ export interface ActivityLookup {
       }
     | undefined;
   readonly scenario: (id: string) => { readonly estimatedMinutes: number } | undefined;
+  /** Web challenges (optional, so lookups from before them still work). */
+  readonly webChallenge?: (
+    id: string,
+  ) => { readonly estimatedMinutes: number; readonly frameworks: readonly string[] } | undefined;
 }
 
 /**
@@ -978,6 +985,11 @@ export function describeActivity(
     case 'scenario': {
       const s = lookup.scenario(ref.scenarioId);
       return s ? { style: 'scenario', minutes: s.estimatedMinutes } : undefined;
+    }
+    case 'web-challenge': {
+      const w = lookup.webChallenge?.(ref.challengeId);
+      if (!w || (ref.framework && !w.frameworks.includes(ref.framework))) return undefined;
+      return { style: 'enterprise', minutes: w.estimatedMinutes };
     }
   }
 }

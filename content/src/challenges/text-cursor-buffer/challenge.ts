@@ -1,10 +1,11 @@
 import { type ChallengeSource, operationTests } from '@pracstack/content-model';
+import { operationsAdapter } from '../swift-adapter';
 import type { TextBuffer } from './reference';
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'text-cursor-buffer',
-    version: 1,
+    version: 2,
     title: 'Text Buffer with a Cursor',
     summary: 'Build the text buffer behind an editor: insert, backspace and move a cursor.',
     category: 'data-structures',
@@ -157,6 +158,97 @@ export const source: ChallengeSource = {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'TextBuffer',
+        starterCode: `class TextBuffer:
+    def __init__(self):
+        # TODO: set up your storage
+        pass
+
+    def insert(self, text: str) -> None:
+        """Inserts text at the cursor and moves the cursor to just after it."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def backspace(self, count: int) -> int:
+        """Deletes up to count characters before the cursor; returns how many were deleted."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def move(self, offset: int) -> int:
+        """Moves the cursor, stopping at either end of the text; returns the new cursor position."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def text_around(self, radius: int) -> str:
+        """Returns up to radius characters on each side of the cursor, with | marking it."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def get_text(self) -> str:
+        """Returns the whole text."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def get_cursor(self) -> int:
+        """Returns the cursor position (the number of characters before it)."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+`,
+      },
+      swift: {
+        entryPoint: 'TextBuffer',
+        starterCode: `final class TextBuffer {
+    init() {
+        // TODO: set up your storage
+    }
+
+    /// Inserts \`text\` at the cursor and moves the cursor to just after it.
+    func insert(_ text: String) {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Deletes up to \`count\` characters before the cursor; returns how many were deleted.
+    func backspace(_ count: Int) -> Int {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Moves the cursor, stopping at either end of the text; returns the new cursor position.
+    func move(_ offset: Int) -> Int {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Returns up to \`radius\` characters on each side of the cursor, with | marking it.
+    func textAround(_ radius: Int) -> String {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Returns the whole text.
+    func getText() -> String {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Returns the cursor position (the number of characters before it).
+    func getCursor() -> Int {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+}
+`,
+        supportCode: operationsAdapter('TextBuffer', 'TextBuffer()', {
+          insert: 'object.insert(try arg(args, 0)); return PracStackVoid()',
+          backspace: 'return object.backspace(try arg(args, 0))',
+          move: 'return object.move(try arg(args, 0))',
+          textAround: 'return object.textAround(try arg(args, 0))',
+          getText: 'return object.getText()',
+          getCursor: 'return object.getCursor()',
+        }),
       },
     },
     visibleTests: operationTests<typeof TextBuffer>([

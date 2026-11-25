@@ -1,11 +1,12 @@
 import { callTests, type ChallengeSource } from '@pracstack/content-model';
+import { callAdapter } from '../swift-adapter';
 
 type ApplyEdits = (commands: string[]) => string;
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'apply-edit-commands',
-    version: 1,
+    version: 2,
     title: 'Apply Edit Commands',
     summary: 'Replay a list of editor commands and return the final text.',
     category: 'parsing',
@@ -89,6 +90,24 @@ export function applyEdits(commands: string[]): string {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'applyEdits',
+        starterCode: `def apply_edits(commands: list[str]) -> str:
+    """Replays editor commands and returns the final text."""
+    # TODO: implement me
+    raise NotImplementedError("Remove this line and implement the function")
+`,
+      },
+      swift: {
+        entryPoint: 'applyEdits',
+        starterCode: `/// Replays editor commands and returns the final text.
+func applyEdits(_ commands: [String]) -> String {
+    // TODO: implement me
+    fatalError("Remove this line and implement the function")
+}
+`,
+        supportCode: callAdapter('applyEdits(try arg(args, 0))'),
       },
     },
     visibleTests: callTests<ApplyEdits>([

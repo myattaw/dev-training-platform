@@ -8,6 +8,20 @@ import { PreparationService } from './roles/preparation-service';
 import { ScenarioService } from './scenarios/scenario-service';
 import type { AccountStore } from './store/account-store';
 import type { ProgressStore } from './store/progress-store';
+import type { WebStore } from './store/web-store';
+import type { DockerWebRunner } from '@pracstack/web-runner';
+import {
+  parseWebHttpRequest,
+  type WebExecutionPolicy,
+  WebChallengeService,
+} from './web/web-challenge-service';
+import {
+  parseCreateWebRun,
+  parseCreateWebSession,
+  parseCreateWebTimedSession,
+  parseFramework,
+  parseSaveWebDraft,
+} from './web/web-validation';
 import type { Authenticator, Caller } from './auth';
 import { ApiError, type ApiRequest, type ApiResponse, notFound } from './http';
 import { ChallengeService } from './challenges/challenge-service';
@@ -58,6 +72,18 @@ export interface ApiDeps extends PracticeDeps {
   readonly codeRunner?: CodeRunner;
   /** Limit for code runs and submissions, each of which starts a container. */
   readonly codeRateLimiter?: RateLimiter;
+  /** Web Development Challenges: submissions, progress, drafts, quotas, timed sessions. */
+  readonly webStore: WebStore;
+  /**
+   * Builds and runs web-challenge applications. Without it the challenges are
+   * browse-only (catalog, instructions, editing, drafts).
+   */
+  readonly webRunner?: DockerWebRunner;
+  readonly webPolicy?: WebExecutionPolicy;
+  /** Limit for starting web-challenge builds (runs, submissions, sessions). */
+  readonly webRateLimiter?: RateLimiter;
+  /** Receives the web service, e.g. to stop applications on shutdown. */
+  readonly onWebService?: (service: WebChallengeService) => void;
   /** Must be set to use the unauthenticated local developer user. */
   readonly allowLocalDevUser?: boolean;
   /** Receives unexpected errors (never shown to the client). */
@@ -133,6 +159,18 @@ export function createApi(deps: ApiDeps): ApiHandler {
     now: deps.now,
     newId: deps.newId,
   });
+  const web = new WebChallengeService({
+    findChallenge: (id) => deps.content.findWebChallenge(id),
+    store: deps.webStore,
+    entitlements,
+    ...(deps.webRunner ? { runner: deps.webRunner } : {}),
+    ...(deps.webPolicy ? { policy: deps.webPolicy } : {}),
+    now: deps.now,
+    newId: deps.newId,
+    ...(deps.logError ? { logError: deps.logError } : {}),
+  });
+  deps.onWebService?.(web);
+  const webRateLimiter = deps.webRateLimiter ?? new SlidingWindowRateLimiter(6, 60_000);
   const limit = async (limiter: RateLimiter, key: string): Promise<void> => {
     const wait = await limiter.hit(key, deps.now().getTime());
     if (wait > 0) {
@@ -300,6 +338,70 @@ export function createApi(deps: ApiDeps): ApiHandler {
     return undefined;
   }
 
+  /** /api/web-challenges, /api/web-runs, /api/web-sessions, /api/web-timed-sessions, /api/me/web-* */
+  async function routeWeb(request: ApiRequest, user: Caller): Promise<ApiResponse | undefined> {
+    const { method, path } = request;
+    const challengeId = (value: string | undefined) => segment(value, 'challengeId');
+    if (method === 'GET' && path === '/api/web-challenges/progress')
+      return ok(await web.progress(user));
+    if (method === 'GET' && path === '/api/me/web-usage') return ok(await web.usage(user));
+    const detail = /^\/api\/web-challenges\/([^/]+)$/.exec(path);
+    if (method === 'GET' && detail) return ok(await web.detail(user, challengeId(detail[1])));
+    const project = /^\/api\/web-challenges\/([^/]+)\/frameworks\/([^/]+)\/project$/.exec(path);
+    if (method === 'GET' && project) {
+      return ok(
+        await web.project(
+          user,
+          challengeId(project[1]),
+          parseFramework(decodeURIComponent(project[2] ?? '')),
+        ),
+      );
+    }
+    const sub = /^\/api\/web-challenges\/([^/]+)\/(runs|submissions)$/.exec(path);
+    if (sub && method === 'GET' && sub[2] === 'submissions')
+      return ok(await web.history(user, challengeId(sub[1])));
+    if (sub && method === 'POST' && sub[2] === 'runs') {
+      const body = parseCreateWebRun(request.body);
+      await limit(webRateLimiter, user.id);
+      return ok(await web.createRun(user, challengeId(sub[1]), body));
+    }
+    const run = /^\/api\/web-runs\/([^/]+)$/.exec(path);
+    if (method === 'GET' && run)
+      return ok(web.getRun(user, parseUuid(decodeURIComponent(run[1] ?? ''), 'runId')));
+    if (method === 'POST' && path === '/api/web-sessions') {
+      const body = parseCreateWebSession(request.body);
+      await limit(webRateLimiter, user.id);
+      return ok(await web.createSession(user, body));
+    }
+    const session = /^\/api\/web-sessions\/([^/]+)(\/requests)?$/.exec(path);
+    if (session) {
+      const id = parseUuid(decodeURIComponent(session[1] ?? ''), 'sessionId');
+      if (method === 'GET' && !session[2]) return ok(web.getSession(user, id));
+      if (method === 'DELETE' && !session[2]) return ok(await web.stopSession(user, id));
+      if (method === 'POST' && session[2])
+        return ok(await web.sendRequest(user, id, parseWebHttpRequest(request.body)));
+    }
+    const draft = /^\/api\/me\/web-drafts\/([^/]+)\/([^/]+)$/.exec(path);
+    if (draft) {
+      const id = challengeId(draft[1]);
+      const framework = parseFramework(decodeURIComponent(draft[2] ?? ''));
+      if (method === 'GET') return ok(await web.getDraft(user, id, framework));
+      if (method === 'PUT')
+        return ok(await web.saveDraft(user, id, framework, parseSaveWebDraft(request.body)));
+      if (method === 'DELETE') return ok(await web.deleteDraft(user, id, framework));
+    }
+    if (method === 'POST' && path === '/api/web-timed-sessions') {
+      return ok(await web.createTimedSession(user, parseCreateWebTimedSession(request.body)));
+    }
+    const timed = /^\/api\/web-timed-sessions\/([^/]+)(\/finish)?$/.exec(path);
+    if (timed) {
+      const id = parseUuid(decodeURIComponent(timed[1] ?? ''), 'sessionId');
+      if (method === 'GET' && !timed[2]) return ok(await web.getTimedSession(user, id));
+      if (method === 'POST' && timed[2]) return ok(await web.finishTimedSession(user, id));
+    }
+    return undefined;
+  }
+
   return async (request) => {
     try {
       const raw = await deps.auth.authenticate(request);
@@ -310,6 +412,10 @@ export function createApi(deps: ApiDeps): ApiHandler {
 
       if (path === '/api/me' || path.startsWith('/api/me/')) {
         const response = await routeMe(request, raw, user);
+        if (response) return response;
+      }
+      if (path.startsWith('/api/web-') || path.startsWith('/api/me/web-')) {
+        const response = await routeWeb(request, user);
         if (response) return response;
       }
       if (path.startsWith('/api/companies')) {

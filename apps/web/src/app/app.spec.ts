@@ -30,6 +30,7 @@ describe('App shell', () => {
       'Dashboard',
       'Skill Mastery',
       'Coding Challenges',
+      'Web Development Challenges',
       'Enterprise Scenarios',
       'Company Interview Prep',
       'Job Role Preparation',
@@ -47,7 +48,12 @@ describe('App shell', () => {
       { heading: undefined, links: ['Dashboard'] },
       {
         heading: 'Practice',
-        links: ['Skill Mastery', 'Coding Challenges', 'Enterprise Scenarios'],
+        links: [
+          'Skill Mastery',
+          'Coding Challenges',
+          'Web Development Challenges',
+          'Enterprise Scenarios',
+        ],
       },
       {
         heading: 'Career Preparation',

@@ -37,6 +37,7 @@ const FEATURE_LABELS: Readonly<Record<string, string>> = {
   'advanced-preparation-plans': 'Deeper company preparation plans',
   'advanced-mock-interviews': 'Advanced mock interview sessions',
   'progress-analytics': 'Progress analytics',
+  'premium-web-challenges': 'Advanced Web Development Challenges and larger execution quotas',
 };
 
 /**

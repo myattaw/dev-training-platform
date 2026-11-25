@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { emptyAccountData } from './memory-account';
 import { emptyStoreData, InMemoryProgressStore, type StoreData } from './memory-store';
+import { emptyWebData } from './web-store';
 
 /**
  * Local development store: in memory, persisted to a JSON file after every
@@ -39,5 +40,6 @@ function load(file: string): StoreData {
     ...emptyStoreData(),
     ...data,
     account: { ...emptyAccountData(), ...data.account },
+    web: { ...emptyWebData(), ...data.web },
   } as StoreData;
 }

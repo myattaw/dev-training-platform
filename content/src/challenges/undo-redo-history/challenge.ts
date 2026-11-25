@@ -1,10 +1,11 @@
 import { type ChallengeSource, operationTests } from '@pracstack/content-model';
+import { operationsAdapter } from '../swift-adapter';
 import type { EditHistory } from './reference';
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'undo-redo-history',
-    version: 1,
+    version: 2,
     title: 'Undo and Redo History',
     summary: 'Record edits to a document so they can be undone and redone.',
     category: 'data-structures',
@@ -146,6 +147,85 @@ export const source: ChallengeSource = {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'EditHistory',
+        starterCode: `class EditHistory:
+    def __init__(self):
+        # TODO: set up your storage
+        pass
+
+    def type(self, text: str) -> None:
+        """Adds text to the end of the document."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def erase(self, count: int) -> None:
+        """Removes up to count characters from the end of the document."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def undo(self) -> bool:
+        """Reverts the most recent edit; returns False when there is nothing to undo."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def redo(self) -> bool:
+        """Re-applies the most recently undone edit; returns False when there is nothing to redo."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+
+    def get_text(self) -> str:
+        """Returns the document."""
+        # TODO: implement me
+        raise NotImplementedError("Remove this line and implement the method")
+`,
+      },
+      swift: {
+        entryPoint: 'EditHistory',
+        starterCode: `final class EditHistory {
+    init() {
+        // TODO: set up your storage
+    }
+
+    /// Adds \`text\` to the end of the document.
+    func type(_ text: String) {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Removes up to \`count\` characters from the end of the document.
+    func erase(_ count: Int) {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Reverts the most recent edit; returns false when there is nothing to undo.
+    func undo() -> Bool {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Re-applies the most recently undone edit; returns false when there is nothing to redo.
+    func redo() -> Bool {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+
+    /// Returns the document.
+    func getText() -> String {
+        // TODO: implement me
+        fatalError("Remove this line and implement the method")
+    }
+}
+`,
+        supportCode: operationsAdapter('EditHistory', 'EditHistory()', {
+          type: 'object.type(try arg(args, 0)); return PracStackVoid()',
+          erase: 'object.erase(try arg(args, 0)); return PracStackVoid()',
+          undo: 'return object.undo()',
+          redo: 'return object.redo()',
+          getText: 'return object.getText()',
+        }),
       },
     },
     visibleTests: operationTests<typeof EditHistory>([

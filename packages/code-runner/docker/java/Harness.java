@@ -42,7 +42,9 @@ public final class Harness {
   private static final PrintStream REAL_OUT = System.out;
   private static final Path WORK = Path.of("/tmp/work");
   private static final Path OUT = Path.of("/tmp/out");
-  private static final Pattern PUBLIC_CLASS = Pattern.compile("(?m)^\\s*public\\s+(?:final\\s+|abstract\\s+)*class\\s+(\\w+)");
+  private static final Pattern PUBLIC_CLASS = Pattern.compile("(?m)^\\s*public\\s+(?:final\\s+|abstract\\s+|sealed\\s+|non-sealed\\s+)*(?:class|record|interface|enum)\\s+(\\w+)");
+  /** Runs the code as a whole program (Skill Mastery snippet checks); see runProgram. */
+  private static final String PROGRAM_ENTRY_POINT = "$program";
 
   public static void main(String[] args) throws Exception {
     Map<String, Object> input = asMap(Json.parse(new String(System.in.readAllBytes(), StandardCharsets.UTF_8)));
@@ -90,6 +92,7 @@ public final class Harness {
     }
 
     List<Class<?>> classes = loadClasses();
+    if (PROGRAM_ENTRY_POINT.equals(entryPoint)) return runProgram(classes, tests.size(), logs);
     boolean operations = tests.stream().anyMatch(t -> "operations".equals(asMap(t).get("kind")));
     Map<String, Object> out = new LinkedHashMap<>();
     List<Object> outcomes = new ArrayList<>();
@@ -115,7 +118,10 @@ public final class Harness {
     JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
     DiagnosticCollector<JavaFileObject> collector = new DiagnosticCollector<>();
     try (StandardJavaFileManager files = compiler.getStandardFileManager(collector, Locale.ENGLISH, StandardCharsets.UTF_8)) {
-      List<String> options = List.of("-d", OUT.toString(), "-encoding", "UTF-8", "-proc:none", "-Xlint:none", "-nowarn");
+      // The harness's class path: the harness plus the pinned libraries in /opt/lib
+      // (Spring Boot, Jakarta Validation, Jackson, JUnit), so framework snippets compile.
+      List<String> options = List.of("-d", OUT.toString(), "-classpath", System.getProperty("java.class.path"),
+          "-encoding", "UTF-8", "-proc:none", "-Xlint:none", "-nowarn", "-parameters");
       compiler.getTask(null, files, collector, options, null, files.getJavaFileObjects(source.toFile())).call();
     }
     List<Object> errors = new ArrayList<>();
@@ -142,6 +148,55 @@ public final class Harness {
       }
     }
     return classes;
+  }
+
+  /**
+   * Calls the program's {@code public static void main(String[])} (a class named Main
+   * first), waits for the threads it started, and reports what it printed as logs.
+   * Every test gets the same outcome: undefined, or the exception main threw.
+   */
+  private static Map<String, Object> runProgram(List<Class<?>> classes, int testCount, LogCapture logs) {
+    Method main = null;
+    for (Class<?> c : classes) {
+      try {
+        Method m = c.getDeclaredMethod("main", String[].class);
+        if (Modifier.isStatic(m.getModifiers()) && (main == null || c.getSimpleName().equals("Main"))) main = m;
+      } catch (NoSuchMethodException ignored) {
+        // not a program class
+      }
+    }
+    Map<String, Object> outcome = new LinkedHashMap<>();
+    outcome.put("kind", "call");
+    if (main == null) {
+      outcome.put("error", "No main method: declare public static void main(String[] args).");
+    } else {
+      java.util.Set<Thread> before = Thread.getAllStackTraces().keySet();
+      try {
+        // Frameworks (Spring, Jackson, Hibernate) load classes through the context class loader.
+        Thread.currentThread().setContextClassLoader(main.getDeclaringClass().getClassLoader());
+        main.setAccessible(true);
+        main.invoke(null, (Object) new String[0]);
+        outcome.put("value", Encoded.UNDEFINED);
+      } catch (Throwable t) {
+        outcome.put("error", describe(unwrap(t)));
+      }
+      // Like the JVM, wait for non-daemon threads the program started.
+      for (Thread thread : Thread.getAllStackTraces().keySet()) {
+        if (before.contains(thread) || thread.isDaemon() || thread == Thread.currentThread()) continue;
+        try {
+          thread.join();
+        } catch (InterruptedException ignored) {
+          Thread.currentThread().interrupt();
+        }
+      }
+    }
+    List<Object> outcomes = new ArrayList<>();
+    for (int i = 0; i < testCount; i++) outcomes.add(outcome);
+    Map<String, Object> out = new LinkedHashMap<>();
+    out.put("kind", "completed");
+    out.put("outcomes", outcomes);
+    out.put("logs", logs.lines());
+    return out;
   }
 
   private static Method findStaticMethod(List<Class<?>> classes, String name) {

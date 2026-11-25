@@ -1,0 +1,285 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.error-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-5);
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-surface);
+}
+
+/* ----- Toolbar: every action stays visible; nothing needs page scrolling ----- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  min-height: 44px;
+  padding: var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.where,
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.back {
+  transform: rotate(180deg);
+}
+
+.title {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-md, 15px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select--sm {
+  height: 28px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.save {
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+}
+
+.timer.over {
+  color: var(--color-error);
+  border-color: var(--color-error);
+}
+
+.banner {
+  margin: var(--space-2) var(--space-4) 0;
+}
+
+.recovery-actions {
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.narrow-note {
+  display: none;
+  margin: var(--space-2) var(--space-4) 0;
+  font-size: var(--font-size-sm);
+}
+
+/* ----- Panes ----- */
+.body {
+  flex: 1;
+  min-height: 0;
+  padding-top: var(--space-1);
+}
+
+.body > app-split-pane,
+.main > app-split-pane {
+  height: 100%;
+}
+
+.side,
+.main,
+.editor-pane,
+.bottom {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.pane-tabs {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.side-panel,
+.bottom-panel {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-panel app-file-tree {
+  flex: 1;
+  min-height: 0;
+}
+
+.legend {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+}
+
+.instructions {
+  padding: var(--space-3);
+}
+
+.instructions details {
+  margin-top: var(--space-3);
+}
+
+/* ----- Editor tabs ----- */
+.tabs {
+  display: flex;
+  flex: none;
+  align-items: stretch;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--color-border);
+}
+
+.tab.active {
+  background: var(--color-surface);
+  box-shadow: inset 0 -2px 0 var(--color-primary);
+}
+
+.tab-button,
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tab-close {
+  padding: 0 4px;
+  color: var(--color-text-secondary);
+}
+
+.tab-close:hover {
+  color: var(--color-text);
+}
+
+.dot {
+  color: var(--color-warning);
+  font-size: 9px;
+}
+
+.tab-path {
+  align-self: center;
+  margin-left: auto;
+  padding: 0 var(--space-3);
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.editor {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ----- Output ----- */
+.output {
+  padding: var(--space-2) var(--space-3);
+}
+
+.logs {
+  margin: 0;
+  padding: var(--space-2);
+  min-height: 80px;
+  overflow: auto;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.output-message,
+.diag {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.small {
+  font-size: var(--font-size-xs);
+}
+
+/* ----- Small screens: stack the panes, keep every action reachable ----- */
+@media (max-width: 900px) {
+  .narrow-note {
+    display: block;
+  }
+
+  .workspace {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .body {
+    flex: none;
+  }
+
+  .body > app-split-pane,
+  .main > app-split-pane {
+    display: flex !important;
+    flex-direction: column;
+    height: auto;
+  }
+
+  .side {
+    height: 260px;
+  }
+
+  .editor-pane {
+    height: 60vh;
+  }
+
+  .bottom {
+    height: auto;
+    min-height: 320px;
+  }
+}

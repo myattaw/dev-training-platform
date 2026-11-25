@@ -78,7 +78,7 @@ describe('InvokedCodeRunner', () => {
 describe('parseCodeRunRequest', () => {
   it('accepts requests from the API and rejects anything else', () => {
     expect(parseCodeRunRequest(request)).toEqual(request);
-    expect(parseCodeRunRequest({ ...request, language: 'python' })).toBeUndefined();
+    expect(parseCodeRunRequest({ ...request, language: 'cobol' })).toBeUndefined();
     expect(parseCodeRunRequest({ ...request, code: 1 })).toBeUndefined();
     expect(parseCodeRunRequest('x')).toBeUndefined();
   });

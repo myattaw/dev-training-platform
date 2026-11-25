@@ -1,0 +1,5 @@
+[
+  {"model": "reports.expensereport", "pk": 1, "fields": {"owner": "alice", "title": "Client dinner", "amount_cents": 8450, "status": "submitted", "approved_by": null}},
+  {"model": "reports.expensereport", "pk": 2, "fields": {"owner": "bob", "title": "Train tickets", "amount_cents": 12900, "status": "submitted", "approved_by": null}},
+  {"model": "reports.expensereport", "pk": 3, "fields": {"owner": "alice", "title": "Conference pass", "amount_cents": 49900, "status": "approved", "approved_by": "admin"}}
+]

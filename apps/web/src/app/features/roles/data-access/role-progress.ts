@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import type { WebChallengeProgress } from '@pracstack/api-contracts';
 import type { ChallengeProgress, ScenarioProgress, SkillProgress } from '@pracstack/api-contracts';
 import type { ActivityRef } from '@pracstack/content-model';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -37,6 +38,8 @@ export interface ProgressData {
   readonly challenges: ReadonlyMap<string, ChallengeProgress>;
   /** Started scenarios only; absent while loading. */
   readonly scenarios?: ReadonlyMap<string, ScenarioProgress>;
+  /** Web challenge progress; absent while loading or signed out. */
+  readonly webChallenges?: ReadonlyMap<string, WebChallengeProgress>;
 }
 
 export function activityStatus(ref: ActivityRef, data: ProgressData | undefined): ActivityStatus {
@@ -58,6 +61,13 @@ export function activityStatus(ref: ActivityRef, data: ProgressData | undefined)
       const p = data.scenarios.get(ref.scenarioId);
       if (!p) return 'not-started';
       return p.completed ? 'completed' : 'in-progress';
+    }
+    case 'web-challenge': {
+      if (!data.webChallenges) return 'unknown';
+      const p = data.webChallenges.get(ref.challengeId);
+      if (!p) return 'not-solved';
+      const solved = ref.framework ? p.frameworksSolved.includes(ref.framework) : p.solved;
+      return solved ? 'solved' : p.attempts > 0 ? 'attempted' : 'not-solved';
     }
   }
 }
@@ -102,7 +112,7 @@ export function pathProgress(
         if (status === 'mastered') skills.mastered++;
         else if (status === 'practiced') skills.practiced++;
         else skills.notAssessed++;
-      } else if (ref.kind === 'challenge') {
+      } else if (ref.kind === 'challenge' || ref.kind === 'web-challenge') {
         challenges.total++;
         if (status === 'solved') challenges.solved++;
       } else {

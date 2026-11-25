@@ -10,6 +10,8 @@ import { ChallengeCatalogService } from '../../challenges/data-access/challenge-
 import { CompaniesApi } from '../../companies/data-access/companies-api';
 import { PrepStatus } from '../../companies/ui/prep-status';
 import { AccountApi } from '../data-access/account-api';
+import { WEB_FRAMEWORK_LABELS, type WebFramework } from '@pracstack/content-model';
+import { WebChallengesService } from '../../web-challenges/data-access/web-challenges.service';
 
 /** One overview of progress across Skill Mastery, challenges and company preparation. */
 @Component({
@@ -77,6 +79,31 @@ import { AccountApi } from '../data-access/account-api';
           }
         </app-panel>
 
+        <app-panel heading="Web Development Challenges" [counter]="s.value.web.length">
+          @if (s.value.web.length === 0) {
+            <p class="text-secondary">
+              None yet. Build and submit an application in a
+              <a routerLink="/web-challenges">web challenge</a>.
+            </p>
+          } @else {
+            <ul class="web">
+              @for (w of s.value.web; track w.challengeId) {
+                <li>
+                  <a [routerLink]="['/web-challenges', w.challengeId]">{{ w.title }}</a>
+                  <span class="text-secondary">
+                    @if (w.solvedIn.length > 0) {
+                      Solved in {{ w.solvedIn }}
+                    } @else {
+                      In progress ({{ w.attempts }}
+                      {{ w.attempts === 1 ? 'submission' : 'submissions' }})
+                    }
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+        </app-panel>
+
         <app-panel heading="Company preparation" [counter]="s.value.companies.length">
           @if (s.value.companies.length === 0) {
             <p class="text-secondary">
@@ -126,6 +153,12 @@ import { AccountApi } from '../data-access/account-api';
       margin: 0;
       padding-left: var(--space-5);
     }
+    .web li {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      margin-bottom: var(--space-1);
+    }
     .companies li {
       display: flex;
       flex-wrap: wrap;
@@ -139,6 +172,7 @@ export class ProgressPage {
   private readonly account = inject(AccountApi);
   private readonly companies = inject(CompaniesApi);
   private readonly catalog = inject(ChallengeCatalogService);
+  private readonly webChallenges = inject(WebChallengesService);
 
   protected readonly data = asyncResource(
     () => this.auth.canUseApi(),
@@ -155,7 +189,20 @@ export class ProgressPage {
           (await this.catalog.getSummary(c.challengeId))?.title ?? c.challengeId,
         );
       }
-      return { progress, companies: saved.companies, titles };
+      // Web challenge progress is optional: the page still works without it.
+      await this.webChallenges.loadProgress().catch(() => undefined);
+      const summaries = await this.webChallenges.summaries().catch(() => []);
+      const web = [...this.webChallenges.progress().values()]
+        .filter((w) => w.attempts > 0)
+        .map((w) => ({
+          challengeId: w.challengeId,
+          title: summaries.find((x) => x.id === w.challengeId)?.title ?? w.challengeId,
+          attempts: w.attempts,
+          solvedIn: w.frameworksSolved
+            .map((f) => WEB_FRAMEWORK_LABELS[f as WebFramework])
+            .join(', '),
+        }));
+      return { progress, companies: saved.companies, titles, web };
     },
   );
 

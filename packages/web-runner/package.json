@@ -1,0 +1,17 @@
+{
+  "name": "@pracstack/web-runner",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p .",
+    "build-images": "tsx scripts/build-images.ts"
+  },
+  "dependencies": {
+    "@pracstack/content-model": "*"
+  }
+}

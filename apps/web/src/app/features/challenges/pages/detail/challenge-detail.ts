@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config';
 import { RouterLink } from '@angular/router';
 import { NotFound } from '../../../../core/not-found/not-found';
 import { ComingSoonChallenge } from '../../ui/coming-soon-challenge';
@@ -37,6 +38,7 @@ import { DifficultyBadge } from '../../ui/difficulty-badge';
   styleUrl: './challenge-detail.css',
 })
 export class ChallengeDetail {
+  private readonly runtimeConfig = inject(RuntimeConfigService);
   /** Route param, bound by `withComponentInputBinding()`. */
   readonly id = input.required<string>();
 
@@ -75,7 +77,9 @@ export class ChallengeDetail {
         { label: challenge.title },
       ],
       category: CATEGORY_LABELS[challenge.category],
-      languages: supportedLanguages(challenge).map((id) => LANGUAGE_LABELS[id]),
+      languages: this.runtimeConfig
+        .runnable(supportedLanguages(challenge))
+        .map((id) => LANGUAGE_LABELS[id]),
       lastRunAgo: record.lastRun ? formatRelativeTime(record.lastRun.at) : '',
       server,
       status: server?.solved ? ('solved' as const) : record.status,

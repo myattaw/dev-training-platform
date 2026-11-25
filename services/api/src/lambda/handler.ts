@@ -13,6 +13,7 @@ import { VerifiedJwtAuthenticator } from '../auth';
 import { loadContentSource } from '../content/content-source';
 import { DynamoRateLimiter } from '../store/dynamo-rate-limit';
 import { DynamoAccountStore } from '../store/dynamo-account';
+import { DynamoWebStore } from '../store/dynamo-web';
 import { DynamoProgressStore } from '../store/dynamo-store';
 import { createLambdaHandler } from './adapter';
 import { GloballyLimitedCodeRunner, GloballyLimitedSqlEngine } from './global-limit';
@@ -69,6 +70,8 @@ const api = createApi({
   content: loadContentSource(fileURLToPath(new URL('./content', import.meta.url))),
   store: new DynamoProgressStore({ tableName }),
   accounts: new DynamoAccountStore({ tableName }),
+  // Web challenges are browse-only on AWS: no web runner is deployed (docs/execution-security.md).
+  webStore: new DynamoWebStore({ tableName }),
   rateLimiter: limiter('api', 120),
   sqlRateLimiter: limiter('sql', 30),
   codeRateLimiter: limiter('code', 10),

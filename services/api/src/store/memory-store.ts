@@ -10,6 +10,7 @@ import type {
 } from './progress-store';
 import type { AccountStore } from './account-store';
 import { type AccountData, emptyAccountData, InMemoryAccountStore } from './memory-account';
+import { emptyWebData, InMemoryWebStore, type WebData, type WebStore } from './web-store';
 
 /** Serializable snapshot of all store data. */
 export interface StoreData {
@@ -22,6 +23,8 @@ export interface StoreData {
   challengeProgress: Record<string, ChallengeProgressRecord>;
   /** Added after version 1 files existed; filled with empty data when missing. */
   account: AccountData;
+  /** Web Development Challenges; added later, filled with empty data when missing. */
+  web: WebData;
 }
 
 export const emptyStoreData = (): StoreData => ({
@@ -33,6 +36,7 @@ export const emptyStoreData = (): StoreData => ({
   submissions: {},
   challengeProgress: {},
   account: emptyAccountData(),
+  web: emptyWebData(),
 });
 
 const masteryKey = (userId: string, skillId: string): string => `${userId}#${skillId}`;
@@ -44,8 +48,14 @@ const masteryKey = (userId: string, skillId: string): string => `${userId}#${ski
 export class InMemoryProgressStore implements ProgressStore {
   /** Profiles, plans, company preparation, interview sessions and drafts. */
   readonly accounts: AccountStore;
+  /** Web Development Challenges: submissions, progress, drafts, quotas, timed sessions. */
+  readonly web: WebStore;
 
   constructor(protected data: StoreData = emptyStoreData()) {
+    this.web = new InMemoryWebStore(
+      () => this.data.web,
+      () => this.persist(),
+    );
     this.accounts = new InMemoryAccountStore(
       () => this.data.account,
       () => this.persist(),

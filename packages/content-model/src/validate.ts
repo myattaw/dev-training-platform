@@ -112,7 +112,12 @@ function validateChallenge(issues: Issues, source: ChallengeSource): void {
             new RegExp(
               `\\b(?:class|record)\\s+${e}\\b|\\bstatic\\s+[\\w<>\\[\\],?()\\s]+\\s${csharpName(e)}\\s*\\(`,
             )
-          : new RegExp(`export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${e}\\b`);
+          : lang === 'python'
+            ? new RegExp(`^(?:def|class)\\s+(?:${e}|${snakeCase(e)})\\b`, 'm')
+            : lang === 'swift'
+              ? // Swift is called through its adapter (support code), which declares PracStackEntry.
+                /\benum\s+PracStackEntry\b/
+              : new RegExp(`export\\s+(?:abstract\\s+)?(?:function|class|const)\\s+${e}\\b`);
     if (setup.supportCode !== undefined) {
       if ((BROWSER_LANGUAGES as readonly string[]).includes(lang)) {
         issues.error(
@@ -129,7 +134,11 @@ function validateChallenge(issues: Issues, source: ChallengeSource): void {
         `${path}/languages/${lang}`,
         lang === 'java' || lang === 'csharp'
           ? `starter code must declare a class or static method "${lang === 'csharp' ? csharpName(e) : e}"`
-          : `starter code must export "${e}"`,
+          : lang === 'python'
+            ? `starter code must define a function or class "${snakeCase(e)}"`
+            : lang === 'swift'
+              ? 'Swift needs an adapter in support code that declares enum PracStackEntry'
+              : `starter code must export "${e}"`,
       );
     }
   }
@@ -408,4 +417,9 @@ export function validateInstructionBlocks(
   const issues = new Issues();
   checkBlocks(issues, path, blocks, what);
   return issues.list;
+}
+
+/** Python's name for an entry point: `isPangram` → `is_pangram` (classes keep their name). */
+function snakeCase(name: string): string {
+  return /^[A-Z]/.test(name) ? name : name.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 }

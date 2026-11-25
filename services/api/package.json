@@ -23,7 +23,8 @@
     "@pracstack/content-model": "*",
     "@pracstack/scoring": "*",
     "@pracstack/sql-engine": "*",
-    "@pracstack/web-security": "*"
+    "@pracstack/web-security": "*",
+    "@pracstack/web-runner": "*"
   },
   "devDependencies": {
     "@pracstack/content": "*",

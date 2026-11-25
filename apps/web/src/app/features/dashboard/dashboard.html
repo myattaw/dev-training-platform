@@ -142,7 +142,24 @@
               </li>
             }
           </ul>
-        } @else {
+        }
+        @let web = webInProgress.state();
+        @if (web.status === 'ready' && web.value.length > 0) {
+          <h3 class="subheading">Web Development Challenges</h3>
+          <ul class="divided-list">
+            @for (w of web.value; track w.id) {
+              <li class="row">
+                <a [routerLink]="['/web-challenges', w.id, w.framework, 'workspace']">{{
+                  w.title
+                }}</a>
+                <span class="meta"
+                  ><span class="text-secondary">{{ w.frameworkLabel }} · not solved yet</span></span
+                >
+              </li>
+            }
+          </ul>
+        }
+        @if (continueRows().length === 0 && !(web.status === 'ready' && web.value.length > 0)) {
           <app-empty-state
             heading="Nothing in progress"
             message="Challenges you start will appear here."

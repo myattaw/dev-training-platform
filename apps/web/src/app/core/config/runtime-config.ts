@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { LANGUAGE_IDS, type LanguageId } from '@pracstack/content-model';
 
 /**
  * Deployment settings, read at startup from `/config.json` (not compiled into
@@ -25,6 +26,12 @@ export type SocialProvider = (typeof SOCIAL_PROVIDERS)[number];
 
 export interface RuntimeConfig {
   readonly auth: AuthConfig;
+  /**
+   * Coding-challenge languages this server can run (its runner functions). Absent
+   * (local mode): every language. Languages not listed are not offered, so learners
+   * never pick one whose submissions the server would refuse.
+   */
+  readonly codeLanguages?: readonly LanguageId[];
 }
 
 export const LOCAL_CONFIG: RuntimeConfig = { auth: { mode: 'local' } };
@@ -32,6 +39,16 @@ export const LOCAL_CONFIG: RuntimeConfig = { auth: { mode: 'local' } };
 export function isRuntimeConfig(value: unknown): value is RuntimeConfig {
   const auth = (value as { auth?: Record<string, unknown> } | null)?.auth;
   if (!auth) return false;
+  const languages = (value as { codeLanguages?: unknown }).codeLanguages;
+  if (
+    languages !== undefined &&
+    !(
+      Array.isArray(languages) &&
+      languages.every((l) => (LANGUAGE_IDS as readonly unknown[]).includes(l))
+    )
+  ) {
+    return false;
+  }
   if (auth['mode'] === 'local') return true;
   return (
     auth['mode'] === 'cognito' &&
@@ -49,6 +66,12 @@ export function isRuntimeConfig(value: unknown): value is RuntimeConfig {
 export class RuntimeConfigService {
   private readonly state = signal<RuntimeConfig>(LOCAL_CONFIG);
   readonly config = this.state.asReadonly();
+
+  /** The languages of `offered` that this server can run, in the same order. */
+  runnable(offered: readonly LanguageId[]): LanguageId[] {
+    const allowed = this.state().codeLanguages;
+    return allowed ? offered.filter((l) => allowed.includes(l)) : [...offered];
+  }
 
   /** Loads `/config.json`. A missing or invalid file falls back to local mode. */
   async load(): Promise<void> {

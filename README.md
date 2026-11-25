@@ -1,9 +1,12 @@
 # PracStack
 
-A developer learning platform with two product areas:
+A developer learning platform:
 
-- **Coding Challenges**: complete programming problems in TypeScript or Java, solved in a Monaco
-  editor and graded on the server against hidden tests in isolated Docker containers.
+- **Coding Challenges**: complete programming problems in TypeScript, Python, Java, C# or Swift,
+  solved in a Monaco editor and graded on the server against hidden tests in isolated Docker containers.
+- **Web Development Challenges**: real application projects in ASP.NET Core, Spring Boot or Django
+  REST Framework, edited in a multi-file workspace, built and run in a sandbox, and graded with real
+  HTTP requests ([docs/web-development-challenges.md](docs/web-development-challenges.md)).
 - **Skill Mastery**: adaptive practice for individual concepts (TypeScript, PostgreSQL and Oracle
   SQL today; Angular later) with a 0–100 mastery score computed by the server. SQL answers run on
   real engines: PostgreSQL (PGlite) in an isolated process, Oracle on Oracle Database Free in a
@@ -16,7 +19,8 @@ Requires Node 22+.
 ```bash
 npm install
 npx playwright install chromium   # once, for end-to-end tests
-npm run runners:build             # once, needs Docker: builds the code-runner images
+npm run runners:build             # once, needs Docker: builds the code-runner images (TS, Java, C#, Python, Swift)
+npm run web-runners:build         # once, needs Docker: web-challenge images (ASP.NET Core, Spring Boot, Django, probe)
 npm run oracle:start              # needs Docker: local Oracle for the Oracle SQL track (≈ 1.3 GB once)
 
 npm start              # content build, then API (:3100) + web dev server (http://localhost:4200)
@@ -29,6 +33,8 @@ npm run format         # Prettier
 npm run build          # content build → web build → private-content leak check
 npm run e2e            # Playwright: production build served by the local API (port 4317)
 npm run verify         # everything above, in CI order
+npm run content:check-programs -- python   # run one track's Java/Python/Swift snippets in the real runners
+npm run content:check-web -- employee-rest-api   # build every starter, reference and mutant of a web challenge
 ```
 
 After editing content while `npm start` is running, run `npm run content:build` to regenerate it.
@@ -71,14 +77,14 @@ runs code); the browser only ever loads its generated **public** JSON.
 
 ## Current status (end of Phase 9)
 
-| Works today                                                                       | Not built yet                                          |
-| --------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| Coding Challenges in TypeScript and Java, graded on the server with hidden tests  | Deployment to AWS (awaiting approval)                  |
-| Isolated Docker runners: no network, resource limits, expected values kept outside | Angular track                                          |
-| Skill Mastery: TypeScript, PostgreSQL and Oracle SQL (70 questions), server-side scoring | My Progress, Profile pages                             |
-| SQL practice on real PostgreSQL (PGlite) in an isolated runner process            | WAF and custom domain (declined for now); CD           |
-| AWS stack in CDK: sign-in (Cognito), API on Lambda, DynamoDB, CloudFront + strict CSP — **written and tested, not deployed** | |
-| Runners on AWS: isolated Lambda container functions (no network, no credentials), attacked in tests — **not deployed** | |
+| Works today                                                                                                                  | Not built yet                                |
+| ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Coding Challenges in TypeScript and Java, graded on the server with hidden tests                                             | Deployment to AWS (awaiting approval)        |
+| Isolated Docker runners: no network, resource limits, expected values kept outside                                           | Angular track                                |
+| Skill Mastery: TypeScript, PostgreSQL and Oracle SQL (70 questions), server-side scoring                                     | My Progress, Profile pages                   |
+| SQL practice on real PostgreSQL (PGlite) in an isolated runner process                                                       | WAF and custom domain (declined for now); CD |
+| AWS stack in CDK: sign-in (Cognito), API on Lambda, DynamoDB, CloudFront + strict CSP — **written and tested, not deployed** |                                              |
+| Runners on AWS: isolated Lambda container functions (no network, no credentials), attacked in tests — **not deployed**       |                                              |
 
 **Security notes:** submitted code runs only in locked-down containers, and expected values never
 enter them (see [docs/runners.md](docs/runners.md), including its known limits). Learner SQL runs in a separate process with database-level restrictions,
@@ -127,6 +133,11 @@ and linked on first use; the production builder does not load CSS imported from 
 - [docs/company-data-licensing.md](docs/company-data-licensing.md): why only a demo sample of the company dataset is imported.
 - [docs/accounts-and-auth.md](docs/accounts-and-auth.md): sign-in, account linking, importing browser progress, the GitHub sign-in evaluation.
 - [docs/monetization.md](docs/monetization.md): FREE/PRO/ADMIN entitlements and what is needed before payments.
+- [docs/web-development-challenges.md](docs/web-development-challenges.md): web challenges, the content model, authoring, the API.
+- [docs/execution-security.md](docs/execution-security.md): threat model for running learner applications, controls, production blockers.
+- [docs/execution-costs.md](docs/execution-costs.md): cost assumptions for application execution on AWS (estimates).
+- [docs/language-support.md](docs/language-support.md): runtimes per language, snippet checks, adding a language.
+- [docs/milestone-multi-language.md](docs/milestone-multi-language.md): status of the multi-language and web challenges milestone.
 
 ## Roadmap
 

@@ -46,6 +46,14 @@ import { PLANNED_CHALLENGES } from './companies/planned';
 import { ROLES } from './roles/roles';
 import { TAXONOMY } from './roles/taxonomy';
 import { SCENARIOS } from './scenarios';
+import { WEB_CHALLENGES, type WebChallengeEntry } from './web-challenges';
+import {
+  splitWebChallenge,
+  validateWebChallenges,
+  webChallengeFile,
+  webChallengeGradingFile,
+  type WebChallengeSummary,
+} from '@pracstack/content-model';
 
 /** Relative path → JSON-serialisable value. */
 export type FileSet = ReadonlyMap<string, unknown>;
@@ -70,6 +78,7 @@ export interface BuildOptions {
   readonly roles?: readonly JobRole[];
   readonly taxonomy?: readonly TaxonomyTerm[];
   readonly scenarios?: readonly ScenarioSource[];
+  readonly webChallenges?: readonly WebChallengeEntry[];
 }
 
 /** Validates all content (including running code and SQL) and produces the output files. */
@@ -110,6 +119,12 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     scenarioIds: new Set(scenarios.map((s) => s.id)),
     challengeLanguages: new Map(
       sources.map((s) => [s.challenge.id, Object.keys(s.challenge.languages) as LanguageId[]]),
+    ),
+    webChallengeFrameworks: new Map(
+      (options.webChallenges ?? WEB_CHALLENGES).map((w) => [
+        w.source.challenge.id,
+        w.source.implementations.filter((i) => i.status === 'available').map((i) => i.framework),
+      ]),
     ),
   };
   issues.push(
@@ -164,6 +179,18 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     }
   }
 
+  // Web Development Challenges: summaries are public; details, starter projects,
+  // tests and references are private (the API serves details after access checks).
+  const webSources = (options.webChallenges ?? WEB_CHALLENGES).map((w) => w.source);
+  issues.push(...validateWebChallenges(webSources));
+  const webSummaries: WebChallengeSummary[] = [];
+  for (const source of webSources) {
+    const { challenge, summary, projects, grading } = splitWebChallenge(source);
+    webSummaries.push(summary);
+    privateFiles.set(webChallengeFile(challenge.id, challenge.version), { challenge, projects });
+    privateFiles.set(webChallengeGradingFile(challenge.id, challenge.version), grading);
+  }
+
   const contentVersion = hashFiles([...publicFiles, ...privateFiles]);
   publicFiles.set(MANIFEST_FILE, {
     schemaVersion: SCHEMA_VERSION,
@@ -173,8 +200,13 @@ export async function buildContent(options: BuildOptions = {}): Promise<ContentB
     plannedChallenges: PLANNED_CHALLENGES,
     preparation: { rolesFile: ROLES_FILE, taxonomyFile: TAXONOMY_FILE },
     scenariosFile: SCENARIOS_FILE,
+    webChallenges: webSummaries,
   } satisfies PublicManifest);
-  privateFiles.set(MANIFEST_FILE, { schemaVersion: SCHEMA_VERSION, contentVersion });
+  privateFiles.set(MANIFEST_FILE, {
+    schemaVersion: SCHEMA_VERSION,
+    contentVersion,
+    webChallenges: webSummaries.map((w) => ({ id: w.id, version: w.version })),
+  });
 
   return { issues, contentVersion, publicFiles, privateFiles };
 }

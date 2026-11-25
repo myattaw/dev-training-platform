@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { RuntimeConfigService } from '../../../../core/config/runtime-config';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Alert } from '../../../../shared/ui/alert/alert';
 import { Badge } from '../../../../shared/ui/badge/badge';
@@ -57,6 +58,7 @@ export class ChallengeCatalog {
   private readonly submissions = inject(ChallengeSubmissions);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly runtimeConfig = inject(RuntimeConfigService);
 
   protected readonly difficulties = DIFFICULTIES;
   protected readonly difficultyLabels = DIFFICULTY_LABELS;
@@ -100,7 +102,10 @@ export class ChallengeCatalog {
       .map((challenge) => ({
         challenge,
         categoryLabel: CATEGORY_LABELS[challenge.category],
-        languages: challenge.languages.map((id) => LANGUAGE_LABELS[id]).join(', '),
+        languages: this.runtimeConfig
+          .runnable(challenge.languages)
+          .map((id) => LANGUAGE_LABELS[id])
+          .join(', '),
         status: this.submissions.progress().get(challenge.id)?.solved
           ? ('solved' as const)
           : this.progress.record(challenge.id).status,

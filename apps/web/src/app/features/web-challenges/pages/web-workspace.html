@@ -1,0 +1,368 @@
+<p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+
+@if (loading()) {
+  <app-loading-state label="Loading the project…" />
+} @else if (loadError(); as e) {
+  <div class="error-page">
+    <app-alert type="error" heading="The project could not be loaded">{{ e }}</app-alert>
+    <a class="btn" routerLink="/web-challenges">Back to Web Development Challenges</a>
+  </div>
+} @else if (loaded(); as l) {
+  <div class="workspace">
+    <header class="toolbar">
+      <div class="where">
+        <a
+          class="btn btn--icon btn--sm"
+          [routerLink]="['/web-challenges', l.challenge.id]"
+          aria-label="Back to the challenge"
+        >
+          <app-icon name="chevron-right" class="back" />
+        </a>
+        <h1 class="title">{{ l.challenge.title }}</h1>
+        <app-difficulty-badge [difficulty]="l.challenge.difficulty" />
+        <label class="framework">
+          <span class="sr-only">Framework</span>
+          <select
+            class="select select--sm"
+            (change)="switchFramework($event)"
+            [disabled]="!!timedSession()"
+          >
+            @for (impl of l.challenge.implementations; track impl.framework) {
+              <option
+                [value]="impl.framework"
+                [selected]="impl.framework === framework()"
+                [disabled]="impl.status !== 'available'"
+              >
+                {{ labels[impl.framework]
+                }}{{ impl.status !== 'available' ? ' (coming soon)' : '' }}
+              </option>
+            }
+          </select>
+        </label>
+        <span class="save text-secondary" aria-live="polite">{{ saveLabel() }}</span>
+      </div>
+
+      <div class="actions">
+        @if (timedSession(); as t) {
+          <span class="timer" [class.over]="timedOver()" role="timer" aria-label="Time remaining">
+            <app-icon name="clock" />
+            {{
+              timedOver()
+                ? t.status === 'completed'
+                  ? 'Finished'
+                  : 'Time is up'
+                : remainingLabel()
+            }}
+          </span>
+          @if (!timedOver()) {
+            <button type="button" class="btn btn--sm" (click)="finishTimed()">
+              Finish session
+            </button>
+          }
+        }
+        @if (session(); as s) {
+          <app-status-indicator [type]="sessionStatus[s.state]"
+            >App: {{ sessionLabels[s.state] }}</app-status-indicator
+          >
+        }
+        <button type="button" class="btn btn--sm" (click)="askReset()" [disabled]="timedOver()">
+          <app-icon name="reset" /> Reset
+        </button>
+        @if (appReady() || appStarting()) {
+          <button type="button" class="btn btn--sm" (click)="stopApp()">Stop application</button>
+        }
+        <button
+          type="button"
+          class="btn btn--sm"
+          (click)="startApp()"
+          [disabled]="!l.executionAvailable || appStarting() || timedOver()"
+          [title]="
+            stale() ? 'Your code changed since the application started: restart to run it' : ''
+          "
+        >
+          <app-icon name="terminal" />
+          {{ appReady() || appStarting() ? 'Restart application' : 'Run application' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn--sm"
+          (click)="runTests('visible')"
+          [disabled]="!l.executionAvailable || running() || timedOver()"
+        >
+          <app-icon name="play" /> Run tests
+        </button>
+        <button
+          type="button"
+          class="btn btn--sm btn--primary"
+          (click)="runTests('submit')"
+          [disabled]="!l.executionAvailable || running() || timedOver()"
+        >
+          Submit
+        </button>
+      </div>
+    </header>
+
+    @if (!l.executionAvailable) {
+      <app-alert type="info" class="banner">
+        Running applications is not available on this server yet. You can read, edit and save your
+        project.
+      </app-alert>
+    }
+    @if (recovery(); as r) {
+      <app-alert
+        type="warning"
+        class="banner"
+        heading="A saved draft was written for an earlier version of this challenge"
+      >
+        The starter project changed since you saved it (version {{ r.version }}). Restore your draft
+        into the current project, or discard it.
+        <span alertAction class="recovery-actions">
+          <button type="button" class="btn btn--sm" (click)="restoreRecovery()">
+            Restore my draft
+          </button>
+          <button type="button" class="btn btn--sm btn--link" (click)="discardRecovery()">
+            Discard
+          </button>
+        </span>
+      </app-alert>
+    }
+    @if (timedSession(); as t) {
+      @if (timedOver()) {
+        <app-alert type="info" class="banner" heading="Timed session summary">
+          {{ labels[t.framework] }} · {{ t.durationMinutes }} minutes allowed ·
+          {{ timeUsed() }} used · {{ t.submissions }}
+          {{ t.submissions === 1 ? 'submission' : 'submissions' }} accepted before the deadline.
+          @if (t.best; as b) {
+            Best verified result: {{ verdictLabel(b.verdict) }} ({{
+              b.visiblePassed + b.hiddenPassed
+            }}/{{ b.visibleTotal + b.hiddenTotal }} tests).
+          } @else {
+            No submission was graded.
+          }
+          Follow-up practice: the skills listed on the challenge page.
+        </app-alert>
+      }
+    }
+    @if (stale()) {
+      <app-alert type="warning" class="banner">
+        You changed the code since the application started. Restart the application to run your
+        latest code.
+      </app-alert>
+    }
+    <p class="narrow-note text-secondary">
+      The workspace is easiest to use on a larger screen. Panels stack on small screens.
+    </p>
+
+    <div class="body">
+      <app-split-pane
+        orientation="horizontal"
+        [initialSize]="24"
+        [min]="14"
+        [max]="45"
+        storageKey="layout:web-workspace"
+        label="Resize the sidebar"
+      >
+        <section paneStart class="side" aria-label="Project and instructions">
+          <app-tabs
+            idPrefix="side"
+            label="Sidebar"
+            [tabs]="sideTabs"
+            [selected]="sideTab()"
+            (selectedChange)="sideTab.set($any($event))"
+            class="pane-tabs"
+          />
+          @if (sideTab() === 'files') {
+            <div
+              role="tabpanel"
+              id="side-panel-files"
+              aria-labelledby="side-tab-files"
+              class="side-panel"
+            >
+              <app-file-tree
+                [files]="l.project.files"
+                [active]="active()"
+                [modified]="modified()"
+                (open)="openFile($event)"
+              />
+              <p class="legend text-secondary">
+                <app-icon name="lock" /> read-only template · ● edited · {{ l.project.runtime }}
+              </p>
+            </div>
+          } @else {
+            <div
+              role="tabpanel"
+              id="side-panel-instructions"
+              aria-labelledby="side-tab-instructions"
+              class="side-panel instructions"
+            >
+              <app-instruction-blocks [blocks]="l.challenge.instructions" />
+              @if (l.challenge.hints.length > 0) {
+                <details>
+                  <summary>Hints ({{ l.challenge.hints.length }})</summary>
+                  <ol>
+                    @for (h of l.challenge.hints; track h) {
+                      <li>{{ h }}</li>
+                    }
+                  </ol>
+                </details>
+              }
+            </div>
+          }
+        </section>
+
+        <div paneEnd class="main">
+          <app-split-pane
+            orientation="vertical"
+            [initialSize]="62"
+            [min]="25"
+            [max]="85"
+            storageKey="layout:web-workspace-main"
+            label="Resize the editor"
+          >
+            <section paneStart class="editor-pane" aria-label="Editor">
+              <div class="tabs" role="tablist" aria-label="Open files">
+                @for (path of openTabs(); track path) {
+                  <div class="tab" [class.active]="path === active()">
+                    <button
+                      type="button"
+                      role="tab"
+                      class="tab-button"
+                      [attr.aria-selected]="path === active()"
+                      [title]="path"
+                      (click)="openFile(path)"
+                    >
+                      {{ fileName(path) }}
+                      @if (modified().has(path)) {
+                        <span class="dot" aria-label="edited">●</span>
+                      }
+                      @if (!isEditable(path)) {
+                        <app-icon name="lock" />
+                      }
+                    </button>
+                    @if (openTabs().length > 1) {
+                      <button
+                        type="button"
+                        class="tab-close"
+                        [attr.aria-label]="'Close ' + fileName(path)"
+                        (click)="closeTab(path, $event)"
+                      >
+                        <app-icon name="close" />
+                      </button>
+                    }
+                  </div>
+                }
+                <span class="tab-path text-secondary">{{ active() }}</span>
+              </div>
+              <app-project-editor
+                class="editor"
+                [namespace]="namespace()"
+                [files]="l.project.files"
+                [contents]="contents()"
+                [activePath]="active()"
+                [readOnly]="timedOver()"
+                [diagnostics]="diagnostics()"
+                [revealLine]="revealLine()"
+                (changed)="onChange($event)"
+                (runRequested)="runTests('visible')"
+              />
+            </section>
+
+            <section paneEnd class="bottom" aria-label="Tests, HTTP client and output">
+              <app-tabs
+                idPrefix="bottom"
+                label="Results"
+                [tabs]="bottomTabs()"
+                [selected]="bottomTab()"
+                (selectedChange)="bottomTab.set($any($event))"
+                class="pane-tabs"
+              />
+              @if (bottomTab() === 'tests') {
+                <div
+                  role="tabpanel"
+                  id="bottom-panel-tests"
+                  aria-labelledby="bottom-tab-tests"
+                  class="bottom-panel"
+                >
+                  @if (runError(); as e) {
+                    <app-alert type="error">{{ e }}</app-alert>
+                  }
+                  <app-run-results
+                    [run]="run()"
+                    [tests]="l.challenge.visibleTests"
+                    (openDiagnostic)="openDiagnostic($event)"
+                  />
+                </div>
+              } @else if (bottomTab() === 'http') {
+                <div
+                  role="tabpanel"
+                  id="bottom-panel-http"
+                  aria-labelledby="bottom-tab-http"
+                  class="bottom-panel"
+                >
+                  @if (sessionError(); as e) {
+                    <app-alert type="error">{{ e }}</app-alert>
+                  }
+                  <app-http-client
+                    [endpoints]="l.challenge.endpoints"
+                    [ready]="appReady()"
+                    [busy]="httpBusy()"
+                    [response]="httpResponse()"
+                    [notReadyMessage]="
+                      session()?.message ??
+                      (appStarting()
+                        ? 'The application is starting…'
+                        : 'Start the application with Run application to send requests.')
+                    "
+                    (send)="sendRequest($event)"
+                  />
+                </div>
+              } @else {
+                <div
+                  role="tabpanel"
+                  id="bottom-panel-output"
+                  aria-labelledby="bottom-tab-output"
+                  class="bottom-panel output"
+                >
+                  @if (session(); as s) {
+                    @if (s.message) {
+                      <p class="output-message">{{ s.message }}</p>
+                    }
+                    @for (d of s.diagnostics; track $index) {
+                      <p class="diag">
+                        @if (d.file) {
+                          <button type="button" class="btn btn--link" (click)="openDiagnostic(d)">
+                            {{ d.file }}:{{ d.line }}
+                          </button>
+                        }
+                        {{ d.message }}
+                      </p>
+                    }
+                    <pre class="logs">{{ s.logs.join('\n') || 'No output yet.' }}</pre>
+                    <p class="text-secondary small">
+                      Requests used: {{ s.requestsUsed }}/{{ s.requestLimit }} · stops automatically
+                      when idle.
+                    </p>
+                  } @else if (run()?.result?.logs?.length) {
+                    <pre class="logs">{{ run()?.result?.logs?.join('\n') }}</pre>
+                  } @else {
+                    <p class="text-secondary">
+                      Application output appears here after Run application or Run tests.
+                    </p>
+                  }
+                </div>
+              }
+            </section>
+          </app-split-pane>
+        </div>
+      </app-split-pane>
+    </div>
+  </div>
+
+  <app-confirm-dialog
+    #resetDialog
+    heading="Reset the project?"
+    message="Your changes to the editable files are replaced with the starter code. This cannot be undone."
+    confirmLabel="Reset"
+    (confirmed)="reset()"
+  />
+}

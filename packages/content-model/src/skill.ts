@@ -70,6 +70,11 @@ export interface Skill {
    * locked.
    */
   readonly prerequisites?: readonly string[];
+  /**
+   * What a learner can do after mastering the skill (short, action-oriented
+   * sentences). Shown on the skill page.
+   */
+  readonly objectives?: readonly string[];
 }
 
 /**
@@ -80,8 +85,12 @@ export type QuestionDifficulty = 1 | 2 | 3 | 4 | 5;
 
 export const QUESTION_DIFFICULTIES: readonly QuestionDifficulty[] = [1, 2, 3, 4, 5];
 
-/** Display language of a code snippet. Only typescript and csharp snippets are compiled by content checks. */
-export type CodeLanguage = 'typescript' | 'sql' | 'html' | 'csharp' | 'yaml' | 'json' | 'text';
+/**
+ * Display language of a code snippet. TypeScript, C#, Java, Python and Swift
+ * snippets are compiled (and run, where they are programs) by content checks.
+ */
+export type CodeLanguage =
+  'typescript' | 'sql' | 'html' | 'csharp' | 'java' | 'python' | 'swift' | 'yaml' | 'json' | 'text';
 
 export interface CodeSnippet {
   readonly language: CodeLanguage;
@@ -263,11 +272,35 @@ export interface PlsqlKeyCheck {
   readonly error: string;
 }
 
+/**
+ * Validation of a Java, Python or Swift multiple-choice answer key with the
+ * real runner (content/src/checks/program-snippets.ts). Never published.
+ * Without one, code shown with the question must compile and run without error
+ * (Java code without a `main` method must only compile).
+ * - `compiles`: options start with Yes / No; the key must match whether `code` compiles.
+ * - `options-compile`: every option is code; the correct options must be exactly
+ *   those that compile (after `prelude`).
+ * - `output`: the single correct option, without its backticks, must be exactly
+ *   what `code` prints ("which output?" questions).
+ * - `fails`: `code` must compile and then fail at run time with an error whose
+ *   text contains `error`, e.g. `KeyError` or `NullPointerException`.
+ */
+export type ProgramKeyCheck =
+  | { readonly kind: 'compiles' }
+  | {
+      readonly kind: 'options-compile';
+      readonly language: 'java' | 'python' | 'swift';
+      readonly prelude?: string;
+    }
+  | { readonly kind: 'output' }
+  | { readonly kind: 'fails'; readonly error: string };
+
 export type QuestionSource =
   | (Authored<MultipleChoiceQuestion, Extract<QuestionAnswer, { format: 'multiple-choice' }>> & {
       readonly typeCheck?: TypeScriptKeyCheck;
       readonly csharpCheck?: CSharpKeyCheck;
       readonly plsqlCheck?: PlsqlKeyCheck;
+      readonly codeCheck?: ProgramKeyCheck;
     })
   | Authored<PredictOutputQuestion, Extract<QuestionAnswer, { format: 'predict-output' }>>
   | Authored<FillInBlankQuestion, Extract<QuestionAnswer, { format: 'fill-in-blank' }>>

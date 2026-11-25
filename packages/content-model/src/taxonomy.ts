@@ -159,6 +159,11 @@ export const RESOURCE_HOSTS: readonly string[] = [
   'docs.python.org',
   'www.w3.org',
   'owasp.org',
+  'developer.apple.com',
+  'docs.spring.io',
+  'hibernate.org',
+  'docs.djangoproject.com',
+  'www.django-rest-framework.org',
 ];
 
 /** The host of an https URL, or '' when it is not one. */

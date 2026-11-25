@@ -22,6 +22,11 @@ import {
   type SplitQuestion,
   trackFile,
   type TrackCatalog,
+  type WebChallenge,
+  webChallengeFile,
+  type WebChallengeGrading,
+  webChallengeGradingFile,
+  type WebImplementation,
 } from '@pracstack/content-model';
 
 /**
@@ -51,6 +56,16 @@ export interface ContentSource {
   findScenario(id: string): ScenarioWithGrading | undefined;
   /** Scenario ids, in catalog order. */
   scenarioIds(): readonly string[];
+  /** A Web Development Challenge with its starter projects and private grading data. */
+  findWebChallenge(id: string): WebChallengeWithGrading | undefined;
+  /** Web challenge ids, in catalog order. */
+  webChallengeIds(): readonly string[];
+}
+
+export interface WebChallengeWithGrading {
+  readonly challenge: WebChallenge;
+  readonly projects: readonly WebImplementation[];
+  readonly grading: WebChallengeGrading;
 }
 
 export interface ScenarioWithGrading {
@@ -87,7 +102,9 @@ export function createContentSource(
   planned: readonly PlannedChallenge[] = [],
   preparation: PreparationContent = NO_PREPARATION,
   scenarios: readonly ScenarioWithGrading[] = [],
+  webChallenges: readonly WebChallengeWithGrading[] = [],
 ): ContentSource {
+  const webMap = new Map(webChallenges.map((w) => [w.challenge.id, w]));
   const scenarioMap = new Map(scenarios.map((s) => [s.scenario.id, s]));
   const roleMap = new Map(preparation.roles.map((r) => [r.id, r]));
   const termIds = new Set(preparation.termIds);
@@ -122,6 +139,8 @@ export function createContentSource(
     hasTerm: (id) => termIds.has(id),
     findScenario: (id) => scenarioMap.get(id),
     scenarioIds: () => scenarios.map((s) => s.scenario.id),
+    findWebChallenge: (id) => webMap.get(id),
+    webChallengeIds: () => webChallenges.map((w) => w.challenge.id),
   };
 }
 
@@ -182,6 +201,16 @@ export function loadContentSource(contentDist: string): ContentSource {
       grading: read<ScenarioGrading>('private', 'scenarios', `${s.id}@${s.version}.grading.json`),
     }));
   }
+  const webChallenges: WebChallengeWithGrading[] = (manifest.webChallenges ?? []).map((w) => {
+    const detail = read<{ challenge: WebChallenge; projects: WebImplementation[] }>(
+      'private',
+      webChallengeFile(w.id, w.version),
+    );
+    return {
+      ...detail,
+      grading: read<WebChallengeGrading>('private', webChallengeGradingFile(w.id, w.version)),
+    };
+  });
   return createContentSource(
     manifest.contentVersion,
     catalogs,
@@ -191,5 +220,6 @@ export function loadContentSource(contentDist: string): ContentSource {
     manifest.plannedChallenges ?? [],
     preparation,
     scenarios,
+    webChallenges,
   );
 }

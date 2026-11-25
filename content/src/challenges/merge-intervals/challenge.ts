@@ -1,11 +1,12 @@
 import { callTests, type ChallengeSource } from '@pracstack/content-model';
+import { callAdapter } from '../swift-adapter';
 
 type Interval = [start: number, end: number];
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'merge-intervals',
-    version: 1,
+    version: 2,
     title: 'Merge Intervals',
     summary: 'Merge overlapping ranges into the smallest set of non-overlapping ranges.',
     category: 'arrays',
@@ -68,6 +69,24 @@ export function merge(intervals: Interval[]): Interval[] {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'merge',
+        starterCode: `def merge(intervals: list[list[int]]) -> list[list[int]]:
+    """Each interval is a pair [start, end]. Returns the merged intervals, sorted by start."""
+    # TODO: implement me
+    raise NotImplementedError("Remove this line and implement the function")
+`,
+      },
+      swift: {
+        entryPoint: 'merge',
+        starterCode: `/// Each interval is a pair [start, end]. Returns the merged intervals, sorted by start.
+func merge(_ intervals: [[Int]]) -> [[Int]] {
+    // TODO: implement me
+    fatalError("Remove this line and implement the function")
+}
+`,
+        supportCode: callAdapter('merge(try arg(args, 0))'),
       },
     },
     visibleTests: callTests<(intervals: Interval[]) => Interval[]>([

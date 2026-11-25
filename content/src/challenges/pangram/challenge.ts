@@ -1,9 +1,10 @@
 import { callTests, type ChallengeSource } from '@pracstack/content-model';
+import { callAdapter } from '../swift-adapter';
 
 export const source: ChallengeSource = {
   challenge: {
     id: 'pangram',
-    version: 1,
+    version: 2,
     title: 'Pangram',
     summary: 'Check whether a sentence contains every letter of the alphabet.',
     category: 'strings',
@@ -74,6 +75,24 @@ export function isPangram(sentence: string): boolean {
     }
 }
 `,
+      },
+      python: {
+        entryPoint: 'isPangram',
+        starterCode: `def is_pangram(sentence: str) -> bool:
+    """Returns True if sentence contains every letter of the alphabet at least once."""
+    # TODO: implement me
+    raise NotImplementedError("Remove this line and implement the function")
+`,
+      },
+      swift: {
+        entryPoint: 'isPangram',
+        starterCode: `/// Returns true if \`sentence\` contains every letter of the alphabet at least once.
+func isPangram(_ sentence: String) -> Bool {
+    // TODO: implement me
+    fatalError("Remove this line and implement the function")
+}
+`,
+        supportCode: callAdapter('isPangram(try arg(args, 0))'),
       },
     },
     visibleTests: callTests<(sentence: string) => boolean>([

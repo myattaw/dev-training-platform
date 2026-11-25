@@ -25,17 +25,25 @@ export const CATEGORY_LABELS: Readonly<Record<ChallengeCategory, string>> = {
 
 /**
  * Languages a challenge can be solved in. TypeScript can also run in the
- * learner's browser; Java and C# run only in the server-side runner.
+ * learner's browser; the others run only in the server-side runner.
  */
-export type LanguageId = 'typescript' | 'java' | 'csharp';
+export type LanguageId = 'typescript' | 'java' | 'csharp' | 'python' | 'swift';
 
 /** Every language, in display order. */
-export const LANGUAGE_IDS: readonly LanguageId[] = ['typescript', 'java', 'csharp'];
+export const LANGUAGE_IDS: readonly LanguageId[] = [
+  'typescript',
+  'python',
+  'java',
+  'csharp',
+  'swift',
+];
 
 export const LANGUAGE_LABELS: Readonly<Record<LanguageId, string>> = {
   typescript: 'TypeScript',
+  python: 'Python',
   java: 'Java',
   csharp: 'C#',
+  swift: 'Swift',
 };
 
 /** Languages whose visible tests can run in the browser. */
@@ -46,6 +54,8 @@ export interface LanguageSetup {
   /**
    * What the solution must provide: for `call` tests an exported function
    * (TypeScript) or static method (Java); for `operations` tests a class.
+   * Python accepts the snake_case form (`isPangram` finds `is_pangram`), and
+   * Swift calls it through the adapter in `supportCode`.
    */
   readonly entryPoint: string;
   /**

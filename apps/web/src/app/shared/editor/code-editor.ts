@@ -18,12 +18,14 @@ import type { CompileDiagnostic } from './compile.models';
 import { loadMonaco, MONACO_THEME, type MonacoApi } from './monaco-loader';
 import { hasSyntaxCheck, SyntaxChecker } from './syntax-checker';
 
-export type EditorLanguage = 'typescript' | 'java' | 'csharp' | 'sql';
+export type EditorLanguage = 'typescript' | 'java' | 'csharp' | 'python' | 'swift' | 'sql';
 
 const LANGUAGES: Readonly<Record<EditorLanguage, { file: string; monacoId: string }>> = {
   typescript: { file: 'solution.ts', monacoId: 'typescript' },
   java: { file: 'Solution.java', monacoId: 'java' },
   csharp: { file: 'Solution.cs', monacoId: 'csharp' },
+  python: { file: 'solution.py', monacoId: 'python' },
+  swift: { file: 'Solution.swift', monacoId: 'swift' },
   sql: { file: 'query.sql', monacoId: 'pgsql' },
 };
 

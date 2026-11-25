@@ -8,10 +8,16 @@
  */
 import type { RawOutcome, TestInput } from '@pracstack/challenge-runtime';
 
-export type RunnerLanguage = 'typescript' | 'java' | 'csharp';
+export type RunnerLanguage = 'typescript' | 'java' | 'csharp' | 'python' | 'swift';
 
 /** Every runner language, in display order. */
-export const RUNNER_LANGUAGES: readonly RunnerLanguage[] = ['typescript', 'java', 'csharp'];
+export const RUNNER_LANGUAGES: readonly RunnerLanguage[] = [
+  'typescript',
+  'java',
+  'csharp',
+  'python',
+  'swift',
+];
 
 /**
  * Joins the learner's code and a challenge's support code (a read-only test
@@ -78,6 +84,8 @@ export interface CodeRunner {
 /** Container image per language. Bump the tag when a harness changes. */
 export const RUNNER_IMAGES: Readonly<Record<RunnerLanguage, string>> = {
   typescript: 'pracstack-runner-typescript:1',
-  java: 'pracstack-runner-java:1',
+  java: 'pracstack-runner-java:2',
   csharp: 'pracstack-runner-csharp:1',
+  python: 'pracstack-runner-python:1',
+  swift: 'pracstack-runner-swift:2',
 };

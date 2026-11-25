@@ -9,6 +9,8 @@ import {
   suggestPath,
   type TaxonomyTerm,
   type ScenarioSummary,
+  WEB_FRAMEWORK_LABELS,
+  type WebChallengeSummary,
 } from '@pracstack/content-model';
 import { ContentRepository } from '../../../core/content/content-repository';
 
@@ -35,6 +37,8 @@ export interface ActivityIndex {
   readonly technologies: ReadonlyMap<string, string>;
   /** Enterprise Scenarios. Optional so fixtures without scenarios still work. */
   readonly scenarios?: ReadonlyMap<string, ScenarioSummary>;
+  /** Web Development Challenges. Optional so fixtures without them still work. */
+  readonly webChallenges?: ReadonlyMap<string, WebChallengeSummary>;
 }
 
 export interface RoleData {
@@ -103,6 +107,20 @@ export function resolveActivity(ref: ActivityRef, index: ActivityIndex): Activit
           }
         : { key, ref, title: ref.scenarioId, detail: 'Enterprise scenario (not available)' };
     }
+    case 'web-challenge': {
+      const web = index.webChallenges?.get(ref.challengeId);
+      const framework = ref.framework ?? web?.frameworks[0];
+      if (!web || !framework || !web.frameworks.includes(framework)) {
+        return { key, ref, title: ref.challengeId, detail: 'Web challenge (not available)' };
+      }
+      return {
+        key,
+        ref,
+        title: web.title,
+        detail: `Web challenge · ${WEB_FRAMEWORK_LABELS[framework]} · about ${web.estimatedMinutes} min`,
+        link: ['/web-challenges', web.id, framework, 'workspace'],
+      };
+    }
   }
 }
 
@@ -154,6 +172,7 @@ export class RoleContent {
         challenges: new Map(manifest.challenges.map((c) => [c.id, c])),
         technologies: new Map(manifest.technologies.map((t) => [t.id, t.name])),
         scenarios: new Map(scenariosFile.scenarios.map((s) => [s.id, s])),
+        webChallenges: new Map((manifest.webChallenges ?? []).map((w) => [w.id, w])),
       },
     };
   }

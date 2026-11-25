@@ -1,3 +1,4 @@
+import { WEB_CHALLENGES } from './web-challenges';
 import {
   analyzeJobDescription,
   type JobRole,
@@ -77,7 +78,12 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'oracle-sql', skillCount: 5 }),
       expect.objectContaining({ id: 'oracle-plsql', skillCount: 8 }),
       expect.objectContaining({ id: 'csharp', skillCount: 15 }),
+      expect.objectContaining({ id: 'python', skillCount: 18 }),
+      expect.objectContaining({ id: 'java', skillCount: 18 }),
+      expect.objectContaining({ id: 'swift', skillCount: 15 }),
       expect.objectContaining({ id: 'aspnet-core', skillCount: 8 }),
+      expect.objectContaining({ id: 'spring-boot', skillCount: 15 }),
+      expect.objectContaining({ id: 'django', skillCount: 15 }),
       expect.objectContaining({ id: 'sql-server', skillCount: 9 }),
       expect.objectContaining({ id: 'aws', skillCount: 5 }),
       expect.objectContaining({ id: 'azure', skillCount: 5 }),
@@ -85,6 +91,28 @@ describe('the real content', { timeout: 120_000 }, () => {
       expect.objectContaining({ id: 'engineering-practices', skillCount: 5 }),
     ]);
     expect(manifest.contentVersion).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it('lists web challenges in the manifest and keeps their projects, tests and references private', () => {
+    const manifest = result.publicFiles.get('manifest.json') as PublicManifest;
+    const ids = (manifest.webChallenges ?? []).map((w) => w.id);
+    expect(ids).toEqual(WEB_CHALLENGES.map((w) => w.source.challenge.id));
+    for (const w of manifest.webChallenges ?? []) expect(w.frameworks.length).toBeGreaterThan(0);
+    const publicText = JSON.stringify([...result.publicFiles.values()]);
+    for (const { source } of WEB_CHALLENGES) {
+      for (const hidden of source.hiddenTests) expect(publicText).not.toContain(hidden.description);
+      for (const impl of source.implementations) {
+        for (const content of Object.values(impl.reference)) {
+          if (content.length > 200)
+            expect(publicText).not.toContain(JSON.stringify(content).slice(1, 200));
+        }
+      }
+      const id = source.challenge.id;
+      expect([...result.publicFiles.keys()].some((k) => k.includes(id))).toBe(false);
+      expect(
+        [...result.privateFiles.keys()].filter((k) => k.startsWith(`web-challenges/${id}@`)),
+      ).toHaveLength(2);
+    }
   });
 
   it('keeps company data private (served by the API to signed-in users)', () => {
@@ -126,12 +154,13 @@ describe('the real content', { timeout: 120_000 }, () => {
     }
   });
 
-  it('never publishes build-time answer checks (typeCheck, csharpCheck, plsqlCheck)', () => {
+  it('never publishes build-time answer checks (typeCheck, csharpCheck, plsqlCheck, codeCheck)', () => {
     const files = JSON.stringify([...result.publicFiles.values(), ...result.privateFiles.values()]);
     expect(files).not.toContain('typeCheck');
     expect(files).not.toContain('options-compile');
     expect(files).not.toContain('csharpCheck');
     expect(files).not.toContain('plsqlCheck');
+    expect(files).not.toContain('codeCheck');
   });
 
   it('publishes job roles and the taxonomy as public files referenced from the manifest', () => {
@@ -150,6 +179,10 @@ describe('the real content', { timeout: 120_000 }, () => {
       ['azure-developer', 'available'],
       ['aws-developer', 'available'],
       ['power-platform-developer', 'available'],
+      ['java-backend-developer', 'available'],
+      ['python-backend-developer', 'available'],
+      ['swift-developer-fundamentals', 'available'],
+      ['associate-software-engineer', 'available'],
       ['enterprise-application-developer', 'coming-soon'],
       ['power-platform-solution-architect', 'coming-soon'],
     ]);

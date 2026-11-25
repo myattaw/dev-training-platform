@@ -120,6 +120,6 @@ export const PREPARATION_LIMITS = {
   maxKeyLength: 120,
 } as const;
 
-/** Activity keys a plan may store. */
+/** Activity keys a plan may store (see activityKey in @pracstack/content-model). */
 export const PLAN_KEY_PATTERN =
-  /^(?:skill:[a-z0-9-]+|challenge:[a-z0-9-]+(?::(?:typescript|java|csharp))?|scenario:[a-z0-9-]+|external:[a-z0-9-]+|review:\d{1,3}|mock:interview)$/;
+  /^(?:skill:[a-z0-9-]+|challenge:[a-z0-9-]+(?::(?:typescript|java|csharp|python|swift))?|web-challenge:[a-z0-9-]+(?::(?:aspnetcore|spring-boot|django|angular))?|scenario:[a-z0-9-]+|external:[a-z0-9-]+|review:\d{1,3}|mock:interview)$/;
