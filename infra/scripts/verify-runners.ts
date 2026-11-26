@@ -11,7 +11,11 @@
  *   2. learner code cannot reach the network: HTTPS to an AWS endpoint and to
  *      the public internet, and DNS, all fail (the VPC has no route out);
  *   3. no process in the environment exposes AWS credentials, including
- *      Lambda's own init process, which cannot be tested locally.
+ *      Lambda's own init process, which cannot be tested locally;
+ *   4. with web execution, the same for each web runner, from inside a learner's
+ *      application, plus: a real challenge passes with signed responses, nothing a
+ *      run leaves behind survives, and learner code cannot take an invocation event
+ *      from the runtime API (services/runners/src/web-verify.ts, also run locally).
  *
  * Costs a few Lambda invocations (fractions of a cent). Changes nothing.
  */
@@ -24,6 +28,7 @@ import {
   networkProbe,
   nodeProbe,
 } from '@pracstack/runners/probes';
+import { verifyWebRunners } from '@pracstack/runners/web-verify';
 
 const stackName = process.argv[2] ?? 'PracStack-dev';
 
@@ -160,6 +165,42 @@ check(
     !/AWS_(SECRET_ACCESS_KEY|ACCESS_KEY_ID|SESSION_TOKEN)=[^\0\n]/.test(csEnviron),
   csEnviron.includes('AWS_LAMBDA_FUNCTION_NAME') ? 'none' : csEnviron.slice(0, 200),
 );
+
+// Web runners (only when the stack has web execution: -c webExecution=true).
+const webFunctions = {
+  aspnetcore: o['WebAspnetcoreRunnerName'],
+  'spring-boot': o['WebSpringBootRunnerName'],
+  django: o['WebDjangoRunnerName'],
+};
+if (webFunctions.aspnetcore && webFunctions['spring-boot'] && webFunctions.django) {
+  // Builds and runs real applications: allow each invocation the function's own timeout.
+  const webLambda = new LambdaClient({
+    maxAttempts: 1,
+    requestHandler: { requestTimeout: 330_000 },
+  });
+  await verifyWebRunners({
+    invoke: async (functionName, payload) => {
+      const res = await webLambda.send(
+        new InvokeCommand({
+          FunctionName: functionName,
+          Payload: new TextEncoder().encode(JSON.stringify(payload)),
+        }),
+      );
+      const text = new TextDecoder().decode(res.Payload);
+      if (res.FunctionError) throw new Error(`${functionName} failed: ${text.slice(0, 500)}`);
+      return JSON.parse(text) as unknown;
+    },
+    functions: {
+      aspnetcore: webFunctions.aspnetcore,
+      'spring-boot': webFunctions['spring-boot'],
+      django: webFunctions.django,
+    },
+    region,
+    onCheck: (c) => check(`web ${c.name}`, c.ok, c.detail),
+  });
+} else {
+  console.log('skip web runners: web execution is not deployed on this stack');
+}
 
 if (failures.length > 0) {
   console.error(

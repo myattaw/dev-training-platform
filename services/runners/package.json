@@ -20,6 +20,7 @@
     "esbuild": "^0.28.2"
   },
   "exports": {
-    "./probes": "./src/probes.ts"
+    "./probes": "./src/probes.ts",
+    "./web-verify": "./src/web-verify.ts"
   }
 }

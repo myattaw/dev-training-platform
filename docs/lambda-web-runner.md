@@ -1,6 +1,6 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phases 0–4 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack) done on 2026-11-26.**
+Status: **Phases 0–5 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack, post-deployment checks) done on 2026-11-26; one known finding to measure on staging (Phase 5).**
 Nothing is deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
@@ -238,7 +238,48 @@ the worker's permissions, timeout arithmetic and no-retry setting; the API start
 the kill switch covers all of it; alarms within the free ten; outputs; cdk-nag passes. API:
 `web-run-worker.spec.ts` (a run whose worker never finished ends after its lease).
 
+## Phase 5: post-deployment checks for the web functions
+
+`infra/scripts/verify-runners.ts` now also checks the web runners when the stack has web
+execution (and says it skipped them otherwise). The checks live in
+`services/runners/src/web-verify.ts` and run unchanged in two places: on AWS after a deployment,
+and locally in `web-verify.spec.ts` against the three images under the Lambda Runtime Interface
+Emulator, with fake credentials in the function's environment and an internal Docker network
+with no way out standing in for the VPC.
+
+For each framework (ASP.NET Core, Spring Boot, Django):
+
+| Check                                    | How                                                                                                                                            | Local result |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Runs a real challenge, signed            | The first challenge's reference solution: every visible and hidden test passes; the response verifies with its run's key and with no other key | pass (15/15) |
+| Probe application runs                   | A small app per framework (`webProbeApp` in `probes.ts`): `POST /probe` runs a Node.js script                                                  | pass         |
+| No network                               | HTTPS to the Lambda endpoint, to the internet and to a raw IP, and DNS, from inside the app                                                    | pass         |
+| No AWS credentials in any process        | Every `/proc/*/environ`; also that other processes' environments are readable (the check is real)                                              | pass         |
+| No leftovers between runs                | One run leaves a detached process and a file in `/tmp`; the next run in the same environment (same init start time and boot id) finds neither  | pass         |
+| No invocation event from the runtime API | From inside the app, `GET /runtime/invocation/next` on Lambda's runtime API must return no event                                               | **fail**     |
+
+### Known finding: the runtime API (measure on staging)
+
+Under the emulator, learner code can call Lambda's runtime API during its run (it is on
+loopback, as for the code runners) and receives an invocation event, in all three images. Only
+one run was in flight each time, so it was almost certainly the run's own event (not yet
+confirmed). That event holds the run's signing key.
+
+What it would allow, as assessed: the learner could sign a result for their **own** run. Grading
+compares response content with expected values that never leave the worker, so a forged result
+still needs the correct responses, which is the same as solving the challenge. It gives no access
+to other users' runs (every learner process is killed before a run ends) and reveals no expected
+values (the event's requests reach the application anyway). It does break one claim made above:
+"a forged response becomes an infrastructure error" holds only for forgeries made without
+reading the event.
+
+Decision (2026-11-26): **measure first.** The check stays strict. Locally it is a known failure
+(`it.fails` in `web-verify.spec.ts`, so the suite stays green and a change in behavior is
+flagged); on staging, `verify-runners` shows whether real Lambda behaves like the emulator.
+Then decide: accept "own event only" as a stated limit (and narrow the check to other runs'
+events), or harden the design.
+
 ## Next phases
 
-5. Security checks (`verify-runners` for web functions) and tests.
-6. Staging, measure, then production with approval.
+6. Staging (`-c webExecution=true`), run `verify-runners` (including the runtime API
+   measurement), measure sizes and timings, then production with approval.
