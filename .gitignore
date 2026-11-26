@@ -68,3 +68,4 @@ services/runners/dist/
 /cdk-outputs.json
 /cdk-diff.txt
 /cdk-context.args
+services/runners/spike/web/dist/
