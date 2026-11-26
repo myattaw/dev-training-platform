@@ -109,4 +109,35 @@ describe('run record encoding (DynamoDB item limit)', () => {
     expect(decoded.result?.verdict).toBe('tests-failed');
     expect(encodeRun(huge).length).toBeLessThanOrEqual(300_000);
   });
+
+  it('shrinks HTTP-client response bodies before dropping the files', () => {
+    const noise = (n: number) =>
+      Array.from({ length: n }, (_, i) => `${i}:${Math.random()}`).join('');
+    const files = { 'a.py': 'print(1)' };
+    const big = run({
+      status: 'completed',
+      mode: 'requests',
+      files,
+      requests: [{ method: 'GET', path: '/' }],
+      result: {
+        verdict: 'responded',
+        diagnostics: [],
+        visible: [],
+        hidden: [],
+        logs: [],
+        exchanges: Array.from({ length: 20 }, () => ({
+          request: { method: 'GET' as const, path: '/' },
+          response: { status: 200, headers: {}, body: noise(1_600), truncated: false },
+        })),
+      },
+    });
+    const decoded = decodeRun(encodeRun(big));
+    expect(decoded.files).toEqual(files);
+    expect(decoded.result?.exchanges).toHaveLength(20);
+    expect(decoded.result?.exchanges?.[0]?.response).toMatchObject({
+      status: 200,
+      truncated: true,
+    });
+    expect(decoded.result?.exchanges?.[0]?.response.body.length).toBe(2_000);
+  });
 });

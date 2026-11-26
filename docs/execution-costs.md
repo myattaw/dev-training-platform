@@ -63,10 +63,11 @@ quota and the per-user concurrency limit exist.
 ## Controls that bound cost (implemented, server-side)
 
 - Daily execution quota per user (free 40, Pro 200; configurable), counted atomically in the store.
-- One test run in progress + one application session per user.
+- One run in progress per user (tests, submission or HTTP-client requests).
 - Per-minute rate limit on starting builds (6/min by default).
 - Global concurrency and queue limits in the runner (`maxConcurrent`, `maxQueue`).
-- Session lifetime (10 min), idle stop (3 min) and request cap (200 per session).
+- No interactive sessions: the HTTP client sends up to 20 requests per run, and every run stops
+  its application when its requests are answered (5-minute hard lifetime).
 - Kill switch: `PRACSTACK_WEB_EXECUTION=off` (browse-only).
 - On AWS (when built): reuse the existing budget action that stops runner invocations when actual
   spend passes the budget.

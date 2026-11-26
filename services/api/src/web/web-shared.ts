@@ -1,5 +1,7 @@
 import type {
   WebChallengeProgress,
+  WebHttpRequest,
+  WebHttpResponse,
   WebRunResult,
   WebSubmissionSummary,
   WebVerdict,
@@ -13,6 +15,8 @@ import type {
 } from '@pracstack/content-model';
 import {
   assembleProject,
+  type BatchRun,
+  type ProbeResponse,
   validateSubmittedFiles,
   type WebProject,
   type WebRunnerFramework,
@@ -123,6 +127,54 @@ export function toRunResult(
         message: `${outcome.message} This was not caused by your code and does not count as an attempt.`,
       };
   }
+}
+
+/** Response bodies kept per request in an HTTP-client result. */
+export const EXCHANGE_BODY_CHARS = 32 * 1024;
+
+/**
+ * Turns an HTTP-client batch (one sequence: the learner's requests, in order)
+ * into what the learner sees: each request with its response, and the logs.
+ * Not graded: a completed batch is `responded`, whatever the status codes.
+ */
+export function toRequestsResult(
+  outcome: BatchRun,
+  requests: readonly WebHttpRequest[],
+): WebRunResult {
+  if (outcome.kind !== 'completed') return toRunResult(outcome, 0, [], 'visible');
+  const responses = outcome.responses[0] ?? [];
+  return {
+    verdict: 'responded',
+    diagnostics: [],
+    visible: [],
+    hidden: [],
+    logs: outcome.logs.slice(-200),
+    durationMs: outcome.durationMs,
+    exchanges: requests.map((request, i) => ({
+      request,
+      response: toHttpResponse(responses[i]),
+    })),
+  };
+}
+
+function toHttpResponse(raw: ProbeResponse | undefined): WebHttpResponse {
+  if (!raw) {
+    return {
+      headers: {},
+      body: '',
+      truncated: false,
+      error: 'No response: the application stopped before this request.',
+    };
+  }
+  const body = raw.body ?? '';
+  return {
+    ...(raw.status !== undefined ? { status: raw.status } : {}),
+    headers: raw.headers ?? {},
+    body: body.slice(0, EXCHANGE_BODY_CHARS),
+    truncated: (raw.truncated ?? false) || body.length > EXCHANGE_BODY_CHARS,
+    ...(raw.durationMs !== undefined ? { durationMs: raw.durationMs } : {}),
+    ...(raw.error ? { error: raw.error } : {}),
+  };
 }
 
 export function publicProgress(

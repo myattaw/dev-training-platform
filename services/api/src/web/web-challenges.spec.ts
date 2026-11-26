@@ -1,10 +1,9 @@
 import type {
   WebChallengeResponse,
   WebDraftResponse,
-  WebHttpExchangeResponse,
+  WebProgressResponse,
   WebProjectResponse,
   WebRunResponse,
-  WebSessionResponse,
   WebTimedSessionResponse,
   WebUsageResponse,
 } from '@pracstack/api-contracts';
@@ -14,7 +13,7 @@ import { WEB_CHALLENGES } from '@pracstack/content/web-challenges';
 import { describe, expect, it } from 'vitest';
 import { createContentSource, type WebChallengeWithGrading } from '../content/content-source';
 import { testApi, type TestApi } from '../testing/fixtures';
-import { parseWebHttpRequest } from './web-challenge-service';
+import { parseCreateWebRun, parseWebHttpRequest } from './web-validation';
 
 /*
  * Web Development Challenges through the API. The first block needs no Docker
@@ -227,14 +226,38 @@ describe('web challenges API (no execution)', () => {
     });
   });
 
-  it('does not reveal other users’ runs or sessions', async () => {
+  it('validates HTTP-client runs: 1 to 20 requests, bounded bodies, requests only in that mode', () => {
+    const run = (extra: Record<string, unknown>) => () =>
+      parseCreateWebRun({ framework: 'django', files: {}, mode: 'requests', ...extra });
+    const get = { method: 'GET', path: '/api/employees' };
+    expect(run({ requests: [get] })().requests).toEqual([get]);
+    expect(run({})).toThrow(/1 to 20/);
+    expect(run({ requests: [] })).toThrow(/1 to 20/);
+    expect(run({ requests: Array.from({ length: 21 }, () => get) })).toThrow(/1 to 20/);
+    expect(run({ requests: [get, { method: 'GET', path: 'http://x/' }] })).toThrow(/Request 2/);
+    expect(run({ requests: [{ method: 'POST', path: '/', body: 'x'.repeat(17_000) }] })).toThrow(
+      /16 KB/,
+    );
+    const big = { method: 'POST', path: '/', body: 'x'.repeat(15_000) };
+    expect(run({ requests: [big, big, big, big, big] })).toThrow(/add up/);
+    expect(() =>
+      parseCreateWebRun({ framework: 'django', files: {}, mode: 'visible', requests: [get] }),
+    ).toThrow(/only sent with mode/);
+  });
+
+  it('does not reveal other users’ runs; the old session endpoints are gone', async () => {
     const t = api();
     const id = '6b0f1d2e-8c1f-4a33-9a51-2ef1f1f1f1f1';
     expect((await t.call('GET', `/api/web-runs/${id}`)).status).toBe(404);
     expect((await t.call('GET', `/api/web-sessions/${id}`)).status).toBe(404);
     expect(
-      (await t.call('POST', `/api/web-sessions/${id}/requests`, { method: 'GET', path: '/' }))
-        .status,
+      (
+        await t.call('POST', '/api/web-sessions', {
+          challengeId: 'employee-rest-api',
+          framework: 'django',
+          files: {},
+        })
+      ).status,
     ).toBe(404);
   });
 });
@@ -302,56 +325,51 @@ describe.skipIf(skip)('web challenges API (real framework runners)', { timeout: 
     expect(result?.hidden).toEqual([]);
   });
 
-  it('runs an application for the HTTP client, only for its owner, then stops it', async () => {
+  it('sends HTTP-client requests in order to one fresh application, for its owner only', async () => {
     const t = testApi({ content, webRunner: runner });
-    const session = body<WebSessionResponse>(
-      await t.call('POST', '/api/web-sessions', {
-        challengeId: 'employee-rest-api',
+    const margaret = JSON.stringify({
+      name: 'Margaret Hamilton',
+      email: 'margaret@example.com',
+      department: 'Engineering',
+    });
+    const created = body<WebRunResponse>(
+      await t.call('POST', '/api/web-challenges/employee-rest-api/runs', {
         framework: 'django',
         files: reference('django'),
-      }),
-    ).session;
-    let state = session.state;
-    for (let i = 0; i < 120 && state !== 'ready'; i++) {
-      await new Promise((r) => setTimeout(r, 500));
-      state = body<WebSessionResponse>(await t.call('GET', `/api/web-sessions/${session.id}`))
-        .session.state;
-      expect(['queued', 'building', 'starting', 'ready']).toContain(state);
-    }
-    const exchange = body<WebHttpExchangeResponse>(
-      await t.call('POST', `/api/web-sessions/${session.id}/requests`, {
-        method: 'GET',
-        path: '/api/employees/1',
+        mode: 'requests',
+        requests: [
+          { method: 'GET', path: '/api/employees/1' },
+          {
+            method: 'POST',
+            path: '/api/employees',
+            headers: { 'Content-Type': 'application/json' },
+            body: margaret,
+          },
+          { method: 'GET', path: '/api/employees' },
+          { method: 'GET', path: '/api/employees/999' },
+        ],
       }),
     );
-    expect(exchange.response.status).toBe(200);
-    expect(JSON.parse(exchange.response.body)).toMatchObject({ name: 'Ada Lovelace' });
-    // Bob can neither read nor use Alice's application.
-    expect((await t.call('GET', `/api/web-sessions/${session.id}`, undefined, 'bob')).status).toBe(
+    expect(created.run.mode).toBe('requests');
+    // Bob can neither read Alice's run nor its responses.
+    expect((await t.call('GET', `/api/web-runs/${created.run.id}`, undefined, 'bob')).status).toBe(
       404,
     );
-    expect(
-      (
-        await t.call(
-          'POST',
-          `/api/web-sessions/${session.id}/requests`,
-          { method: 'GET', path: '/' },
-          'bob',
-        )
-      ).status,
-    ).toBe(404);
-    const stopped = body<WebSessionResponse>(
-      await t.call('DELETE', `/api/web-sessions/${session.id}`),
-    );
-    expect(stopped.session.state).toBe('stopped');
-    expect(
-      (
-        await t.call('POST', `/api/web-sessions/${session.id}/requests`, {
-          method: 'GET',
-          path: '/',
-        })
-      ).status,
-    ).toBe(409);
+    const run = await waitForRun(t, created.run.id);
+    expect(run.result?.verdict, JSON.stringify(run.result)).toBe('responded');
+    const exchanges = run.result?.exchanges ?? [];
+    expect(exchanges.map((x) => x.response.status)).toEqual([200, 201, 200, 404]);
+    expect(JSON.parse(exchanges[0]?.response.body ?? '')).toMatchObject({ name: 'Ada Lovelace' });
+    // The same application served every request: the employee created by request 2 is listed.
+    expect(exchanges[2]?.response.body).toContain('Margaret Hamilton');
+    expect(exchanges[1]?.request.method).toBe('POST');
+    expect(run.result?.logs.length).toBeGreaterThan(0);
+    // Not graded and never an attempt.
+    expect(run.result?.visible).toEqual([]);
+    expect(run.progress).toBeUndefined();
+    expect(body<WebProgressResponse>(await t.call('GET', '/api/web-challenges/progress'))).toEqual({
+      challenges: [],
+    });
   });
 
   it('enforces one running application per user and the daily quota', async () => {
@@ -361,9 +379,6 @@ describe.skipIf(skip)('web challenges API (real framework runners)', { timeout: 
       webPolicy: {
         executionsPerDay: { free: 2, pro: 10 },
         concurrentPerUser: 1,
-        sessionLifetimeMs: 60_000,
-        sessionIdleMs: 60_000,
-        sessionRequestLimit: 5,
       },
     });
     const start = () =>

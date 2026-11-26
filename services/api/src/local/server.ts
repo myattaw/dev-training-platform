@@ -28,7 +28,6 @@ import {
 } from '@pracstack/sql-engine';
 import { DockerCodeRunner } from '@pracstack/code-runner';
 import { DockerWebRunner } from '@pracstack/web-runner';
-import type { WebChallengeService } from '../web/web-challenge-service';
 import { securityHeadersFor } from '@pracstack/web-security';
 
 const MAX_BODY_BYTES = MAX_REQUEST_BODY_BYTES;
@@ -76,11 +75,7 @@ if (!sqlServerEngine) {
   );
 }
 const stop = () => {
-  void Promise.allSettled([
-    sqlEngine.close(),
-    webService?.shutdown(),
-    webRunner?.stopAll(),
-  ]).finally(() => process.exit(0));
+  void Promise.allSettled([sqlEngine.close(), webRunner?.stopAll()]).finally(() => process.exit(0));
 };
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
@@ -110,7 +105,6 @@ if (webRunner) {
     }
   });
 }
-let webService: WebChallengeService | undefined;
 
 const store = new FileProgressStore(resolve(args.data));
 /** Try Pro features locally: PRACSTACK_LOCAL_PLAN=pro (or admin). Never used on AWS. */
@@ -144,12 +138,8 @@ const api = createApi({
       pro: Math.max(200, Number(args['web-per-day'])),
     },
     concurrentPerUser: 1,
-    sessionLifetimeMs: 10 * 60_000,
-    sessionIdleMs: 3 * 60_000,
-    sessionRequestLimit: 200,
   },
   webRateLimiter: new SlidingWindowRateLimiter(Number(args['web-per-minute']), 60_000),
-  onWebService: (service) => (webService = service),
   ...(localPlan && localPlan !== 'free' ? { localPlanOverride: localPlan } : {}),
   rateLimiter: new SlidingWindowRateLimiter(Number(args['requests-per-minute']), 60_000),
   sqlRateLimiter: new SlidingWindowRateLimiter(Number(args['sql-per-minute']), 60_000),

@@ -43,7 +43,7 @@ test.describe('web development challenges', () => {
     await expect(page.getByRole('radio', { name: /Django REST Framework/ })).toBeVisible();
   });
 
-  test('Django: edit files, compile error, run the app, send a request, pass tests, submit', async ({
+  test('Django: edit files, compile error, send HTTP requests, pass tests, submit', async ({
     page,
   }) => {
     await page.goto('/web-challenges/employee-rest-api/django/workspace');
@@ -65,13 +65,24 @@ test.describe('web development challenges', () => {
     await openFile(page, 'serializers.py');
     await setEditor(page, reference('django/reference/employees/serializers.py'));
 
-    // Run the application and talk to it with the HTTP client.
-    await page.getByRole('button', { name: 'Run application' }).click();
-    await expect(page.getByText('App: Running')).toBeVisible({ timeout: 90_000 });
-    await page.getByLabel('Path').fill('/api/employees/2');
-    await page.getByRole('button', { name: 'Send' }).click();
-    await expect(page.locator('.status-line')).toContainText('200');
-    await expect(page.locator('pre.body')).toContainText('Grace Hopper');
+    // The HTTP client: two requests, sent in order to one fresh application.
+    await page.getByRole('button', { name: 'HTTP client' }).click();
+    await page.getByLabel('Path of request 1').fill('/api/employees/2');
+    await page.getByRole('button', { name: 'Add request' }).click();
+    await page.getByLabel('Path of request 2').fill('/api/employees/999');
+    await page.getByRole('button', { name: 'Send requests' }).click();
+    const responses = page.getByRole('region', { name: 'HTTP responses' });
+    await expect(responses.locator('.status-line').first()).toContainText('200', {
+      timeout: 90_000,
+    });
+    await expect(responses.locator('pre.body').first()).toContainText('Grace Hopper');
+    await expect(responses.locator('.status-line').nth(1)).toContainText('404');
+    // The application's output is shown, and the request list survives a reload.
+    await page.getByRole('tab', { name: 'Output' }).click();
+    await expect(page.locator('pre.logs')).not.toBeEmpty();
+    await page.reload();
+    await page.getByRole('button', { name: 'HTTP client' }).click();
+    await expect(page.getByLabel('Path of request 2')).toHaveValue('/api/employees/999');
 
     // Visible tests, then a graded submission.
     await page.getByRole('button', { name: 'Run tests' }).click();

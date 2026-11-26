@@ -4,12 +4,10 @@ import type {
   WebChallengeProgress,
   WebChallengeResponse,
   WebDraftResponse,
-  WebHttpExchangeResponse,
   WebHttpRequest,
   WebProgressResponse,
   WebProjectResponse,
   WebRunResponse,
-  WebSessionResponse,
   WebSubmissionsResponse,
   WebTimedDuration,
   WebTimedSessionResponse,
@@ -22,7 +20,8 @@ import { ContentRepository } from '../../../core/content/content-repository';
 
 /**
  * Web Development Challenges: catalog (public manifest), details, starter
- * projects, runs, application sessions, drafts and timed sessions (API).
+ * projects, runs (tests, submissions, HTTP-client requests), drafts and timed
+ * sessions (API).
  * Everything that is graded or access-controlled comes from the API.
  */
 @Injectable({ providedIn: 'root' })
@@ -76,26 +75,6 @@ export class WebChallengesService {
     return this.api.get(`/web-runs/${runId}`);
   }
 
-  createSession(
-    challengeId: string,
-    framework: WebFramework,
-    files: Readonly<Record<string, string>>,
-  ): Promise<WebSessionResponse> {
-    return this.api.post('/web-sessions', { challengeId, framework, files });
-  }
-
-  getSession(id: string): Promise<WebSessionResponse> {
-    return this.api.get(`/web-sessions/${id}`);
-  }
-
-  stopSession(id: string): Promise<WebSessionResponse> {
-    return this.api.delete(`/web-sessions/${id}`);
-  }
-
-  send(sessionId: string, request: WebHttpRequest): Promise<WebHttpExchangeResponse> {
-    return this.api.post(`/web-sessions/${sessionId}/requests`, request);
-  }
-
   accountDraft(id: string, framework: WebFramework): Promise<WebDraftResponse> {
     return this.api.get(`/me/web-drafts/${encodeURIComponent(id)}/${framework}`);
   }
@@ -131,6 +110,36 @@ export class WebChallengesService {
   finishTimed(id: string): Promise<WebTimedSessionResponse> {
     return this.api.post(`/web-timed-sessions/${id}/finish`, {});
   }
+}
+
+/** The HTTP client's request list, kept in this browser per challenge and framework. */
+const requestsKey = (id: string, framework: WebFramework) => `web-requests:${id}:${framework}`;
+
+const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+const isRequestList = (v: unknown): v is WebHttpRequest[] =>
+  Array.isArray(v) &&
+  v.length <= 20 &&
+  v.every(
+    (r) =>
+      typeof r === 'object' &&
+      r !== null &&
+      METHODS.includes((r as WebHttpRequest).method) &&
+      typeof (r as WebHttpRequest).path === 'string',
+  );
+
+export function readLocalRequests(
+  id: string,
+  framework: WebFramework,
+): WebHttpRequest[] | undefined {
+  return readJson(requestsKey(id, framework), isRequestList);
+}
+
+export function writeLocalRequests(
+  id: string,
+  framework: WebFramework,
+  requests: readonly WebHttpRequest[],
+): void {
+  writeJson(requestsKey(id, framework), requests);
 }
 
 /** A draft kept in this browser: per challenge, framework and challenge version. */

@@ -1,9 +1,10 @@
 import {
   type CreateWebRunRequest,
-  type CreateWebSessionRequest,
   type CreateWebTimedSessionRequest,
   type SaveWebDraftRequest,
+  WEB_REQUEST_LIMITS,
   WEB_TIMED_DURATIONS,
+  type WebHttpRequest,
   type WebTimedDuration,
 } from '@pracstack/api-contracts';
 import { WEB_FRAMEWORKS, type WebFramework } from '@pracstack/content-model';
@@ -41,24 +42,105 @@ function parseFiles(value: unknown): Readonly<Record<string, string>> {
 export function parseCreateWebRun(body: unknown): CreateWebRunRequest {
   const b = obj(body);
   const mode = b['mode'];
-  if (mode !== 'visible' && mode !== 'submit')
-    throw badRequest('"mode" must be visible or submit.');
+  if (mode !== 'visible' && mode !== 'submit' && mode !== 'requests')
+    throw badRequest('"mode" must be visible, submit or requests.');
+  if (mode !== 'requests' && b['requests'] !== undefined) {
+    throw badRequest('"requests" are only sent with mode "requests".');
+  }
   return {
     framework: parseFramework(b['framework']),
     files: parseFiles(b['files']),
     mode,
+    ...(mode === 'requests' ? { requests: parseWebHttpRequests(b['requests']) } : {}),
     ...(b['timedSessionId'] !== undefined
       ? { timedSessionId: parseUuid(b['timedSessionId'], 'timedSessionId') }
       : {}),
   };
 }
 
-export function parseCreateWebSession(body: unknown): CreateWebSessionRequest {
-  const b = obj(body);
+const HEADER_NAME =
+  /^(content-type|accept|authorization|if-match|if-none-match|x-[a-z0-9-]{1,40})$/i;
+const REQUEST_PATH = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]{0,2047}$/;
+
+/** The HTTP client's requests (never trusted): count, then each one, then total size. */
+export function parseWebHttpRequests(value: unknown): readonly WebHttpRequest[] {
+  const max = WEB_REQUEST_LIMITS.maxRequests;
+  if (!Array.isArray(value) || value.length === 0 || value.length > max) {
+    throw badRequest(`"requests" must be a list of 1 to ${max} requests.`);
+  }
+  const requests = value.map((r, i) => parseWebHttpRequest(r, i + 1));
+  const total = requests.reduce((n, r) => n + Buffer.byteLength(r.body ?? ''), 0);
+  if (total > WEB_REQUEST_LIMITS.maxTotalBodyBytes) {
+    throw badRequest(
+      `The request bodies add up to more than ${WEB_REQUEST_LIMITS.maxTotalBodyBytes / 1024} KB.`,
+    );
+  }
+  return requests;
+}
+
+/** One request: method, relative path, approved headers, body size. */
+export function parseWebHttpRequest(body: unknown, n = 1): WebHttpRequest {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+    throw badRequest(`Request ${n} must be an object.`);
+  }
+  const b = body as Record<string, unknown>;
+  const method = b['method'];
+  if (
+    method !== 'GET' &&
+    method !== 'POST' &&
+    method !== 'PUT' &&
+    method !== 'PATCH' &&
+    method !== 'DELETE'
+  ) {
+    throw badRequest(`Request ${n}: method must be GET, POST, PUT, PATCH or DELETE.`);
+  }
+  const path = b['path'];
+  if (typeof path !== 'string' || !REQUEST_PATH.test(path) || path.includes('\\')) {
+    throw badRequest(
+      `Request ${n}: the path must be a relative application path such as /api/employees (no URLs).`,
+    );
+  }
+  const headers: Record<string, string> = {};
+  if (b['headers'] !== undefined) {
+    if (typeof b['headers'] !== 'object' || b['headers'] === null || Array.isArray(b['headers'])) {
+      throw badRequest(`Request ${n}: headers must be an object.`);
+    }
+    const entries = Object.entries(b['headers'] as Record<string, unknown>);
+    if (entries.length > WEB_REQUEST_LIMITS.maxHeaders) {
+      throw badRequest(
+        `Request ${n}: at most ${WEB_REQUEST_LIMITS.maxHeaders} headers are allowed.`,
+      );
+    }
+    for (const [name, value] of entries) {
+      if (!HEADER_NAME.test(name)) {
+        throw badRequest(
+          `Request ${n}: header "${name.slice(0, 64)}" is not allowed. Allowed: Content-Type, Accept, Authorization, If-Match, If-None-Match and X-… headers.`,
+        );
+      }
+      if (typeof value !== 'string' || value.length > 1024 || /[\r\n\0]/.test(value)) {
+        throw badRequest(
+          `Request ${n}: header "${name}" must be a single line of at most 1024 characters.`,
+        );
+      }
+      headers[name] = value;
+    }
+  }
+  const requestBody = b['body'];
+  if (requestBody !== undefined && requestBody !== null) {
+    if (
+      typeof requestBody !== 'string' ||
+      Buffer.byteLength(requestBody) > WEB_REQUEST_LIMITS.maxBodyBytes
+    ) {
+      throw badRequest(
+        `Request ${n}: the body must be text of at most ${WEB_REQUEST_LIMITS.maxBodyBytes / 1024} KB.`,
+      );
+    }
+  }
   return {
-    challengeId: parseId(b['challengeId'], 'challengeId'),
-    framework: parseFramework(b['framework']),
-    files: parseFiles(b['files']),
+    method,
+    path,
+    ...(Object.keys(headers).length ? { headers } : {}),
+    ...(typeof requestBody === 'string' ? { body: requestBody } : {}),
   };
 }
 

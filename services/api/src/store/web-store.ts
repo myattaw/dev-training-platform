@@ -1,6 +1,7 @@
 import type {
   WebChallengeProgress,
   WebDraft,
+  WebHttpRequest,
   WebRun,
   WebSubmissionSummary,
   WebTimedSession,
@@ -41,6 +42,8 @@ export interface WebRunRecord extends WebRun {
   readonly userId: string;
   /** The submitted editable files (validated by the API). */
   readonly files: Readonly<Record<string, string>>;
+  /** HTTP-client runs: the requests to send (validated by the API). */
+  readonly requests?: readonly WebHttpRequest[];
   /** Milliseconds since the epoch after which the record may be deleted. */
   readonly expiresAt: number;
 }

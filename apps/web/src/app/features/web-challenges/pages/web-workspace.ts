@@ -14,9 +14,7 @@ import { Router, RouterLink } from '@angular/router';
 import type {
   WebDiagnostic,
   WebHttpRequest,
-  WebHttpResponse,
   WebRun,
-  WebSession,
   WebTimedSession,
   WebVerdict,
 } from '@pracstack/api-contracts';
@@ -34,18 +32,18 @@ import { ConfirmDialog } from '../../../shared/ui/confirm-dialog/confirm-dialog'
 import { Icon } from '../../../shared/ui/icon/icon';
 import { LoadingState } from '../../../shared/ui/loading-state/loading-state';
 import { SplitPane } from '../../../shared/ui/split-pane/split-pane';
-import { StatusIndicator } from '../../../shared/ui/status-indicator/status-indicator';
 import { type TabItem, Tabs } from '../../../shared/ui/tabs/tabs';
 import { DifficultyBadge } from '../../challenges/ui/difficulty-badge';
 import {
   readLocalDraft,
+  readLocalRequests,
   removeLocalDraft,
   WebChallengesService,
   writeLocalDraft,
+  writeLocalRequests,
 } from '../data-access/web-challenges.service';
 import { FileTree } from '../ui/file-tree';
 import { HttpClient } from '../ui/http-client';
-import { SESSION_LABELS, SESSION_STATUS } from '../ui/labels';
 import { ProjectEditor } from '../ui/project-editor';
 import { RunResults } from '../ui/run-results';
 
@@ -60,19 +58,11 @@ interface Loaded {
   readonly starter: Readonly<Record<string, string>>;
 }
 
-const FINAL_SESSION_STATES = [
-  'build-failed',
-  'startup-failed',
-  'resource-limit',
-  'expired',
-  'stopped',
-  'unavailable',
-];
-
 /**
  * The multi-file workspace for a Web Development Challenge: edit the project,
- * run the application and send it HTTP requests, run the visible tests, and
- * submit for grading. Drafts are kept per challenge and framework (in this
+ * send the application HTTP requests, run the visible tests, and submit for
+ * grading. Each of these is one run on the server (build, start a fresh
+ * application, send requests, stop it); nothing keeps running in between. Drafts are kept per challenge and framework (in this
  * browser, and in the account when signed in). Saving or building never
  * means solved: only an accepted submission does.
  */
@@ -85,7 +75,6 @@ const FINAL_SESSION_STATES = [
     Icon,
     SplitPane,
     Tabs,
-    StatusIndicator,
     DifficultyBadge,
     InstructionBlocks,
     FileTree,
@@ -109,8 +98,6 @@ export class WebWorkspace {
   private readonly resetDialog = viewChild<ConfirmDialog>('resetDialog');
 
   protected readonly labels = WEB_FRAMEWORK_LABELS;
-  protected readonly sessionLabels = SESSION_LABELS;
-  protected readonly sessionStatus = SESSION_STATUS;
 
   protected readonly loading = signal(true);
   protected readonly loadError = signal<string | null>(null);
@@ -128,12 +115,13 @@ export class WebWorkspace {
   protected readonly bottomTab = signal<BottomTab>('tests');
   protected readonly run = signal<WebRun | undefined>(undefined);
   protected readonly runError = signal<string | null>(null);
-  protected readonly session = signal<WebSession | undefined>(undefined);
-  protected readonly sessionError = signal<string | null>(null);
-  /** Content of the editable files when the running application was started. */
-  private readonly sessionFiles = signal<string | null>(null);
-  protected readonly httpBusy = signal(false);
-  protected readonly httpResponse = signal<WebHttpResponse | undefined>(undefined);
+  /** The latest HTTP-client run (requests sent to a fresh application). */
+  protected readonly requestRun = signal<WebRun | undefined>(undefined);
+  protected readonly requestError = signal<string | null>(null);
+  /** The HTTP client's requests as kept in this browser. */
+  protected readonly savedRequests = signal<readonly WebHttpRequest[] | undefined>(undefined);
+  /** Which run finished last: its output and diagnostics are shown. */
+  private readonly latest = signal<'tests' | 'requests'>('tests');
   protected readonly timedSession = signal<WebTimedSession | undefined>(undefined);
   private readonly clockOffset = signal(0);
   protected readonly now = signal(Date.now());
@@ -141,8 +129,9 @@ export class WebWorkspace {
 
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
   private accountTimer: ReturnType<typeof setTimeout> | undefined;
-  private pollTimer: ReturnType<typeof setTimeout> | undefined;
-  private sessionTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly pollTimers: Partial<
+    Record<'tests' | 'requests', ReturnType<typeof setTimeout>>
+  > = {};
   private destroyed = false;
 
   protected readonly sideTabs: readonly TabItem[] = [
@@ -174,21 +163,14 @@ export class WebWorkspace {
 
   protected readonly namespace = computed(() => `${this.id()}/${this.framework()}`);
 
-  protected readonly running = computed(() => {
-    const r = this.run();
-    return r !== undefined && r.status !== 'completed';
-  });
+  /** A run of this user is in progress (the server allows one at a time). */
+  protected readonly running = computed(() =>
+    [this.run(), this.requestRun()].some((r) => r !== undefined && r.status !== 'completed'),
+  );
 
-  protected readonly appStarting = computed(() => {
-    const s = this.session()?.state;
-    return s === 'queued' || s === 'building' || s === 'starting';
-  });
-
-  protected readonly appReady = computed(() => this.session()?.state === 'ready');
-
-  /** The running application was built from different code than the editor shows. */
-  protected readonly stale = computed(
-    () => this.appReady() && this.sessionFiles() !== JSON.stringify(this.submittedFiles()),
+  /** The run whose output and diagnostics are shown: the one that finished last. */
+  protected readonly outputRun = computed(() =>
+    this.latest() === 'requests' ? this.requestRun() : this.run(),
   );
 
   protected readonly remainingMs = computed(() => {
@@ -212,11 +194,9 @@ export class WebWorkspace {
     return `${h > 0 ? `${h}:` : ''}${String(m).padStart(h > 0 ? 2 : 1, '0')}:${String(s).padStart(2, '0')}`;
   });
 
-  protected readonly diagnostics = computed<readonly WebDiagnostic[]>(() => {
-    const sessionDiagnostics =
-      this.session()?.state === 'build-failed' ? (this.session()?.diagnostics ?? []) : [];
-    return [...(this.run()?.result?.diagnostics ?? []), ...sessionDiagnostics];
-  });
+  protected readonly diagnostics = computed<readonly WebDiagnostic[]>(
+    () => this.outputRun()?.result?.diagnostics ?? [],
+  );
 
   constructor() {
     effect(() => {
@@ -239,13 +219,9 @@ export class WebWorkspace {
       clearInterval(clock);
       window.removeEventListener('beforeunload', beforeUnload);
       this.flushLocal();
-      clearTimeout(this.pollTimer);
-      clearTimeout(this.sessionTimer);
+      clearTimeout(this.pollTimers.tests);
+      clearTimeout(this.pollTimers.requests);
       clearTimeout(this.accountTimer);
-      // Leaving the workspace stops its application: nothing keeps running unattended.
-      const s = this.session();
-      if (s && !FINAL_SESSION_STATES.includes(s.state))
-        void this.service.stopSession(s.id).catch(() => undefined);
     });
   }
 
@@ -253,7 +229,8 @@ export class WebWorkspace {
     this.loading.set(true);
     this.loadError.set(null);
     this.run.set(undefined);
-    this.session.set(undefined);
+    this.requestRun.set(undefined);
+    this.latest.set('tests');
     this.recovery.set(null);
     try {
       const fw = framework as WebFramework;
@@ -296,6 +273,7 @@ export class WebWorkspace {
         starter,
       });
       this.contents.set(contents);
+      this.savedRequests.set(readLocalRequests(id, fw));
       this.openTabs.set([project.entryFile]);
       this.active.set(project.entryFile);
       this.saveStatus.set('saved');
@@ -440,107 +418,70 @@ export class WebWorkspace {
       });
       this.run.set(res.run);
       this.announce(mode === 'submit' ? 'Submission started.' : 'Running the visible tests.');
-      this.poll(res.run.id);
+      this.poll(res.run.id, 'tests');
     } catch (err) {
       this.runError.set(errorMessage(err));
     }
   }
 
-  private poll(runId: string): void {
-    clearTimeout(this.pollTimer);
-    this.pollTimer = setTimeout(async () => {
+  /* ---------- HTTP client ---------- */
+
+  protected async sendRequests(requests: WebHttpRequest[]): Promise<void> {
+    if (this.running()) return;
+    this.requestError.set(null);
+    this.flushLocal();
+    this.saveRequests(requests);
+    try {
+      const res = await this.service.createRun(this.id(), {
+        framework: this.framework() as WebFramework,
+        files: this.submittedFiles(),
+        mode: 'requests',
+        requests,
+      });
+      this.requestRun.set(res.run);
+      this.announce('Building the application and sending the requests.');
+      this.poll(res.run.id, 'requests');
+    } catch (err) {
+      this.requestError.set(errorMessage(err));
+    }
+  }
+
+  protected saveRequests(requests: WebHttpRequest[]): void {
+    writeLocalRequests(this.id(), this.framework() as WebFramework, requests);
+  }
+
+  private poll(runId: string, kind: 'tests' | 'requests'): void {
+    const target = kind === 'tests' ? this.run : this.requestRun;
+    const error = kind === 'tests' ? this.runError : this.requestError;
+    clearTimeout(this.pollTimers[kind]);
+    this.pollTimers[kind] = setTimeout(async () => {
       if (this.destroyed) return;
       try {
         const res = await this.service.getRun(runId);
-        this.run.set(res.run);
+        target.set(res.run);
         if (res.run.status !== 'completed') {
-          this.poll(runId);
+          this.poll(runId, kind);
           return;
         }
+        this.latest.set(kind);
         const verdict = res.run.result?.verdict ?? 'infrastructure-error';
-        this.announce(
-          `${res.run.mode === 'submit' ? 'Submission' : 'Visible tests'}: ${verdict.replace(/-/g, ' ')}.`,
-        );
+        const what =
+          res.run.mode === 'submit'
+            ? 'Submission'
+            : res.run.mode === 'requests'
+              ? 'HTTP requests'
+              : 'Visible tests';
+        this.announce(`${what}: ${verdict.replace(/-/g, ' ')}.`);
         if (res.run.progress) this.service.recordProgress(res.run.progress);
         if (res.run.timedSessionId) {
           const t = await this.service.getTimed(res.run.timedSessionId).catch(() => undefined);
           if (t) this.timedSession.set(t.session);
         }
       } catch (err) {
-        this.runError.set(errorMessage(err));
-        this.run.set(undefined);
+        error.set(errorMessage(err));
+        target.set(undefined);
       }
     }, 1000);
-  }
-
-  /* ---------- Running application and HTTP client ---------- */
-
-  protected async startApp(): Promise<void> {
-    this.sessionError.set(null);
-    this.bottomTab.set('http');
-    this.flushLocal();
-    try {
-      const files = this.submittedFiles();
-      const res = await this.service.createSession(
-        this.id(),
-        this.framework() as WebFramework,
-        files,
-      );
-      this.session.set(res.session);
-      this.sessionFiles.set(JSON.stringify(files));
-      this.announce('Building and starting the application.');
-      this.watchSession(res.session.id);
-    } catch (err) {
-      this.sessionError.set(errorMessage(err));
-    }
-  }
-
-  protected async stopApp(): Promise<void> {
-    const s = this.session();
-    if (!s) return;
-    clearTimeout(this.sessionTimer);
-    try {
-      this.session.set((await this.service.stopSession(s.id)).session);
-      this.announce('The application was stopped.');
-    } catch (err) {
-      this.sessionError.set(errorMessage(err));
-    }
-  }
-
-  private watchSession(id: string): void {
-    clearTimeout(this.sessionTimer);
-    const current = this.session();
-    const delay = current?.state === 'ready' ? 10_000 : 1500;
-    this.sessionTimer = setTimeout(async () => {
-      if (this.destroyed) return;
-      try {
-        const before = this.session()?.state;
-        const res = await this.service.getSession(id);
-        this.session.set(res.session);
-        if (before !== res.session.state)
-          this.announce(`Application: ${SESSION_LABELS[res.session.state]}.`);
-        if (res.session.state === 'build-failed') this.bottomTab.set('output');
-        if (!FINAL_SESSION_STATES.includes(res.session.state)) this.watchSession(id);
-      } catch {
-        // The session is gone (e.g. the server restarted).
-        this.session.update((s) => (s ? { ...s, state: 'stopped' } : s));
-      }
-    }, delay);
-  }
-
-  protected async sendRequest(request: WebHttpRequest): Promise<void> {
-    const s = this.session();
-    if (!s) return;
-    this.httpBusy.set(true);
-    try {
-      const res = await this.service.send(s.id, request);
-      this.httpResponse.set(res.response);
-      this.session.set(res.session);
-    } catch (err) {
-      this.httpResponse.set({ headers: {}, body: '', truncated: false, error: errorMessage(err) });
-    } finally {
-      this.httpBusy.set(false);
-    }
   }
 
   /* ---------- Timed sessions ---------- */

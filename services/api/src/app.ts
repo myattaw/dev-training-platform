@@ -12,7 +12,6 @@ import type { WebStore } from './store/web-store';
 import { type DockerWebRunner, DockerWebExecutor, type WebExecutor } from '@pracstack/web-runner';
 import {
   DEFAULT_WEB_POLICY,
-  parseWebHttpRequest,
   type WebExecutionPolicy,
   WebChallengeService,
   type WebRunDispatch,
@@ -20,7 +19,6 @@ import {
 import { WebRunWorker } from './web/web-run-worker';
 import {
   parseCreateWebRun,
-  parseCreateWebSession,
   parseCreateWebTimedSession,
   parseFramework,
   parseSaveWebDraft,
@@ -78,21 +76,19 @@ export interface ApiDeps extends PracticeDeps {
   /** Web Development Challenges: submissions, progress, drafts, quotas, timed sessions. */
   readonly webStore: WebStore;
   /**
-   * Builds and runs web-challenge applications locally (test runs through an
-   * in-process web worker, and HTTP-client sessions). Without it, and without
+   * Builds and runs web-challenge applications locally (runs go through an
+   * in-process web worker). Without it, and without
    * `webDispatch` or `webExecutor`, the challenges are browse-only (catalog,
    * instructions, editing, drafts).
    */
   readonly webRunner?: DockerWebRunner;
-  /** Runs test runs through an in-process web worker with this executor (instead of webRunner). */
+  /** Runs go through an in-process web worker with this executor (instead of webRunner). */
   readonly webExecutor?: WebExecutor;
-  /** Hands test runs to a separate web worker (AWS: the web worker function). */
+  /** Hands runs to a separate web worker (AWS: the web worker function). */
   readonly webDispatch?: WebRunDispatch;
   readonly webPolicy?: WebExecutionPolicy;
-  /** Limit for starting web-challenge builds (runs, submissions, sessions). */
+  /** Limit for starting web-challenge builds (test runs, submissions, HTTP-client runs). */
   readonly webRateLimiter?: RateLimiter;
-  /** Receives the web service, e.g. to stop applications on shutdown. */
-  readonly onWebService?: (service: WebChallengeService) => void;
   /** Must be set to use the unauthenticated local developer user. */
   readonly allowLocalDevUser?: boolean;
   /** Receives unexpected errors (never shown to the client). */
@@ -198,13 +194,11 @@ export function createApi(deps: ApiDeps): ApiHandler {
     store: deps.webStore,
     entitlements,
     ...(webDispatch ? { dispatch: webDispatch } : {}),
-    ...(deps.webRunner ? { runner: deps.webRunner } : {}),
     ...(deps.webPolicy ? { policy: deps.webPolicy } : {}),
     now: deps.now,
     newId: deps.newId,
     ...(deps.logError ? { logError: deps.logError } : {}),
   });
-  deps.onWebService?.(web);
   const webRateLimiter = deps.webRateLimiter ?? new SlidingWindowRateLimiter(6, 60_000);
   const limit = async (limiter: RateLimiter, key: string): Promise<void> => {
     const wait = await limiter.hit(key, deps.now().getTime());
@@ -373,7 +367,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
     return undefined;
   }
 
-  /** /api/web-challenges, /api/web-runs, /api/web-sessions, /api/web-timed-sessions, /api/me/web-* */
+  /** /api/web-challenges, /api/web-runs, /api/web-timed-sessions, /api/me/web-* */
   async function routeWeb(request: ApiRequest, user: Caller): Promise<ApiResponse | undefined> {
     const { method, path } = request;
     const challengeId = (value: string | undefined) => segment(value, 'challengeId');
@@ -403,19 +397,6 @@ export function createApi(deps: ApiDeps): ApiHandler {
     const run = /^\/api\/web-runs\/([^/]+)$/.exec(path);
     if (method === 'GET' && run)
       return ok(await web.getRun(user, parseUuid(decodeURIComponent(run[1] ?? ''), 'runId')));
-    if (method === 'POST' && path === '/api/web-sessions') {
-      const body = parseCreateWebSession(request.body);
-      await limit(webRateLimiter, user.id);
-      return ok(await web.createSession(user, body));
-    }
-    const session = /^\/api\/web-sessions\/([^/]+)(\/requests)?$/.exec(path);
-    if (session) {
-      const id = parseUuid(decodeURIComponent(session[1] ?? ''), 'sessionId');
-      if (method === 'GET' && !session[2]) return ok(web.getSession(user, id));
-      if (method === 'DELETE' && !session[2]) return ok(await web.stopSession(user, id));
-      if (method === 'POST' && session[2])
-        return ok(await web.sendRequest(user, id, parseWebHttpRequest(request.body)));
-    }
     const draft = /^\/api\/me\/web-drafts\/([^/]+)\/([^/]+)$/.exec(path);
     if (draft) {
       const id = challengeId(draft[1]);

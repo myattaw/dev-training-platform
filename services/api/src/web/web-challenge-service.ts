@@ -1,25 +1,20 @@
 import type {
   CreateWebRunRequest,
-  CreateWebSessionRequest,
   CreateWebTimedSessionRequest,
   SaveWebDraftRequest,
   WebChallengeResponse,
   WebDraftResponse,
-  WebHttpExchangeResponse,
-  WebHttpRequest,
   WebProgressResponse,
   WebProjectResponse,
   WebRun,
   WebRunResponse,
-  WebSession,
-  WebSessionResponse,
   WebSubmissionsResponse,
   WebTimedSession,
   WebTimedSessionResponse,
   WebUsageResponse,
 } from '@pracstack/api-contracts';
 import type { WebFramework } from '@pracstack/content-model';
-import { type DockerWebRunner, validateSubmittedFiles, type WebApp } from '@pracstack/web-runner';
+import { validateSubmittedFiles } from '@pracstack/web-runner';
 import type { EntitlementService } from '../account/entitlements';
 import type { Caller } from '../auth';
 import { ApiError, badRequest, notFound } from '../http';
@@ -31,28 +26,17 @@ export { toRunResult } from './web-shared';
 
 /** Server-enforced execution limits (never browser timers). */
 export interface WebExecutionPolicy {
-  /** Builds per user per UTC day (runs, submissions and application sessions each count one). */
+  /** Builds per user per UTC day (test runs, submissions and HTTP-client runs each count one). */
   readonly executionsPerDay: { readonly free: number; readonly pro: number };
-  /**
-   * Test runs one user may have building or running at once. Separately, each
-   * user has at most one interactive application session (a new one replaces it).
-   */
+  /** Runs (of any mode) one user may have building or running at once. */
   readonly concurrentPerUser: number;
-  /** Interactive session: hard lifetime and idle timeout. */
-  readonly sessionLifetimeMs: number;
-  readonly sessionIdleMs: number;
-  /** HTTP-client requests per session. */
-  readonly sessionRequestLimit: number;
-  /** Test runs building or running at once across all users (enforced by the web worker). */
+  /** Runs building or running at once across all users (enforced by the web worker). */
   readonly concurrentGlobal?: number;
 }
 
 export const DEFAULT_WEB_POLICY: WebExecutionPolicy = {
   executionsPerDay: { free: 40, pro: 200 },
   concurrentPerUser: 1,
-  sessionLifetimeMs: 10 * 60_000,
-  sessionIdleMs: 3 * 60_000,
-  sessionRequestLimit: 200,
   concurrentGlobal: 2,
 };
 
@@ -72,33 +56,13 @@ export interface WebChallengeServiceDeps {
   readonly findChallenge: (id: string) => WebChallengeContent | undefined;
   readonly store: WebStore;
   readonly entitlements: EntitlementService;
-  /** Where test runs go (see WebRunWorker). Without it, web challenges are browse-only. */
+  /** Where runs go (see WebRunWorker). Without it, web challenges are browse-only. */
   readonly dispatch?: WebRunDispatch;
-  /** Interactive application sessions (local Docker only, until batch requests replace them). */
-  readonly runner?: DockerWebRunner;
   readonly policy?: WebExecutionPolicy;
   readonly now: () => Date;
   readonly newId: () => string;
   readonly logError?: (err: unknown) => void;
 }
-
-interface SessionEntry {
-  readonly userId: string;
-  readonly app: WebApp;
-  readonly id: string;
-  readonly challengeId: string;
-  readonly framework: WebFramework;
-  readonly createdAt: string;
-  readonly expiresAt: number;
-  idleTimer: NodeJS.Timeout | undefined;
-  lastUsed: number;
-  requestsUsed: number;
-}
-
-const HEADER_NAME =
-  /^(content-type|accept|authorization|if-match|if-none-match|x-[a-z0-9-]{1,40})$/i;
-const REQUEST_PATH = /^\/(?!\/)[A-Za-z0-9\-._~!$&'()*+,;=:@%/?]{0,2047}$/;
-const MAX_HTTP_BODY = 64 * 1024;
 
 /**
  * Web Development Challenges on the API side. Everything that matters is
@@ -108,7 +72,6 @@ const MAX_HTTP_BODY = 64 * 1024;
  */
 export class WebChallengeService {
   private readonly policy: WebExecutionPolicy;
-  private readonly sessions = new Map<string, SessionEntry>();
 
   constructor(private readonly deps: WebChallengeServiceDeps) {
     this.policy = deps.policy ?? DEFAULT_WEB_POLICY;
@@ -201,7 +164,7 @@ export class WebChallengeService {
     if (!slot) {
       throw new ApiError(
         'conflict',
-        'Your previous test run is still in progress. Wait for it to finish.',
+        'Your previous run is still in progress. Wait for it to finish.',
       );
     }
     try {
@@ -221,6 +184,7 @@ export class WebChallengeService {
       files,
       expiresAt: nowMs + RUN_RETENTION_MS,
       ...(timed ? { timedSessionId: timed.id } : {}),
+      ...(request.mode === 'requests' ? { requests: request.requests ?? [] } : {}),
     };
     await this.deps.store.createWebRun(run);
     // Grading continues elsewhere; the browser polls GET /api/web-runs/:id.
@@ -256,167 +220,6 @@ export class WebChallengeService {
     const run = await this.deps.store.getWebRun(user.id, runId);
     if (!run) throw notFound('No such run.');
     return { run: publicRun(run) };
-  }
-
-  /* ---------- Interactive sessions (HTTP client) ---------- */
-
-  async createSession(user: Caller, request: CreateWebSessionRequest): Promise<WebSessionResponse> {
-    const content = await this.accessible(user, request.challengeId);
-    const { project } = prepareProject(content, request.framework, request.files);
-    const runner = this.requireRunner();
-    // One live session per user: starting a new one replaces the old one.
-    for (const entry of [...this.sessions.values()]) {
-      if (entry.userId === user.id) await this.stopEntry(entry, 'stopped');
-    }
-    await this.consumeQuota(user);
-    const app = runner.start(project, { lifetimeMs: this.policy.sessionLifetimeMs });
-    const now = this.deps.now();
-    const entry: SessionEntry = {
-      userId: user.id,
-      app,
-      id: this.deps.newId(),
-      challengeId: request.challengeId,
-      framework: request.framework,
-      createdAt: now.toISOString(),
-      expiresAt: now.getTime() + this.policy.sessionLifetimeMs,
-      idleTimer: undefined,
-      lastUsed: Date.now(),
-      requestsUsed: 0,
-    };
-    this.sessions.set(entry.id, entry);
-    let released = false;
-    app.onChange(() => {
-      if (
-        !released &&
-        [
-          'build-failed',
-          'startup-failed',
-          'resource-limit',
-          'expired',
-          'stopped',
-          'unavailable',
-        ].includes(app.state)
-      ) {
-        released = true;
-        if (entry.idleTimer) clearTimeout(entry.idleTimer);
-      }
-    });
-    this.touch(entry);
-    return { session: this.describeSession(entry) };
-  }
-
-  getSession(user: Caller, sessionId: string): WebSessionResponse {
-    return { session: this.describeSession(this.ownSession(user, sessionId)) };
-  }
-
-  async stopSession(user: Caller, sessionId: string): Promise<WebSessionResponse> {
-    const entry = this.ownSession(user, sessionId);
-    await this.stopEntry(entry, 'stopped');
-    return { session: this.describeSession(entry) };
-  }
-
-  async sendRequest(
-    user: Caller,
-    sessionId: string,
-    request: WebHttpRequest,
-  ): Promise<WebHttpExchangeResponse> {
-    const entry = this.ownSession(user, sessionId);
-    if (entry.app.state !== 'ready') {
-      throw new ApiError(
-        'conflict',
-        'The application is not running. Start it again with Run application.',
-      );
-    }
-    if (entry.requestsUsed >= this.policy.sessionRequestLimit) {
-      throw new ApiError(
-        'rate-limited',
-        'This session has used all its requests. Restart the application.',
-      );
-    }
-    entry.requestsUsed++;
-    this.touch(entry);
-    const result = await entry.app.send([
-      [
-        {
-          method: request.method,
-          path: request.path,
-          ...(request.headers ? { headers: request.headers } : {}),
-          ...(request.body !== undefined ? { body: request.body } : {}),
-        },
-      ],
-    ]);
-    const raw = result.kind === 'completed' ? result.results[0]?.[0] : undefined;
-    return {
-      response: raw
-        ? {
-            ...(raw.status !== undefined ? { status: raw.status } : {}),
-            headers: raw.headers ?? {},
-            body: raw.body ?? '',
-            truncated: raw.truncated ?? false,
-            ...(raw.durationMs !== undefined ? { durationMs: raw.durationMs } : {}),
-            ...(raw.error ? { error: raw.error } : {}),
-          }
-        : {
-            headers: {},
-            body: '',
-            truncated: false,
-            error: result.kind === 'completed' ? 'No response.' : result.message,
-          },
-      session: this.describeSession(entry),
-    };
-  }
-
-  /** Stops every application (server shutdown). */
-  async shutdown(): Promise<void> {
-    await Promise.all([...this.sessions.values()].map((e) => this.stopEntry(e, 'stopped')));
-  }
-
-  private touch(entry: SessionEntry): void {
-    entry.lastUsed = Date.now();
-    if (entry.idleTimer) clearTimeout(entry.idleTimer);
-    entry.idleTimer = setTimeout(
-      () => void this.stopEntry(entry, 'expired'),
-      this.policy.sessionIdleMs,
-    );
-    entry.idleTimer.unref?.();
-  }
-
-  private async stopEntry(entry: SessionEntry, state: 'stopped' | 'expired'): Promise<void> {
-    if (entry.idleTimer) clearTimeout(entry.idleTimer);
-    await entry.app.stop(
-      state,
-      state === 'expired' ? 'The application was stopped after being idle.' : undefined,
-    );
-    // Keep stopped sessions briefly so the browser can read the final state.
-    setTimeout(() => this.sessions.delete(entry.id), 5 * 60_000).unref?.();
-  }
-
-  private ownSession(user: Caller, sessionId: string): SessionEntry {
-    const entry = this.sessions.get(sessionId);
-    if (!entry || entry.userId !== user.id) throw notFound('No such application session.');
-    return entry;
-  }
-
-  private describeSession(entry: SessionEntry): WebSession {
-    const app = entry.app;
-    return {
-      id: entry.id,
-      challengeId: entry.challengeId,
-      framework: entry.framework,
-      state: app.state,
-      ...(app.stateMessage ? { message: app.stateMessage } : {}),
-      diagnostics: app.diagnostics.map((d) => ({ ...d })),
-      logs: app.logs().slice(-200),
-      createdAt: entry.createdAt,
-      expiresAt: new Date(
-        Math.min(
-          entry.expiresAt,
-          Date.now() + this.policy.sessionIdleMs - (Date.now() - entry.lastUsed),
-        ),
-      ).toISOString(),
-      requestsUsed: entry.requestsUsed,
-      requestLimit: this.policy.sessionRequestLimit,
-    };
   }
 
   /* ---------- Drafts ---------- */
@@ -580,12 +383,7 @@ export class WebChallengeService {
     return content;
   }
 
-  private requireRunner(): DockerWebRunner {
-    if (!this.deps.runner) throw unavailable();
-    return this.deps.runner;
-  }
-
-  /** Counts one build against the caller's daily quota (runs and sessions), or refuses. */
+  /** Counts one build against the caller's daily quota, or refuses. */
   private async consumeQuota(user: Caller): Promise<void> {
     const limit = await this.dailyLimit(user);
     const usage = await this.deps.store.consumeWebExecution(user.id, this.today(), limit);
@@ -621,62 +419,6 @@ function publicTimed(r: WebTimedSessionRecord): WebTimedSession {
     submissions: r.submissions,
     ...(r.finishedAt ? { finishedAt: r.finishedAt } : {}),
     ...(r.best ? { best: r.best } : {}),
-  };
-}
-
-/** Validates an HTTP-client request (never trusted): method, relative path, approved headers, size. */
-export function parseWebHttpRequest(body: unknown): WebHttpRequest {
-  if (typeof body !== 'object' || body === null) throw badRequest('A request is required.');
-  const b = body as Record<string, unknown>;
-  const method = b['method'];
-  if (
-    method !== 'GET' &&
-    method !== 'POST' &&
-    method !== 'PUT' &&
-    method !== 'PATCH' &&
-    method !== 'DELETE'
-  ) {
-    throw badRequest('method must be GET, POST, PUT, PATCH or DELETE.');
-  }
-  const path = b['path'];
-  if (
-    typeof path !== 'string' ||
-    !REQUEST_PATH.test(path) ||
-    /^\/\//.test(path) ||
-    path.includes('\\')
-  ) {
-    throw badRequest('path must be a relative application path such as /api/employees (no URLs).');
-  }
-  const headers: Record<string, string> = {};
-  if (b['headers'] !== undefined) {
-    if (typeof b['headers'] !== 'object' || b['headers'] === null || Array.isArray(b['headers'])) {
-      throw badRequest('headers must be an object.');
-    }
-    const entries = Object.entries(b['headers'] as Record<string, unknown>);
-    if (entries.length > 10) throw badRequest('At most 10 headers are allowed.');
-    for (const [name, value] of entries) {
-      if (!HEADER_NAME.test(name)) {
-        throw badRequest(
-          `Header "${name.slice(0, 64)}" is not allowed. Allowed: Content-Type, Accept, Authorization, If-Match, If-None-Match and X-… headers.`,
-        );
-      }
-      if (typeof value !== 'string' || value.length > 1024 || /[\r\n\0]/.test(value)) {
-        throw badRequest(`Header "${name}" must be a single line of at most 1024 characters.`);
-      }
-      headers[name] = value;
-    }
-  }
-  const requestBody = b['body'];
-  if (requestBody !== undefined && requestBody !== null) {
-    if (typeof requestBody !== 'string' || Buffer.byteLength(requestBody) > MAX_HTTP_BODY) {
-      throw badRequest('body must be text of at most 64 KB.');
-    }
-  }
-  return {
-    method,
-    path,
-    ...(Object.keys(headers).length ? { headers } : {}),
-    ...(typeof requestBody === 'string' ? { body: requestBody } : {}),
   };
 }
 

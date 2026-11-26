@@ -163,12 +163,15 @@ describe.skipIf(skipDockerTests)('web runs through the built bundles', { timeout
     rmSync(outDir, { recursive: true, force: true });
   });
 
-  const runToCompletion = async (files: Record<string, string>) => {
+  const runToCompletion = async (
+    files: Record<string, string>,
+    extra: Record<string, unknown> = { mode: 'submit' },
+  ) => {
     const created = await api(
       event('POST', '/api/web-challenges/employee-rest-api/runs', {
         framework: 'django',
         files,
-        mode: 'submit',
+        ...extra,
       }),
     );
     expect(created.statusCode, created.body).toBe(200);
@@ -208,6 +211,37 @@ describe.skipIf(skipDockerTests)('web runs through the built bundles', { timeout
       tamper = false;
     }
     // Not counted as an attempt.
+    const progress = await api(event('GET', '/api/web-challenges/progress'));
+    expect(JSON.parse(progress.body)).toMatchObject({ challenges: [{ attempts: 1 }] });
+  });
+
+  it('runs the HTTP client as a batch: the learner’s requests, in order, to one application', async () => {
+    const run = (await runToCompletion(reference, {
+      mode: 'requests',
+      requests: [
+        {
+          method: 'POST',
+          path: '/api/employees',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Margaret Hamilton',
+            email: 'margaret@example.com',
+            department: 'Engineering',
+          }),
+        },
+        { method: 'GET', path: '/api/employees' },
+      ],
+    })) as unknown as {
+      result: {
+        verdict: string;
+        exchanges: { response: { status?: number; body: string } }[];
+        logs: string[];
+      };
+    };
+    expect(run.result.verdict, JSON.stringify(run.result)).toBe('responded');
+    expect(run.result.exchanges.map((x) => x.response.status)).toEqual([201, 200]);
+    expect(run.result.exchanges[1]?.response.body).toContain('Margaret Hamilton');
+    // Not an attempt.
     const progress = await api(event('GET', '/api/web-challenges/progress'));
     expect(JSON.parse(progress.body)).toMatchObject({ challenges: [{ attempts: 1 }] });
   });

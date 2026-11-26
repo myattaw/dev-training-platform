@@ -1,6 +1,6 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phases 0–2 (local feasibility, runner images, trusted worker) done on 2026-11-26.**
+Status: **Phases 0–3 (local feasibility, runner images, trusted worker, batch HTTP client) done on 2026-11-26.**
 Nothing is deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
@@ -162,9 +162,41 @@ the memory store and DynamoDB Local, concurrent acquisitions, item size), and
 Django runner image, through the AWS SDK. A reference submission is accepted and recorded; a
 response altered on its way back is an infrastructure error.
 
+## Phase 3: the HTTP client as batch runs
+
+Live application sessions are gone, locally too. The HTTP client is a third kind of run:
+
+- The learner lists 1–20 requests (method, relative path, approved headers, bodies ≤ 16 KB and
+  64 KB in all; `WEB_REQUEST_LIMITS`). **Send requests** creates a run with `mode: 'requests'`.
+- The worker sends them as **one sequence** to one fresh application, so state carries over (a
+  `POST` is visible to the next `GET`), then stops it. Nothing is graded: a completed run's verdict
+  is `responded`, and its result lists each request with its response (bodies cut to 32 KB for
+  display; in DynamoDB to 2 KB if the item would be too large) plus the application's output.
+  Build and startup failures are reported exactly as for test runs, with diagnostics.
+- Same path as every run: per-user slot (one run of any kind at a time), daily quota, global limit
+  of 2, stored run, signed batch on Lambda. Never an attempt; not allowed in timed sessions.
+- The request list is kept in the browser per challenge and framework.
+
+| Piece                                      | Where                                                                                 |
+| ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Contract (`mode`, `requests`, `exchanges`) | `packages/api-contracts/src/web-challenges.ts`                                        |
+| Validation                                 | `services/api/src/web/web-validation.ts` (`parseWebHttpRequests`)                     |
+| Worker: one sequence, `toRequestsResult`   | `services/api/src/web/web-run-worker.ts`, `web-shared.ts`                             |
+| UI: request list, responses, Output tab    | `apps/web/src/app/features/web-challenges/ui/http-client.ts`, `pages/web-workspace.*` |
+
+Removed: `/api/web-sessions*`, the session policy (lifetime, idle timeout, request cap), the
+"Run application" button and the in-memory session map in the API.
+
+Tests: `web-run-worker.spec.ts` (one sequence with exactly the learner's requests, responses and
+logs, long bodies cut, a missing response explained, not graded or recorded, quota counted, build
+errors with diagnostics, refused in timed sessions), `web-challenges.spec.ts` (validation; the
+real Django app answers requests in order and keeps state between them),
+`web-bundle.spec.ts` (the same through the Lambda bundles and the runner image),
+`store/web-store.spec.ts` (shrinking response bodies), `e2e/web-challenges.e2e.ts` (send two
+requests in the browser, see 200 and 404, the output, and the list after a reload).
+
 ## Next phases
 
-3. Batch HTTP client in the web app (local and AWS).
 4. CDK: three functions in the runner VPC with no permissions, the worker, config flag, kill
    switch, alarms.
 5. Security checks (`verify-runners` for web functions) and tests.

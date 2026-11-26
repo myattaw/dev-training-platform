@@ -186,6 +186,106 @@ describe('web worker (fake executor)', () => {
     expect(executor.calls).toBe(0);
   });
 
+  it('an HTTP-client run sends the requests as one sequence, returns responses, grades nothing', async () => {
+    const seen: (readonly unknown[])[] = [];
+    const executor: WebExecutor = {
+      runBatch: (_project, sequences) => {
+        seen.push(...sequences);
+        return Promise.resolve<BatchRun>({
+          kind: 'completed',
+          responses: [
+            [
+              { status: 200, headers: { 'content-type': 'application/json' }, body: '[]' },
+              { status: 201, headers: {}, body: 'x'.repeat(40_000), truncated: false },
+            ],
+          ],
+          logs: ['GET /api/employees 200'],
+          durationMs: 7,
+        });
+      },
+    };
+    const t = testApi({ content, webExecutor: executor });
+    const requests = [
+      { method: 'GET', path: '/api/employees' },
+      {
+        method: 'POST',
+        path: '/api/employees',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{"name":"Margaret"}',
+      },
+      { method: 'DELETE', path: '/api/employees/1' },
+    ];
+    const res = await t.call('POST', '/api/web-challenges/employee-rest-api/runs', {
+      framework: 'django',
+      files: {},
+      mode: 'requests',
+      requests,
+    });
+    expect(res.status, JSON.stringify(res.body)).toBe(200);
+    const id = (res.body as WebRunResponse).run.id;
+    await until(async () => (await runOf(t, id)).status === 'completed');
+    const run = await runOf(t, id);
+    // One sequence (one application, state carries over), exactly the learner's requests.
+    expect(seen).toEqual([requests]);
+    expect(run.mode).toBe('requests');
+    expect(run.result?.verdict).toBe('responded');
+    expect(run.result?.logs).toEqual(['GET /api/employees 200']);
+    const exchanges = run.result?.exchanges ?? [];
+    expect(exchanges.map((x) => x.request)).toEqual(requests);
+    expect(exchanges[0]?.response).toMatchObject({ status: 200, body: '[]', truncated: false });
+    // Long bodies are cut for display and marked; a missing response says why.
+    expect(exchanges[1]?.response.body.length).toBe(32 * 1024);
+    expect(exchanges[1]?.response.truncated).toBe(true);
+    expect(exchanges[2]?.response.error).toMatch(/No response/);
+    // Never graded, never an attempt; it uses the daily quota like any build.
+    expect(run.result?.visible).toEqual([]);
+    expect(run.result?.hidden).toEqual([]);
+    const progress = (await t.call('GET', '/api/web-challenges/progress'))
+      .body as WebProgressResponse;
+    expect(progress.challenges).toEqual([]);
+    const usage = (await t.call('GET', '/api/me/web-usage')).body as { executionsUsed: number };
+    expect(usage.executionsUsed).toBe(1);
+  });
+
+  it('an HTTP-client run reports build errors like a test run, and refuses a timed session', async () => {
+    const executor: WebExecutor = {
+      runBatch: () =>
+        Promise.resolve({
+          kind: 'build-failed',
+          diagnostics: [{ file: 'employees/views.py', line: 3, message: 'SyntaxError' }],
+          logs: ['Traceback'],
+        }),
+    };
+    const t = testApi({ content, webExecutor: executor });
+    const res = await t.call('POST', '/api/web-challenges/employee-rest-api/runs', {
+      framework: 'django',
+      files: {},
+      mode: 'requests',
+      requests: [{ method: 'GET', path: '/' }],
+    });
+    const id = (res.body as WebRunResponse).run.id;
+    await until(async () => (await runOf(t, id)).status === 'completed');
+    const run = await runOf(t, id);
+    expect(run.result?.verdict).toBe('compilation-error');
+    expect(run.result?.diagnostics[0]).toMatchObject({ file: 'employees/views.py', line: 3 });
+    expect(run.result?.logs).toEqual(['Traceback']);
+
+    const timed = await t.call('POST', '/api/web-timed-sessions', {
+      challengeId: 'employee-rest-api',
+      framework: 'django',
+      durationMinutes: 30,
+    });
+    const timedId = (timed.body as { session: { id: string } }).session.id;
+    const refused = await t.call('POST', '/api/web-challenges/employee-rest-api/runs', {
+      framework: 'django',
+      files: {},
+      mode: 'requests',
+      requests: [{ method: 'GET', path: '/' }],
+      timedSessionId: timedId,
+    });
+    expect(refused.status).toBe(400);
+  });
+
   it('a repeated dispatch of the same run executes it once', async () => {
     const executor = new GatedExecutor();
     const t = testApi({ content, webExecutor: executor });

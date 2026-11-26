@@ -39,13 +39,40 @@ import {
 
 /** DynamoDB's item limit is 400 KB; keep run items well below it. */
 const MAX_RUN_BLOB_BYTES = 300_000;
+const SHRUNK_BODY_CHARS = 2_000;
 
-/** A run record, gzipped; shrunk if needed (logs, then files once the run is done). */
+/**
+ * A run record, gzipped; shrunk if needed (logs, then HTTP-client response
+ * bodies, then the files once the run is done).
+ */
 export function encodeRun(run: WebRunRecord): Buffer {
   const candidates: WebRunRecord[] = [run];
   if (run.result) {
     candidates.push({ ...run, result: { ...run.result, logs: run.result.logs.slice(-20) } });
     candidates.push({ ...run, result: { ...run.result, logs: [] } });
+    const exchanges = run.result.exchanges;
+    if (exchanges) {
+      // HTTP-client responses: keep the start of each body.
+      const last = candidates[candidates.length - 1] as WebRunRecord;
+      candidates.push({
+        ...last,
+        result: {
+          ...(last.result as NonNullable<WebRunRecord['result']>),
+          exchanges: exchanges.map((x) =>
+            x.response.body.length > SHRUNK_BODY_CHARS
+              ? {
+                  ...x,
+                  response: {
+                    ...x.response,
+                    body: x.response.body.slice(0, SHRUNK_BODY_CHARS),
+                    truncated: true,
+                  },
+                }
+              : x,
+          ),
+        },
+      });
+    }
   }
   if (run.status === 'completed') {
     const last = candidates[candidates.length - 1] as WebRunRecord;

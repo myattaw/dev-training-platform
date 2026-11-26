@@ -3,6 +3,7 @@ import type { WebTest } from '@pracstack/content-model';
 import {
   type BatchRun,
   gradeBatch,
+  type ProbeRequest,
   toProbeRequests,
   type WebExecutor,
 } from '@pracstack/web-runner';
@@ -12,6 +13,7 @@ import {
   prepareProject,
   publicProgress,
   recordTimedSubmission,
+  toRequestsResult,
   toRunResult,
   type WebChallengeContent,
 } from './web-shared';
@@ -32,15 +34,17 @@ export interface WebRunWorkerDeps {
 }
 
 /**
- * Runs one stored, queued test run to completion (trusted side). The API
- * creates the run and dispatches it here: locally in-process, on AWS through
- * an asynchronous invocation of the web worker function.
+ * Runs one stored, queued run (visible tests, a submission, or HTTP-client
+ * requests) to completion (trusted side). The API creates the run and
+ * dispatches it here: locally in-process, on AWS through an asynchronous
+ * invocation of the web worker function.
  *
  * 1. Claims the run (queued → building), so a repeated dispatch does nothing.
  * 2. Waits for one of the global slots (at most `concurrentGlobal` at once).
  * 3. Rebuilds the project from trusted content and the stored editable files,
- *    has the executor run the tests' requests, and grades the responses here:
- *    expected values never leave this side.
+ *    has the executor send the requests (the tests', or the learner's own as
+ *    one sequence), and grades test responses here: expected values never
+ *    leave this side. HTTP-client responses are returned, not graded.
  * 4. Records graded submissions (progress, timed sessions) and completes the run.
  * 5. Always frees the global slot and the user's run slot.
  */
@@ -81,15 +85,21 @@ export class WebRunWorker {
         });
         return;
       }
-      const visible = content.challenge.visibleTests;
+      // An HTTP-client run sends the learner's requests (one sequence, one application) and
+      // grades nothing; a test run sends the tests' requests.
+      const visible = run.mode === 'requests' ? [] : content.challenge.visibleTests;
       const hidden = run.mode === 'submit' ? content.grading.hiddenTests : [];
       const tests: readonly WebTest[] = [...visible, ...hidden];
+      const sequences: ProbeRequest[][] =
+        run.mode === 'requests'
+          ? [(run.requests ?? []).map((r) => ({ ...r }))]
+          : tests.map(toProbeRequests);
       const { project } = prepareProject(content, run.framework, run.files);
       let outcome: BatchRun;
       try {
         outcome = await this.deps.executor.runBatch(
           project,
-          tests.map(toProbeRequests),
+          sequences,
           (phase) => void advance(phase === 'testing' ? 'testing' : phase).catch(() => undefined),
         );
       } catch (err) {
@@ -146,7 +156,10 @@ export class WebRunWorker {
     visibleCount = 0,
     hidden: readonly WebTest[] = [],
   ): Promise<boolean> {
-    const result = toRunResult(gradeBatch(outcome, tests), visibleCount, hidden, run.mode);
+    const result =
+      run.mode === 'requests'
+        ? toRequestsResult(outcome, run.requests ?? [])
+        : toRunResult(gradeBatch(outcome, tests), visibleCount, hidden, run.mode);
     let progress: WebChallengeProgress | undefined;
     if (content && run.mode === 'submit' && result.verdict !== 'infrastructure-error') {
       const record: WebSubmissionRecord = {
