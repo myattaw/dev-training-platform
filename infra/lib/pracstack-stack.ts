@@ -4,6 +4,7 @@ import {
   Duration,
   RemovalPolicy,
   SecretValue,
+  Size,
   Stack,
   type StackProps,
   Token,
@@ -54,7 +55,53 @@ export interface PracStackAssets {
   readonly githubOidc?: string;
   /** Docker build contexts of the runner functions (services/runners/dist/*). */
   readonly runners: Readonly<Record<RunnerName, string>>;
+  /** Docker build contexts of the web runner functions (services/runners/dist/web-*). */
+  readonly webRunners?: Readonly<Record<WebRunnerFramework, string>>;
 }
+
+/** Web-challenge frameworks with a runner function (see services/runners/src/web-handler.ts). */
+export const WEB_RUNNER_FRAMEWORKS = ['aspnetcore', 'spring-boot', 'django'] as const;
+export type WebRunnerFramework = (typeof WEB_RUNNER_FRAMEWORKS)[number];
+
+const WEB_RUNNER_IDS: Readonly<Record<WebRunnerFramework, string>> = {
+  aspnetcore: 'WebAspnetcore',
+  'spring-boot': 'WebSpringBoot',
+  django: 'WebDjango',
+};
+
+/** The worker's environment variable naming each framework's runner (services/api/src/lambda/web-worker.ts). */
+const WEB_RUNNER_ENV: Readonly<Record<WebRunnerFramework, string>> = {
+  aspnetcore: 'WEB_RUNNER_ASPNETCORE_FUNCTION',
+  'spring-boot': 'WEB_RUNNER_SPRING_BOOT_FUNCTION',
+  django: 'WEB_RUNNER_DJANGO_FUNCTION',
+};
+
+/**
+ * Web runner sizes. Memory sets the CPU (1,769 MB = 1 vCPU); Phase 0 measured
+ * whole batches of 3–5 s at these sizes (docs/lambda-web-runner.md). The
+ * timeout covers the handler's own build and startup deadlines (at most 120 s
+ * + 60 s) plus the requests; the handler stops before it. /tmp holds the
+ * project and the build output.
+ */
+export const WEB_RUNNER_SIZES: Readonly<
+  Record<WebRunnerFramework, { memoryMb: number; timeoutS: number; tmpMb: number }>
+> = {
+  aspnetcore: { memoryMb: 4096, timeoutS: 300, tmpMb: 1024 },
+  'spring-boot': { memoryMb: 4096, timeoutS: 300, tmpMb: 1024 },
+  django: { memoryMb: 2048, timeoutS: 300, tmpMb: 1024 },
+};
+
+/**
+ * The web worker: waits up to `queueWaitS` for one of the `concurrentGlobal`
+ * slots, then invokes one runner (at most 300 s). Its timeout covers both, with
+ * a margin, and stays below the 10-minute run lease (services/api, RUN_LEASE_MS).
+ */
+export const WEB_WORKER = {
+  memoryMb: 512,
+  queueWaitS: 120,
+  timeoutS: 480,
+  concurrentGlobal: 2,
+} as const;
 
 export type RunnerName = 'typescript' | 'java' | 'csharp' | 'sql';
 
@@ -110,6 +157,13 @@ export interface PracStackProps extends StackProps {
    * quota is the new-account 10, because AWS keeps 10 unreserved at all times).
    */
   readonly runnerConcurrency?: number;
+  /**
+   * Web Development Challenges run on AWS (docs/lambda-web-runner.md): three web
+   * runner functions in the isolated runner VPC and the web worker, which the
+   * API starts for every run. Off (default): nothing of it is created and web
+   * challenges are browse-only. Needs `assets.webRunners`.
+   */
+  readonly webExecution?: boolean;
   /**
    * "Continue with Google". The client ID is public; the client secret is read at
    * deploy time from AWS Secrets Manager (plain-text secret named `clientSecretName`)
@@ -495,6 +549,10 @@ export class PracStackStack extends Stack {
       });
     }
 
+    const web = props.webExecution
+      ? this.webExecution(props, table, runnerVpc, runnerSecurityGroup)
+      : undefined;
+
     const apiFunction = new lambda.Function(this, 'ApiFunction', {
       description: 'PracStack API: progress, scoring, question serving. Never runs learner code.',
       runtime: lambda.Runtime.NODEJS_22_X,
@@ -515,13 +573,19 @@ export class PracStackStack extends Stack {
         RUNNER_JAVA_FUNCTION: runners.java.functionName,
         RUNNER_CSHARP_FUNCTION: runners.csharp.functionName,
         RUNNER_SQL_FUNCTION: runners.sql.functionName,
+        // Set only with web execution; unset, web challenges are browse-only.
+        ...(web ? { WEB_WORKER_FUNCTION: web.worker.functionName } : {}),
       },
     });
-    // The API may invoke the runners, and nothing else.
+    // The API may invoke the code runners and start the web worker, and nothing else.
+    // It never invokes a web runner: only the worker does.
     functionRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['lambda:InvokeFunction'],
-        resources: Object.values(runners).map((runner) => runner.functionArn),
+        resources: [
+          ...Object.values(runners).map((runner) => runner.functionArn),
+          ...(web ? [web.worker.functionArn] : []),
+        ],
       }),
     );
 
@@ -621,8 +685,9 @@ export class PracStackStack extends Stack {
     });
 
     // Kill switch: when actual spend passes the budget, AWS Budgets attaches this
-    // policy to the API function's role. Learner code and SQL then stop running
-    // ("busy"); browsing, sign-in and progress keep working. Undo: docs/aws.md.
+    // policy to the API function's role (and the web worker's). Learner code, SQL
+    // and web applications then stop running ("busy" / infrastructure error);
+    // browsing, sign-in and progress keep working. Undo: docs/aws.md.
     const stopRunners = new iam.ManagedPolicy(this, 'StopRunnersPolicy', {
       description:
         'Attached automatically by the PracStack budget action: stops all runner invocations.',
@@ -630,10 +695,19 @@ export class PracStackStack extends Stack {
         new iam.PolicyStatement({
           effect: iam.Effect.DENY,
           actions: ['lambda:InvokeFunction'],
-          resources: Object.values(runners).map((runner) => runner.functionArn),
+          resources: [
+            ...Object.values(runners).map((runner) => runner.functionArn),
+            ...(web
+              ? [
+                  web.worker.functionArn,
+                  ...Object.values(web.runners).map((runner) => runner.functionArn),
+                ]
+              : []),
+          ],
         }),
       ],
     });
+    const killSwitchRoles = [functionRole, ...(web ? [web.workerRole] : [])];
     const budgetActionRole = new iam.Role(this, 'BudgetActionRole', {
       assumedBy: new iam.ServicePrincipal('budgets.amazonaws.com'),
       description:
@@ -642,7 +716,7 @@ export class PracStackStack extends Stack {
     budgetActionRole.addToPolicy(
       new iam.PolicyStatement({
         actions: ['iam:AttachRolePolicy', 'iam:DetachRolePolicy'],
-        resources: [functionRole.roleArn],
+        resources: killSwitchRoles.map((role) => role.roleArn),
         conditions: { ArnEquals: { 'iam:PolicyARN': stopRunners.managedPolicyArn } },
       }),
     );
@@ -656,7 +730,7 @@ export class PracStackStack extends Stack {
       definition: {
         iamActionDefinition: {
           policyArn: stopRunners.managedPolicyArn,
-          roles: [functionRole.roleName],
+          roles: killSwitchRoles.map((role) => role.roleName),
         },
       },
       subscribers: [{ type: 'EMAIL', address: props.alertEmail }],
@@ -713,6 +787,23 @@ export class PracStackStack extends Stack {
         `The ${name} runner failed 5+ times in 5 minutes (the supervisor itself, not learner code).`,
       );
     }
+    // Web execution adds two (nine in all, within the ten free alarm metrics). Web runner
+    // errors get no alarm of their own: their timeouts and memory kills are usually the
+    // learner's application, and the worker reports what matters.
+    if (web) {
+      alarm(
+        'WebWorkerErrorsAlarm',
+        web.worker.metricErrors(fiveMinutes),
+        3,
+        'The web worker failed 3+ times in 5 minutes (runs may be left unfinished; see its logs).',
+      );
+      alarm(
+        'WebRunnerAlarmsAlarm',
+        web.alarmLines,
+        1,
+        'The web worker logged an alarm line, e.g. a web runner response that failed signature verification (web-runner-unverified). Investigate before it is ignored.',
+      );
+    }
 
     // ---------------------------------------------------------------- outputs
     new CfnOutput(this, 'SiteUrl', { value: siteUrl });
@@ -743,6 +834,15 @@ export class PracStackStack extends Stack {
       new CfnOutput(this, `${name[0]?.toUpperCase()}${name.slice(1)}RunnerName`, {
         value: runner.functionName,
       });
+    if (web) {
+      new CfnOutput(this, 'WebWorkerName', { value: web.worker.functionName });
+      // The budget action attaches the stop-runners policy here too; detach it to resume.
+      new CfnOutput(this, 'WebWorkerRoleName', { value: web.workerRole.roleName });
+      for (const [framework, runner] of Object.entries(web.runners))
+        new CfnOutput(this, `${WEB_RUNNER_IDS[framework as WebRunnerFramework]}RunnerName`, {
+          value: runner.functionName,
+        });
+    }
 
     this.acknowledgeReviewedFindings({
       distribution,
@@ -752,9 +852,134 @@ export class PracStackStack extends Stack {
       userPool,
       apiFunction,
       runners,
+      webRunners: web ? Object.values(web.runners) : [],
+      webWorker: web?.worker,
       signUpGate,
       customDomain: custom !== undefined,
     });
+  }
+
+  /**
+   * Web Development Challenges on Lambda (docs/lambda-web-runner.md):
+   *
+   *   API ─async invoke─▶ web worker ─sync invoke, signed batch─▶ web runner (framework)
+   *        (no retries)    (table, logs,                          (isolated VPC: no network,
+   *                         the 3 runners)                          no DNS, no permissions)
+   *
+   * The runners are like the code runners: container images in the runner VPC
+   * with its no-traffic security group, roles with logs and VPC attachment only,
+   * credentials removed by their entrypoint. The worker runs the API bundle's
+   * second entry point (web-worker.mjs) with the same content; it can read and
+   * write the table and invoke exactly the three web runners.
+   */
+  private webExecution(
+    props: PracStackProps,
+    table: dynamodb.TableV2,
+    vpc: ec2.Vpc,
+    securityGroup: ec2.SecurityGroup,
+  ): {
+    worker: lambda.Function;
+    workerRole: iam.Role;
+    runners: Record<WebRunnerFramework, lambda.DockerImageFunction>;
+    alarmLines: cloudwatch.IMetric;
+  } {
+    const contexts = props.assets.webRunners;
+    if (!contexts) throw new Error('webExecution needs assets.webRunners (the web runner images).');
+    const runners = {} as Record<WebRunnerFramework, lambda.DockerImageFunction>;
+    for (const framework of WEB_RUNNER_FRAMEWORKS) {
+      const id = `${WEB_RUNNER_IDS[framework]}Runner`;
+      const size = WEB_RUNNER_SIZES[framework];
+      const runnerLogs = new logs.LogGroup(this, `${id}Logs`, {
+        retention: logs.RetentionDays.TWO_WEEKS,
+        removalPolicy: RemovalPolicy.DESTROY,
+      });
+      const role = new iam.Role(this, `${id}Role`, {
+        assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+        description: `PracStack ${framework} web runner: no access to any AWS data.`,
+        managedPolicies: [
+          iam.ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaVPCAccessExecutionRole',
+          ),
+        ],
+      });
+      runnerLogs.grantWrite(role);
+      runners[framework] = new lambda.DockerImageFunction(this, id, {
+        description: `PracStack ${framework} web runner: builds and runs a learner's web application for one batch of requests. No network, no permissions.`,
+        code: lambda.DockerImageCode.fromImageAsset(contexts[framework], {
+          platform: Platform.LINUX_AMD64,
+        }),
+        architecture: lambda.Architecture.X86_64,
+        memorySize: size.memoryMb,
+        timeout: Duration.seconds(size.timeoutS),
+        ephemeralStorageSize: Size.mebibytes(size.tmpMb),
+        ...(props.runnerConcurrency !== undefined
+          ? { reservedConcurrentExecutions: props.runnerConcurrency }
+          : {}),
+        role,
+        logGroup: runnerLogs,
+        vpc,
+        vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+        securityGroups: [securityGroup],
+      });
+    }
+
+    const workerLogs = new logs.LogGroup(this, 'WebWorkerLogs', {
+      retention: logs.RetentionDays.TWO_WEEKS,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const workerRole = new iam.Role(this, 'WebWorkerRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      description:
+        'PracStack web worker: its log group, its DynamoDB table, and invoking the three web runners only.',
+    });
+    workerLogs.grantWrite(workerRole);
+    table.grantReadWriteData(workerRole);
+    workerRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['lambda:InvokeFunction'],
+        resources: Object.values(runners).map((runner) => runner.functionArn),
+      }),
+    );
+    const worker = new lambda.Function(this, 'WebWorkerFunction', {
+      description:
+        'PracStack web worker: runs stored web-challenge runs through the web runners and grades them. Never runs learner code.',
+      runtime: lambda.Runtime.NODEJS_22_X,
+      architecture: lambda.Architecture.ARM_64,
+      handler: 'web-worker.handler',
+      code: lambda.Code.fromAsset(props.assets.lambda),
+      memorySize: WEB_WORKER.memoryMb,
+      timeout: Duration.seconds(WEB_WORKER.timeoutS),
+      // The API's asynchronous invoke is delivered once: a retry after a timeout could
+      // hold a slot twice. A lost event leaves the run to expire (the API reports it).
+      retryAttempts: 0,
+      maxEventAge: Duration.minutes(5),
+      role: workerRole,
+      logGroup: workerLogs,
+      environment: {
+        TABLE_NAME: table.tableName,
+        NODE_OPTIONS: '--enable-source-maps',
+        WEB_CONCURRENT_GLOBAL: String(WEB_WORKER.concurrentGlobal),
+        WEB_QUEUE_WAIT_MS: String(WEB_WORKER.queueWaitS * 1000),
+        ...Object.fromEntries(
+          WEB_RUNNER_FRAMEWORKS.map((f) => [WEB_RUNNER_ENV[f], runners[f].functionName]),
+        ),
+      },
+    });
+
+    // Alarm lines the worker logs ({"level":"alarm",…}, e.g. web-runner-unverified).
+    const filter = new logs.MetricFilter(this, 'WebWorkerAlarmLines', {
+      logGroup: workerLogs,
+      filterPattern: logs.FilterPattern.stringValue('$.level', '=', 'alarm'),
+      metricNamespace: `PracStack/${props.stage}`,
+      metricName: 'WebWorkerAlarmLines',
+      metricValue: '1',
+    });
+    return {
+      worker,
+      workerRole,
+      runners,
+      alarmLines: filter.metric({ period: Duration.minutes(5), statistic: 'Sum' }),
+    };
   }
 
   /**
@@ -934,6 +1159,8 @@ export class PracStackStack extends Stack {
     userPool: cognito.UserPool;
     apiFunction: lambda.Function;
     runners: Record<RunnerName, lambda.DockerImageFunction>;
+    webRunners: readonly lambda.DockerImageFunction[];
+    webWorker: lambda.Function | undefined;
     signUpGate: lambda.Function | undefined;
     customDomain: boolean;
   }): void {
@@ -969,7 +1196,11 @@ export class PracStackStack extends Stack {
       ack(r.signUpGate, {
         L1: 'Node.js 22 (supported by Lambda until 2027), the same runtime as the API function.',
       });
-    for (const runner of Object.values(r.runners)) {
+    if (r.webWorker)
+      ack(r.webWorker, {
+        L1: 'Node.js 22 (supported by Lambda until 2027), the same runtime and bundle as the API function.',
+      });
+    for (const runner of [...Object.values(r.runners), ...r.webRunners]) {
       if (!runner.role) continue;
       ack(runner.role, {
         'IAM4[Policy::arn:<AWS::Partition>:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole]':

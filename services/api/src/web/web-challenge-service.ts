@@ -219,6 +219,30 @@ export class WebChallengeService {
     // Runs are stored per user: someone else's run is reported exactly like a missing one.
     const run = await this.deps.store.getWebRun(user.id, runId);
     if (!run) throw notFound('No such run.');
+    // A run whose worker never finished it (lost event, crash, timeout) ends once its
+    // slot has expired, so the browser stops waiting. Never an attempt.
+    if (
+      run.status !== 'completed' &&
+      this.deps.now().getTime() > Date.parse(run.acceptedAt) + RUN_LEASE_MS
+    ) {
+      const expired: WebRunRecord = {
+        ...run,
+        status: 'completed',
+        result: {
+          verdict: 'infrastructure-error',
+          message:
+            'The run did not finish on the server. This was not caused by your code and does not count as an attempt.',
+          diagnostics: [],
+          visible: [],
+          hidden: [],
+          logs: [],
+        },
+      };
+      if (await this.deps.store.updateWebRun(expired, run.status))
+        return { run: publicRun(expired) };
+      const current = await this.deps.store.getWebRun(user.id, runId);
+      return { run: publicRun(current ?? run) };
+    }
     return { run: publicRun(run) };
   }
 

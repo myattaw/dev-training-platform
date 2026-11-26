@@ -72,6 +72,11 @@ export function prepareAssets(
     throw new Error(
       `No runner build contexts in ${runnersDir}. Run "npm run build -w @pracstack/runners".`,
     );
+  for (const name of ['web-aspnetcore', 'web-spring-boot', 'web-django'])
+    if (!existsSync(join(runnersDir, name, 'Dockerfile')))
+      throw new Error(
+        `No web runner build context in ${join(runnersDir, name)}. Run "npm run build -w @pracstack/runners".`,
+      );
   cpSync(runnersDir, join(out, 'runners'), { recursive: true });
 }
 

@@ -13,7 +13,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { createContentSource } from '../content/content-source';
 import { testApi, type TestApi } from '../testing/fixtures';
-import { DEFAULT_WEB_POLICY } from './web-challenge-service';
+import { DEFAULT_WEB_POLICY, RUN_LEASE_MS } from './web-challenge-service';
 
 /*
  * The web worker without Docker: a fake executor stands in for the
@@ -284,6 +284,23 @@ describe('web worker (fake executor)', () => {
       timedSessionId: timedId,
     });
     expect(refused.status).toBe(400);
+  });
+
+  it('a run whose worker never finished ends as an infrastructure error after its lease', async () => {
+    const t = testApi({
+      content,
+      // Dispatch succeeds but nothing ever runs (a lost event).
+      webDispatch: () => Promise.resolve(),
+    });
+    const id = ((await submit(t)).body as WebRunResponse).run.id;
+    expect((await runOf(t, id)).status).toBe('queued');
+    t.advance(RUN_LEASE_MS + 1_000);
+    const run = await runOf(t, id);
+    expect(run.status).toBe('completed');
+    expect(run.result?.verdict).toBe('infrastructure-error');
+    expect(run.result?.message).toMatch(/does not count/);
+    // The user's slot has expired too: a new run is accepted.
+    expect((await submit(t)).status).toBe(200);
   });
 
   it('a repeated dispatch of the same run executes it once', async () => {

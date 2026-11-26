@@ -1,6 +1,6 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phases 0–3 (local feasibility, runner images, trusted worker, batch HTTP client) done on 2026-11-26.**
+Status: **Phases 0–4 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack) done on 2026-11-26.**
 Nothing is deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
@@ -195,9 +195,50 @@ real Django app answers requests in order and keeps state between them),
 `store/web-store.spec.ts` (shrinking response bodies), `e2e/web-challenges.e2e.ts` (send two
 requests in the browser, see 200 and 404, the output, and the list after a reload).
 
+## Phase 4: the stack (CDK)
+
+Everything is behind one flag, off by default: `-c webExecution=true` (`PracStackProps.webExecution`).
+Off, the template is byte-for-byte what it was before Phase 4, and web challenges stay
+browse-only. On, the stack adds:
+
+| Resource                                   | What it may do                                                                                                                                              |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3 web runner functions (container images)  | Nothing: the isolated runner VPC (no route out, no DNS) and its no-traffic security group; role with logs and VPC attachment only; no environment variables |
+| Web worker function (`web-worker.handler`) | Its logs, the table, and invoking exactly the 3 web runners; outside the VPC like the API                                                                   |
+| API function                               | Additionally starts the worker (`WEB_WORKER_FUNCTION`); it never invokes a web runner                                                                       |
+| Metric filter + 2 alarms                   | Worker errors, and any `{"level":"alarm"}` line the worker logs (e.g. `web-runner-unverified`)                                                              |
+
+Sizes (`WEB_RUNNER_SIZES`, `WEB_WORKER`): ASP.NET Core and Spring Boot 4,096 MB, Django 2,048 MB
+(Phase 0 measurements; to be checked on staging), 300 s timeout (the handler stops before it:
+build at most 120 s, startup at most 60 s), 1,024 MB `/tmp`. The worker: 512 MB, 480 s timeout =
+2 minutes waiting for a slot + one runner + margin, below the 10-minute run lease.
+
+- **No retries.** The API's asynchronous start of the worker is delivered once
+  (`MaximumRetryAttempts: 0`, events older than 5 minutes dropped): a retry after a timeout could
+  hold a slot twice. A run whose worker never finished is reported by the API as an
+  infrastructure error once its 10-minute lease has passed (`getRun`), so the browser stops
+  waiting and the learner can run again. Never an attempt.
+- **Global limit** 2 (`WEB_CONCURRENT_GLOBAL`), enforced by the worker's lease, not by reserved
+  concurrency (the account's Lambda quota is too small to reserve; `runnerConcurrency` applies to
+  the web runners too when set).
+- **Kill switch.** The budget action's deny policy covers the worker and the web runners, and is
+  attached to the worker's role as well as the API's. Attaching it to the API role by hand stops
+  everything (the API can no longer start the worker). See `docs/aws.md`.
+- **Alarms.** Nine in all with web execution, inside CloudWatch's ten free alarm metrics. Web
+  runner errors get no alarm of their own: their timeouts and memory kills are usually the
+  learner's application.
+- **Assets.** `npm run deploy:prepare` stages `runners/web-{aspnetcore,spring-boot,django}` (and
+  refuses to continue without them). The worker uses the API's asset (`web-worker.mjs`).
+- **Outputs** (for Phase 5's `verify-runners`): `WebWorkerName`, `WebWorkerRoleName`,
+  `Web{Aspnetcore,SpringBoot,Django}RunnerName`.
+
+Tests: `infra/test/pracstack-stack.spec.ts`, "web execution": off by default; only free or
+pay-per-use resource types added; runners in the VPC with no data access and no environment;
+the worker's permissions, timeout arithmetic and no-retry setting; the API starts only the worker;
+the kill switch covers all of it; alarms within the free ten; outputs; cdk-nag passes. API:
+`web-run-worker.spec.ts` (a run whose worker never finished ends after its lease).
+
 ## Next phases
 
-4. CDK: three functions in the runner VPC with no permissions, the worker, config flag, kill
-   switch, alarms.
 5. Security checks (`verify-runners` for web functions) and tests.
 6. Staging, measure, then production with approval.

@@ -14,6 +14,8 @@ import {
   SIGN_UP_GATE_SOURCE,
   SPA_REWRITE_SOURCE,
   spaRewriteSource,
+  WEB_RUNNER_SIZES,
+  WEB_WORKER,
   webConfig,
 } from '../lib/pracstack-stack';
 import { CertificateStack } from '../lib/certificate-stack';
@@ -40,6 +42,11 @@ function fakeAssets() {
       java: dir('runner-java', 'Dockerfile'),
       csharp: dir('runner-csharp', 'Dockerfile'),
       sql: dir('runner-sql', 'Dockerfile'),
+    },
+    webRunners: {
+      aspnetcore: dir('runner-web-aspnetcore', 'Dockerfile'),
+      'spring-boot': dir('runner-web-spring-boot', 'Dockerfile'),
+      django: dir('runner-web-django', 'Dockerfile'),
     },
   };
 }
@@ -507,6 +514,212 @@ describe('runners (learner code and SQL)', () => {
         }),
       },
     });
+  });
+});
+
+describe('web execution (web challenges on Lambda)', () => {
+  let web: Template;
+  beforeAll(() => {
+    web = synth(false, { webExecution: true }).template;
+  });
+  const of = (t: Template, type: string) => Object.values(t.findResources(type)) as Resource[];
+  const statementsOf = (t: Template, rolePrefix: string) =>
+    (
+      Object.values(
+        t.findResources('AWS::IAM::Policy', {
+          Properties: { Roles: [{ Ref: Match.stringLikeRegexp(`^${rolePrefix}`) }] },
+        }),
+      ) as Resource[]
+    ).flatMap(
+      (p) => p.Properties.PolicyDocument.Statement as { Action: unknown; Resource: unknown }[],
+    );
+  const getAttTargets = (resource: unknown) =>
+    [resource]
+      .flat()
+      .map((r) => (r as { 'Fn::GetAtt': [string, string] })['Fn::GetAtt'][0])
+      .sort();
+  const webRunners = (t: Template) =>
+    of(t, 'AWS::Lambda::Function').filter(
+      (f) => f.Properties.PackageType === 'Image' && f.Properties.MemorySize >= 2048,
+    );
+  const worker = () =>
+    of(web, 'AWS::Lambda::Function').find((f) => f.Properties.Handler === 'web-worker.handler');
+
+  it('is off by default: no web functions, and the API stays browse-only', () => {
+    expect(webRunners(template)).toEqual([]);
+    expect(
+      resourcesOf('AWS::Lambda::Function').some(
+        (f) => f.Properties.Handler === 'web-worker.handler',
+      ),
+    ).toBe(false);
+    const api = resourcesOf('AWS::Lambda::Function').find(
+      (f) => f.Properties.Handler === 'index.handler' && f.Properties.Timeout === 29,
+    );
+    expect(api?.Properties.Environment.Variables.WEB_WORKER_FUNCTION).toBeUndefined();
+  });
+
+  it('refuses to build without the web runner images', () => {
+    const assets = { ...fakeAssets(), webRunners: undefined };
+    expect(() => synth(false, { webExecution: true, assets })).toThrow(/webRunners/);
+  });
+
+  it('adds only free or pay-per-use resource types', () => {
+    const types = (t: Template) =>
+      new Set(
+        Object.values(t.toJSON()['Resources'] as Record<string, Resource>).map((r) => r.Type),
+      );
+    const before = types(template);
+    expect([...types(web)].filter((t) => !before.has(t)).sort()).toEqual([
+      // The worker's "no retries" setting and the alarm-line metric filter: both free.
+      'AWS::Lambda::EventInvokeConfig',
+      'AWS::Logs::MetricFilter',
+    ]);
+  });
+
+  it('runs three web runner images in the isolated runner VPC, sized as measured', () => {
+    const fns = webRunners(web);
+    expect(fns).toHaveLength(3);
+    const vpcGroups = of(web, 'AWS::EC2::SecurityGroup');
+    expect(vpcGroups).toHaveLength(1);
+    for (const fn of fns) {
+      expect(fn.Properties.VpcConfig.SecurityGroupIds).toHaveLength(1);
+      expect(fn.Properties.VpcConfig.SubnetIds).toHaveLength(2);
+      expect(fn.Properties.Architectures).toEqual(['x86_64']);
+      // Nothing to read, not even a function name.
+      expect(fn.Properties.Environment).toBeUndefined();
+      expect(fn.Properties.EphemeralStorage).toEqual({ Size: 1024 });
+    }
+    expect(fns.map((f) => [f.Properties.MemorySize, f.Properties.Timeout]).sort()).toEqual(
+      Object.values(WEB_RUNNER_SIZES)
+        .map((s) => [s.memoryMb, s.timeoutS])
+        .sort(),
+    );
+  });
+
+  it('gives web runner roles no access to any data (logs and VPC attachment only)', () => {
+    const roleIds = Object.keys(web.findResources('AWS::IAM::Role')).filter((id) =>
+      /^Web\w+RunnerRole/.test(id),
+    );
+    expect(roleIds).toHaveLength(3);
+    for (const id of roleIds) {
+      const actions = statementsOf(web, id).flatMap((st) => [st.Action].flat() as string[]);
+      expect(
+        actions.every((a) => a.startsWith('logs:')),
+        id,
+      ).toBe(true);
+    }
+  });
+
+  it('runs the worker from the API bundle, outside the VPC, without retries', () => {
+    const fn = worker();
+    expect(fn).toBeDefined();
+    expect(fn?.Properties.VpcConfig).toBeUndefined();
+    expect(fn?.Properties.Architectures).toEqual(['arm64']);
+    // It waits for a slot, then for one runner; both fit, under the 10-minute run lease.
+    const longestRunner = Math.max(...Object.values(WEB_RUNNER_SIZES).map((s) => s.timeoutS));
+    expect(fn?.Properties.Timeout).toBe(WEB_WORKER.timeoutS);
+    expect(WEB_WORKER.timeoutS).toBeGreaterThanOrEqual(WEB_WORKER.queueWaitS + longestRunner + 30);
+    expect(WEB_WORKER.timeoutS).toBeLessThan(10 * 60);
+    expect(fn?.Properties.Environment.Variables).toMatchObject({
+      WEB_CONCURRENT_GLOBAL: '2',
+      WEB_QUEUE_WAIT_MS: String(WEB_WORKER.queueWaitS * 1000),
+      WEB_RUNNER_ASPNETCORE_FUNCTION: { Ref: expect.stringMatching(/^WebAspnetcoreRunner/) },
+      WEB_RUNNER_SPRING_BOOT_FUNCTION: { Ref: expect.stringMatching(/^WebSpringBootRunner/) },
+      WEB_RUNNER_DJANGO_FUNCTION: { Ref: expect.stringMatching(/^WebDjangoRunner/) },
+    });
+    web.hasResourceProperties('AWS::Lambda::EventInvokeConfig', {
+      FunctionName: { Ref: Match.stringLikeRegexp('^WebWorkerFunction') },
+      MaximumRetryAttempts: 0,
+      MaximumEventAgeInSeconds: 300,
+    });
+  });
+
+  it('lets the worker invoke exactly the three web runners, and use its table', () => {
+    const statements = statementsOf(web, 'WebWorkerRole');
+    const invoke = statements.filter((st) => st.Action === 'lambda:InvokeFunction');
+    expect(invoke).toHaveLength(1);
+    expect(getAttTargets(invoke[0]?.Resource)).toEqual([
+      expect.stringMatching(/^WebAspnetcoreRunner/),
+      expect.stringMatching(/^WebDjangoRunner/),
+      expect.stringMatching(/^WebSpringBootRunner/),
+    ]);
+    const actions = statements.flatMap((st) => [st.Action].flat() as string[]);
+    expect(actions.every((a) => /^(logs|dynamodb):/.test(a) || a === 'lambda:InvokeFunction')).toBe(
+      true,
+    );
+  });
+
+  it('lets the API start the worker, never a web runner directly', () => {
+    const invoke = statementsOf(web, 'ApiFunctionRole').filter(
+      (st) => st.Action === 'lambda:InvokeFunction',
+    );
+    expect(invoke).toHaveLength(1);
+    const targets = getAttTargets(invoke[0]?.Resource);
+    expect(targets).toHaveLength(5);
+    expect(targets.some((t) => /^WebWorkerFunction/.test(t))).toBe(true);
+    expect(targets.some((t) => /^Web\w+Runner/.test(t))).toBe(false);
+    web.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'index.handler',
+      Environment: {
+        Variables: Match.objectLike({
+          WEB_WORKER_FUNCTION: { Ref: Match.stringLikeRegexp('^WebWorkerFunction') },
+        }),
+      },
+    });
+  });
+
+  it('stops the worker and the web runners with the budget kill switch', () => {
+    const deny = of(web, 'AWS::IAM::ManagedPolicy')[0]?.Properties.PolicyDocument.Statement[0];
+    expect(deny).toMatchObject({ Effect: 'Deny', Action: 'lambda:InvokeFunction' });
+    expect(deny.Resource).toHaveLength(8);
+    web.hasResourceProperties('AWS::Budgets::BudgetsAction', {
+      Definition: {
+        IamActionDefinition: {
+          Roles: [
+            { Ref: Match.stringLikeRegexp('^ApiFunctionRole') },
+            { Ref: Match.stringLikeRegexp('^WebWorkerRole') },
+          ],
+        },
+      },
+    });
+  });
+
+  it('alarms on worker failures and on alarm lines (unverified responses), within the free ten', () => {
+    const alarms = of(web, 'AWS::CloudWatch::Alarm');
+    expect(alarms.length).toBeLessThanOrEqual(10);
+    web.hasResourceProperties('AWS::Logs::MetricFilter', {
+      LogGroupName: { Ref: Match.stringLikeRegexp('^WebWorkerLogs') },
+      FilterPattern: '{ $.level = "alarm" }',
+      MetricTransformations: [
+        Match.objectLike({ MetricName: 'WebWorkerAlarmLines', MetricValue: '1' }),
+      ],
+    });
+    web.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      MetricName: 'WebWorkerAlarmLines',
+      Threshold: 1,
+    });
+    web.hasResourceProperties('AWS::CloudWatch::Alarm', {
+      MetricName: 'Errors',
+      Dimensions: [{ Name: 'FunctionName', Value: { Ref: Match.stringLikeRegexp('^WebWorker') } }],
+    });
+    for (const group of of(web, 'AWS::Logs::LogGroup'))
+      expect(group.Properties.RetentionInDays).toBe(14);
+  });
+
+  it('outputs the worker and web runner names (for verify-runners)', () => {
+    for (const name of [
+      'WebWorkerName',
+      'WebWorkerRoleName',
+      'WebAspnetcoreRunnerName',
+      'WebSpringBootRunnerName',
+      'WebDjangoRunnerName',
+    ])
+      web.hasOutput(name, {});
+  });
+
+  it('passes the AWS Solutions checks (cdk-nag)', () => {
+    const { app } = synth(true, { webExecution: true });
+    expect(() => app.synth()).not.toThrow();
   });
 });
 
