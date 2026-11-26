@@ -9,15 +9,16 @@ import { ScenarioService } from './scenarios/scenario-service';
 import type { AccountStore } from './store/account-store';
 import type { ProgressStore } from './store/progress-store';
 import type { WebStore } from './store/web-store';
-import type { DockerWebRunner } from '@pracstack/web-runner';
+import { type DockerWebRunner, DockerWebExecutor, type WebExecutor } from '@pracstack/web-runner';
 import {
-  parseWebHttpRequest,
+  DEFAULT_WEB_POLICY,
   type WebExecutionPolicy,
   WebChallengeService,
+  type WebRunDispatch,
 } from './web/web-challenge-service';
+import { WebRunWorker } from './web/web-run-worker';
 import {
   parseCreateWebRun,
-  parseCreateWebSession,
   parseCreateWebTimedSession,
   parseFramework,
   parseSaveWebDraft,
@@ -75,15 +76,19 @@ export interface ApiDeps extends PracticeDeps {
   /** Web Development Challenges: submissions, progress, drafts, quotas, timed sessions. */
   readonly webStore: WebStore;
   /**
-   * Builds and runs web-challenge applications. Without it the challenges are
-   * browse-only (catalog, instructions, editing, drafts).
+   * Builds and runs web-challenge applications locally (runs go through an
+   * in-process web worker). Without it, and without
+   * `webDispatch` or `webExecutor`, the challenges are browse-only (catalog,
+   * instructions, editing, drafts).
    */
   readonly webRunner?: DockerWebRunner;
+  /** Runs go through an in-process web worker with this executor (instead of webRunner). */
+  readonly webExecutor?: WebExecutor;
+  /** Hands runs to a separate web worker (AWS: the web worker function). */
+  readonly webDispatch?: WebRunDispatch;
   readonly webPolicy?: WebExecutionPolicy;
-  /** Limit for starting web-challenge builds (runs, submissions, sessions). */
+  /** Limit for starting web-challenge builds (test runs, submissions, HTTP-client runs). */
   readonly webRateLimiter?: RateLimiter;
-  /** Receives the web service, e.g. to stop applications on shutdown. */
-  readonly onWebService?: (service: WebChallengeService) => void;
   /** Must be set to use the unauthenticated local developer user. */
   readonly allowLocalDevUser?: boolean;
   /** Receives unexpected errors (never shown to the client). */
@@ -159,17 +164,41 @@ export function createApi(deps: ApiDeps): ApiHandler {
     now: deps.now,
     newId: deps.newId,
   });
+  const findWebChallenge = (id: string) => deps.content.findWebChallenge(id);
+  const webPolicy = deps.webPolicy ?? DEFAULT_WEB_POLICY;
+  const executor =
+    deps.webExecutor ?? (deps.webRunner ? new DockerWebExecutor(deps.webRunner) : undefined);
+  // Locally the web worker runs in this process; the run continues after the response.
+  const inProcessWorker =
+    !deps.webDispatch && executor
+      ? new WebRunWorker({
+          findChallenge: findWebChallenge,
+          store: deps.webStore,
+          executor,
+          concurrentGlobal: webPolicy.concurrentGlobal ?? 2,
+          queueWaitMs: 5 * 60_000,
+          now: deps.now,
+          ...(deps.logError ? { logError: deps.logError } : {}),
+        })
+      : undefined;
+  const webDispatch: WebRunDispatch | undefined =
+    deps.webDispatch ??
+    (inProcessWorker
+      ? (userId, runId) => {
+          void inProcessWorker.process(userId, runId);
+          return Promise.resolve();
+        }
+      : undefined);
   const web = new WebChallengeService({
-    findChallenge: (id) => deps.content.findWebChallenge(id),
+    findChallenge: findWebChallenge,
     store: deps.webStore,
     entitlements,
-    ...(deps.webRunner ? { runner: deps.webRunner } : {}),
+    ...(webDispatch ? { dispatch: webDispatch } : {}),
     ...(deps.webPolicy ? { policy: deps.webPolicy } : {}),
     now: deps.now,
     newId: deps.newId,
     ...(deps.logError ? { logError: deps.logError } : {}),
   });
-  deps.onWebService?.(web);
   const webRateLimiter = deps.webRateLimiter ?? new SlidingWindowRateLimiter(6, 60_000);
   const limit = async (limiter: RateLimiter, key: string): Promise<void> => {
     const wait = await limiter.hit(key, deps.now().getTime());
@@ -338,7 +367,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
     return undefined;
   }
 
-  /** /api/web-challenges, /api/web-runs, /api/web-sessions, /api/web-timed-sessions, /api/me/web-* */
+  /** /api/web-challenges, /api/web-runs, /api/web-timed-sessions, /api/me/web-* */
   async function routeWeb(request: ApiRequest, user: Caller): Promise<ApiResponse | undefined> {
     const { method, path } = request;
     const challengeId = (value: string | undefined) => segment(value, 'challengeId');
@@ -367,20 +396,7 @@ export function createApi(deps: ApiDeps): ApiHandler {
     }
     const run = /^\/api\/web-runs\/([^/]+)$/.exec(path);
     if (method === 'GET' && run)
-      return ok(web.getRun(user, parseUuid(decodeURIComponent(run[1] ?? ''), 'runId')));
-    if (method === 'POST' && path === '/api/web-sessions') {
-      const body = parseCreateWebSession(request.body);
-      await limit(webRateLimiter, user.id);
-      return ok(await web.createSession(user, body));
-    }
-    const session = /^\/api\/web-sessions\/([^/]+)(\/requests)?$/.exec(path);
-    if (session) {
-      const id = parseUuid(decodeURIComponent(session[1] ?? ''), 'sessionId');
-      if (method === 'GET' && !session[2]) return ok(web.getSession(user, id));
-      if (method === 'DELETE' && !session[2]) return ok(await web.stopSession(user, id));
-      if (method === 'POST' && session[2])
-        return ok(await web.sendRequest(user, id, parseWebHttpRequest(request.body)));
-    }
+      return ok(await web.getRun(user, parseUuid(decodeURIComponent(run[1] ?? ''), 'runId')));
     const draft = /^\/api\/me\/web-drafts\/([^/]+)\/([^/]+)$/.exec(path);
     if (draft) {
       const id = challengeId(draft[1]);

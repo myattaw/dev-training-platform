@@ -5,11 +5,11 @@ Production is the stack `PracStack-production` in the same AWS account and regio
 Namecheap; DNS is hosted at **Cloudflare**. Every record below must be **DNS only** (grey
 cloud): Cloudflare's proxy in front of CloudFront or Cognito breaks certificates and sign-in.
 
-| Name | Serves |
-| --- | --- |
-| `pracstack.com` | the site (CloudFront, TLS 1.2 minimum) |
-| `www.pracstack.com` | 301 redirect to `https://pracstack.com` (same path and query) |
-| `auth.pracstack.com` | sign-in pages (Cognito managed login) |
+| Name                 | Serves                                                        |
+| -------------------- | ------------------------------------------------------------- |
+| `pracstack.com`      | the site (CloudFront, TLS 1.2 minimum)                        |
+| `www.pracstack.com`  | 301 redirect to `https://pracstack.com` (same path and query) |
+| `auth.pracstack.com` | sign-in pages (Cognito managed login)                         |
 
 ## 1. DNS at Cloudflare
 
@@ -50,8 +50,13 @@ AWS_PROFILE=main-admin npx cdk diff|deploy PracStack-production -c stage=product
   -c domain=pracstack.com -c certificateArn=<CertificateArn> \
   -c googleClientId=<id> -c googleClientSecretName=pracstack/staging/google-client-secret \
   -c githubClientId=<id> -c githubClientSecretName=pracstack/staging/github-client-secret \
-  -c githubSigningKeyParameter=/pracstack/staging/github-oidc-signing-key
+  -c githubSigningKeyParameter=/pracstack/staging/github-oidc-signing-key \
+  -c webExecution=true
 ```
+
+`-c webExecution=true` (since 2026-11-26) keeps the web challenge runners: leaving it out
+removes them. After a deploy, run `npx tsx scripts/verify-runners.ts PracStack-production` and
+`npx tsx scripts/smoke-test.ts --stack PracStack-production`.
 
 Production reuses the staging Google client, GitHub OAuth App and their secrets (one app each,
 with both stages' redirect URIs). The GitHub bridge's signing key is shared too; tokens are
@@ -59,10 +64,10 @@ still bound to each stage's own issuer URL, so one stage's bridge cannot sign in
 
 Then in Cloudflare, with the `SiteDnsTarget` output (`dxxxx.cloudfront.net`):
 
-| Type | Name | Target |
-| --- | --- | --- |
+| Type  | Name                                                    | Target          |
+| ----- | ------------------------------------------------------- | --------------- |
 | CNAME | `@` (pracstack.com; Cloudflare flattens it at the apex) | `SiteDnsTarget` |
-| CNAME | `www` | `SiteDnsTarget` |
+| CNAME | `www`                                                   | `SiteDnsTarget` |
 
 ## 4. Sign-in at auth.pracstack.com
 
@@ -70,8 +75,8 @@ Cognito creates a custom domain only when the parent domain already resolves, so
 second deploy, once `https://pracstack.com` loads: the same command with `-c authDomain=true`.
 Then add, in Cloudflare:
 
-| Type | Name | Target |
-| --- | --- | --- |
+| Type  | Name   | Target                 |
+| ----- | ------ | ---------------------- |
 | CNAME | `auth` | `AuthDnsTarget` output |
 
 The Cognito address (`pracstack-production-<suffix>.auth.us-east-2.amazoncognito.com`) keeps

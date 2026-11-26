@@ -4,6 +4,6 @@
 # responses. It never receives expected values: the API grades the responses.
 FROM node:22.17-alpine3.22
 WORKDIR /probe
-COPY probe.mjs ./
+COPY probe-lib.mjs probe.mjs ./
 USER 10001:10001
 ENTRYPOINT ["node", "--disallow-code-generation-from-strings", "/probe/probe.mjs"]

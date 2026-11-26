@@ -27,23 +27,23 @@ they could contain hidden inputs).
 
 Every run uses a fresh container (`packages/code-runner/src/docker-runner.ts`):
 
-| Control | Flag / mechanism |
-| --- | --- |
-| No network | `--network none` |
-| Read-only root filesystem; 64 MB writable `/tmp` | `--read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m` |
-| Unprivileged user | `--user 10001:10001` (also `USER` in the image) |
-| No capabilities, no privilege escalation | `--cap-drop ALL --security-opt no-new-privileges` |
-| Default syscall filter | Docker's built-in seccomp profile |
-| Memory (no swap) | `--memory` = `--memory-swap`: 256 MB TypeScript, 512 MB Java and C# |
-| CPU | `--cpus 1` |
-| Processes (fork bombs) | `--pids-limit` 64 (TypeScript) / 128 (Java and C#) |
-| Open files, file size | `--ulimit nofile=256 --ulimit fsize=16 MB` |
-| Wall-clock time | killed by name after 10 s (TypeScript) / 15 s (Java and C#), including start and compile |
-| Output floods | killed after 1 MB of output |
-| Nothing persists | `--rm`; a new container per run |
-| No image downloads at run time | `--pull never` |
-| Host environment | not passed in; the container sees only its own environment |
-| Concurrency | at most 2 containers at once; at most 20 waiting, beyond which the API returns 503 |
+| Control                                          | Flag / mechanism                                                                         |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| No network                                       | `--network none`                                                                         |
+| Read-only root filesystem; 64 MB writable `/tmp` | `--read-only --tmpfs /tmp:rw,nosuid,nodev,size=64m`                                      |
+| Unprivileged user                                | `--user 10001:10001` (also `USER` in the image)                                          |
+| No capabilities, no privilege escalation         | `--cap-drop ALL --security-opt no-new-privileges`                                        |
+| Default syscall filter                           | Docker's built-in seccomp profile                                                        |
+| Memory (no swap)                                 | `--memory` = `--memory-swap`: 256 MB TypeScript, 512 MB Java and C#                      |
+| CPU                                              | `--cpus 1`                                                                               |
+| Processes (fork bombs)                           | `--pids-limit` 64 (TypeScript) / 128 (Java and C#)                                       |
+| Open files, file size                            | `--ulimit nofile=256 --ulimit fsize=16 MB`                                               |
+| Wall-clock time                                  | killed by name after 10 s (TypeScript) / 15 s (Java and C#), including start and compile |
+| Output floods                                    | killed after 1 MB of output                                                              |
+| Nothing persists                                 | `--rm`; a new container per run                                                          |
+| No image downloads at run time                   | `--pull never`                                                                           |
+| Host environment                                 | not passed in; the container sees only its own environment                               |
+| Concurrency                                      | at most 2 containers at once; at most 20 waiting, beyond which the API returns 503       |
 
 The images contain only a runtime, a compiler and the harness: no secrets, no credentials, no
 expected values. Results are read from one stdout line prefixed with a random per-run marker, so
@@ -56,11 +56,11 @@ exit, forged result lines, and the equivalent Java cases.
 
 ## Languages
 
-| Language | Image | Harness | Notes |
-| --- | --- | --- | --- |
-| TypeScript | `pracstack-runner-typescript:1` (Node 22, TypeScript 5.9.3) | `docker/typescript/harness.mjs` | Type-checks with the same settings as the editor (strict, ES2022, no DOM), then runs the shared executor |
-| Java | `pracstack-runner-java:1` (Temurin 21 JDK) | `docker/java/Harness.java` | Compiles in-process with the JDK compiler API; calls a static method (call tests) or a class (operations tests) by reflection |
-| C# | `pracstack-runner-csharp:1` (.NET 10: runtime 10.0.15, SDK 10.0.404; Roslyn 5.0.0, C# 14) | `docker/csharp/Harness.cs` | Compiles in memory with Roslyn, with implicit usings (`System`, `System.Collections.Generic`, `System.Linq`, `System.Text`, `System.Threading`, `System.Threading.Tasks`) and nullable enabled; names also match in PascalCase (`isPangram` finds `IsPangram`, step `insert` finds `Insert`); async `Task`/`ValueTask` methods are awaited |
+| Language   | Image                                                                                     | Harness                         | Notes                                                                                                                                                                                                                                                                                                                                      |
+| ---------- | ----------------------------------------------------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| TypeScript | `pracstack-runner-typescript:1` (Node 22, TypeScript 5.9.3)                               | `docker/typescript/harness.mjs` | Type-checks with the same settings as the editor (strict, ES2022, no DOM), then runs the shared executor                                                                                                                                                                                                                                   |
+| Java       | `pracstack-runner-java:1` (Temurin 21 JDK)                                                | `docker/java/Harness.java`      | Compiles in-process with the JDK compiler API; calls a static method (call tests) or a class (operations tests) by reflection                                                                                                                                                                                                              |
+| C#         | `pracstack-runner-csharp:1` (.NET 10: runtime 10.0.15, SDK 10.0.404; Roslyn 5.0.0, C# 14) | `docker/csharp/Harness.cs`      | Compiles in memory with Roslyn, with implicit usings (`System`, `System.Collections.Generic`, `System.Linq`, `System.Text`, `System.Threading`, `System.Threading.Tasks`) and nullable enabled; names also match in PascalCase (`isPangram` finds `IsPangram`, step `insert` finds `Insert`); async `Task`/`ValueTask` methods are awaited |
 
 Java arguments are converted from JSON to the parameter types: primitives and their wrappers,
 `String`, `char`, arrays (any depth) and `List<…>` (generic element types included). Return values
@@ -123,16 +123,16 @@ Three functions: TypeScript, Java and SQL. Each image holds the language runtime
 harness as the local Docker images (or the PGlite engine), and a small Node.js supervisor
 (`src/code-handler.ts`, `src/isolate.ts`, `src/sql-handler.ts`).
 
-| Layer | What it does |
-| --- | --- |
-| **Firecracker microVM** (Lambda) | Each execution environment is its own microVM; nothing is shared with other functions or accounts |
-| **No network** | The VPC has no internet gateway, NAT, endpoints or routes, and the security group allows no traffic; rejected attempts are logged (VPC flow logs). **DNS is disabled in the VPC** (`enableDnsSupport: false`): AWS's resolver otherwise answers even without routes, and lookups could carry data out; `verify-runners.ts` found this on the first deployment |
-| **No credentials** | `docker/entrypoint.sh` removes the role's keys from the environment *before* the Lambda runtime starts. Without it, learner code could read them from `/proc/<supervisor>/environ` (it runs as the same OS user); the tests reproduce that and prove the fix |
-| **Nothing to steal anyway** | The runner role can write its own logs and attach to the VPC; it can read no data |
-| **Per-run process** | Fresh working directory, minimal environment, `prlimit` (256 processes/threads, 256 open files, 16 MB files), time limit (10 s TypeScript, 15 s Java), memory limit on the whole process tree, 1 MB output limit |
-| **Clean between runs** | Environments are reused for later runs, so before and after every run the supervisor kills every other process (including ones that detached with `setsid`) and empties `/tmp` |
-| **Untrusted answers** | The API validates every runner response (shape, sizes, test count) before grading; a forged response still cannot pass a test, because expected values never leave the API |
-| **Cost and capacity** | Per-user limits, global limits across all users (30 code runs and 60 SQL runs per minute), and a budget action that stops runner invocations when actual spend passes the budget |
+| Layer                            | What it does                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Firecracker microVM** (Lambda) | Each execution environment is its own microVM; nothing is shared with other functions or accounts                                                                                                                                                                                                                                                             |
+| **No network**                   | The VPC has no internet gateway, NAT, endpoints or routes, and the security group allows no traffic; rejected attempts are logged (VPC flow logs). **DNS is disabled in the VPC** (`enableDnsSupport: false`): AWS's resolver otherwise answers even without routes, and lookups could carry data out; `verify-runners.ts` found this on the first deployment |
+| **No credentials**               | `docker/entrypoint.sh` removes the role's keys from the environment _before_ the Lambda runtime starts. Without it, learner code could read them from `/proc/<supervisor>/environ` (it runs as the same OS user); the tests reproduce that and prove the fix                                                                                                  |
+| **Nothing to steal anyway**      | The runner role can write its own logs and attach to the VPC; it can read no data                                                                                                                                                                                                                                                                             |
+| **Per-run process**              | Fresh working directory, minimal environment, `prlimit` (256 processes/threads, 256 open files, 16 MB files), time limit (10 s TypeScript, 15 s Java), memory limit on the whole process tree, 1 MB output limit                                                                                                                                              |
+| **Clean between runs**           | Environments are reused for later runs, so before and after every run the supervisor kills every other process (including ones that detached with `setsid`) and empties `/tmp`                                                                                                                                                                                |
+| **Untrusted answers**            | The API validates every runner response (shape, sizes, test count) before grading; a forged response still cannot pass a test, because expected values never leave the API                                                                                                                                                                                    |
+| **Cost and capacity**            | Per-user limits, global limits across all users (30 code runs and 60 SQL runs per minute), and a budget action that stops runner invocations when actual spend passes the budget                                                                                                                                                                              |
 
 ### Testing
 
@@ -159,13 +159,17 @@ harness as the local Docker images (or the PGlite engine), and a small Node.js s
   the supervisor, so it can kill the supervisor (that invocation fails and Lambda starts a fresh
   environment) and could, in principle, interfere with the supervisor while its own run is in
   progress. From there it still cannot reach the network or AWS, and cannot make a test pass
-  without computing the right answer. What such an escape could do is tamper with *later runs in
-  the same environment*: slow them, fail them, or read their code. A fresh microVM per run
+  without computing the right answer. What such an escape could do is tamper with _later runs in
+  the same environment_: slow them, fail them, or read their code. A fresh microVM per run
   (Fargate) would close this, at the cost described above.
 - **The Lambda runtime API is reachable from learner code** (on the loopback interface, as in
   every Lambda function). A program that found the current request ID could post its own
   response for its own run; the API treats it like any runner response: validated, and graded
-  against expected values the runner never saw.
+  against expected values the runner never saw. The web runners measured this on AWS: learner
+  code can take its own run's event, signing key included, and sign a result for its own run,
+  which still has to contain the correct responses to pass (accepted 2026-11-26, see
+  [lambda-web-runner.md](lambda-web-runner.md#phase-6-on-aws-production-2026-11-26)). Taking
+  another run's event is checked after every deployment and has not been seen.
 - **Account concurrency.** New AWS accounts can run only 10 Lambda functions at once, shared by
   the API and the runners; busy runners can then delay or fail API requests. Request a quota
   increase (free) before real use; see [aws.md](aws.md).

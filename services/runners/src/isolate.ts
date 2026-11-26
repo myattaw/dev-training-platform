@@ -37,34 +37,91 @@ export interface IsolatedRun {
   readonly command: string;
   /** Arguments; `{dir}` is replaced with the run's working directory. */
   readonly args: readonly string[];
-  readonly stdin: string;
+  readonly stdin: string | Buffer;
   readonly limits: IsolationLimits;
   /** Extra environment for the runtime (settings only; never credentials). */
   readonly env?: Readonly<Record<string, string>>;
+  /** PATH for the program (default: /usr/local/bin:/usr/bin:/bin). */
+  readonly path?: string;
+  /** Count stderr towards `maxOutputBytes` too (default: stdout only). */
+  readonly limitStderr?: boolean;
 }
 
 export interface IsolatedResult {
   readonly stdout: string;
   readonly stderr: string;
   readonly exitCode: number | null;
-  readonly killedFor?: 'timeout' | 'output' | 'memory';
+  readonly killedFor?: KillReason;
 }
+
+export type KillReason = 'timeout' | 'output' | 'memory';
 
 const SCRATCH = process.env['PRACSTACK_SCRATCH'] ?? '/tmp';
 const MEMORY_POLL_MS = 50;
 
-export async function runIsolated(run: IsolatedRun): Promise<IsolatedResult> {
-  cleanUp();
+/** A fresh, private working directory for one run (under the scratch directory). */
+export function newRunDir(): string {
   const dir = join(SCRATCH, `run-${randomBytes(8).toString('hex')}`);
   mkdirSync(dir, { mode: 0o700 });
+  return dir;
+}
+
+export async function runIsolated(run: IsolatedRun): Promise<IsolatedResult> {
+  cleanUp();
+  const dir = newRunDir();
   try {
-    return await execute(run, dir);
+    const stdout: Buffer[] = [];
+    let stderr = '';
+    const proc = startIsolated(run, dir, {
+      onStdout: (chunk) => stdout.push(chunk),
+      onStderr: (chunk) => {
+        if (stderr.length < 4000) stderr += chunk.toString('utf8');
+      },
+    });
+    const { exitCode, killedFor, spawnError } = await proc.exited;
+    return {
+      stdout: Buffer.concat(stdout).toString('utf8'),
+      stderr: spawnError ? stderr + spawnError : stderr,
+      exitCode,
+      ...(killedFor ? { killedFor } : {}),
+    };
   } finally {
     cleanUp();
   }
 }
 
-function execute(run: IsolatedRun, dir: string): Promise<IsolatedResult> {
+/** A running isolated program (see startIsolated). */
+export interface IsolatedProcess {
+  /** Resolves when the program's process group leader has exited and its pipes closed. */
+  readonly exited: Promise<{
+    readonly exitCode: number | null;
+    readonly killedFor?: KillReason;
+    readonly spawnError?: string;
+  }>;
+  /** Whether the program has exited. */
+  readonly done: () => boolean;
+  /** Kills the program's whole process group (for `reason`, if given). */
+  readonly stop: (reason?: KillReason) => void;
+  /** Why the program was killed, once it was. */
+  readonly killedFor: () => KillReason | undefined;
+  /** Peak resident memory of all other processes seen so far, MB. */
+  readonly peakRssMb: () => number;
+}
+
+/**
+ * Starts one untrusted program in `dir` under the limits and returns at once;
+ * output is streamed to the callbacks (output beyond the limit is dropped and
+ * the program killed). For long-running programs (web applications). The
+ * caller cleans up (`cleanUp`) before and after.
+ */
+export function startIsolated(
+  run: IsolatedRun,
+  dir: string,
+  output: {
+    readonly onStdout: (chunk: Buffer) => void;
+    readonly onStderr: (chunk: Buffer) => void;
+  },
+): IsolatedProcess {
   const { limits } = run;
   const args = [
     `--nproc=${limits.maxProcesses}`,
@@ -78,59 +135,80 @@ function execute(run: IsolatedRun, dir: string): Promise<IsolatedResult> {
     run.command,
     ...run.args.map((a) => a.replaceAll('{dir}', dir)),
   ];
-  return new Promise((resolve) => {
-    const child = spawn('prlimit', args, {
-      cwd: dir,
-      // No credentials, no configuration from the function's environment.
-      env: {
-        ...run.env,
-        PATH: '/usr/local/bin:/usr/bin:/bin',
-        HOME: dir,
-        TMPDIR: dir,
-        LANG: 'C.UTF-8',
-      },
-      stdio: ['pipe', 'pipe', 'pipe'],
-      // Its own process group, so the whole group can be killed at once.
-      detached: true,
-    });
-    const stdout: Buffer[] = [];
-    let outBytes = 0;
-    let stderr = '';
-    let killedFor: IsolatedResult['killedFor'];
+  const child = spawn('prlimit', args, {
+    cwd: dir,
+    // No credentials, no configuration from the function's environment.
+    env: {
+      ...run.env,
+      PATH: run.path ?? '/usr/local/bin:/usr/bin:/bin',
+      HOME: dir,
+      TMPDIR: dir,
+      LANG: 'C.UTF-8',
+    },
+    stdio: ['pipe', 'pipe', 'pipe'],
+    // Its own process group, so the whole group can be killed at once.
+    detached: true,
+  });
+  let outBytes = 0;
+  let killedFor: KillReason | undefined;
+  let spawnError: string | undefined;
+  let finished = false;
+  let peak = 0;
 
-    const stop = (reason: NonNullable<IsolatedResult['killedFor']>): void => {
-      killedFor ??= reason;
-      killGroup(child.pid);
-    };
-    const timer = setTimeout(() => stop('timeout'), limits.timeoutMs);
-    const memory = setInterval(() => {
-      if (otherProcessesRssMb() > limits.maxRssMb) stop('memory');
-    }, MEMORY_POLL_MS);
+  const stop = (reason?: KillReason): void => {
+    if (reason) killedFor ??= reason;
+    killGroup(child.pid);
+  };
+  const timer = setTimeout(() => stop('timeout'), limits.timeoutMs);
+  const memory = setInterval(() => {
+    const rss = otherProcessesRssMb();
+    peak = Math.max(peak, rss);
+    if (rss > limits.maxRssMb) stop('memory');
+  }, MEMORY_POLL_MS);
 
-    child.stdout.on('data', (chunk: Buffer) => {
+  child.stdout.on('data', (chunk: Buffer) => {
+    outBytes += chunk.length;
+    if (outBytes > limits.maxOutputBytes) stop('output');
+    else output.onStdout(chunk);
+  });
+  child.stderr.on('data', (chunk: Buffer) => {
+    if (run.limitStderr) {
       outBytes += chunk.length;
-      if (outBytes > limits.maxOutputBytes) stop('output');
-      else stdout.push(chunk);
-    });
-    child.stderr.on('data', (chunk: Buffer) => {
-      if (stderr.length < 4000) stderr += chunk.toString('utf8');
-    });
-    child.stdin.on('error', () => undefined);
+      if (outBytes > limits.maxOutputBytes) {
+        stop('output');
+        return;
+      }
+    }
+    output.onStderr(chunk);
+  });
+  child.stdin.on('error', () => undefined);
+  const exited = new Promise<{
+    exitCode: number | null;
+    killedFor?: KillReason;
+    spawnError?: string;
+  }>((resolve) => {
     child.on('error', (err) => {
-      stderr += String(err);
+      spawnError = String(err);
     });
     child.on('close', (code) => {
+      finished = true;
       clearTimeout(timer);
       clearInterval(memory);
       resolve({
-        stdout: Buffer.concat(stdout).toString('utf8'),
-        stderr,
         exitCode: code,
         ...(killedFor ? { killedFor } : {}),
+        ...(spawnError ? { spawnError } : {}),
       });
     });
-    child.stdin.end(run.stdin);
   });
+  child.stdin.end(run.stdin);
+  return {
+    exited,
+    done: () => finished,
+    stop,
+    killedFor: () => killedFor,
+    peakRssMb: () => Math.round(peak),
+  };
 }
 
 function killGroup(pid: number | undefined): void {

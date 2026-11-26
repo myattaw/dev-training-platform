@@ -88,6 +88,8 @@ export async function runSmokeChecks(
   const auth = (config as { auth?: Record<string, unknown> } | undefined)?.auth;
   const domain = typeof auth?.['domain'] === 'string' ? auth['domain'] : '';
   const clientId = typeof auth?.['clientId'] === 'string' ? auth['clientId'] : '';
+  // Optional: the languages the code runners serve (a public list of plain names).
+  const languages = (config as { codeLanguages?: unknown } | undefined)?.codeLanguages;
   check(
     'config.json: Cognito mode, public values only',
     auth?.['mode'] === 'cognito' &&
@@ -95,7 +97,10 @@ export async function runSmokeChecks(
       (/^https:\/\/[a-z0-9-]+\.auth\.[a-z0-9-]+\.amazoncognito\.com$/.test(domain) ||
         domain === `https://auth.${site.hostname}`) &&
       clientId !== '' &&
-      JSON.stringify(Object.keys(config as object)) === '["auth"]' &&
+      Object.keys(config as object).every((k) => k === 'auth' || k === 'codeLanguages') &&
+      (languages === undefined ||
+        (Array.isArray(languages) &&
+          languages.every((l: unknown) => typeof l === 'string' && /^[a-z]+$/.test(l)))) &&
       Object.keys(auth).every((k) => ['mode', 'domain', 'clientId', 'providers'].includes(k)) &&
       (auth['providers'] === undefined ||
         (Array.isArray(auth['providers']) &&

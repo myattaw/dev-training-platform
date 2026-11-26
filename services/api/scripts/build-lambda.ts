@@ -1,5 +1,6 @@
 /**
- * Bundles the API Lambda function: one ESM file plus the generated content.
+ * Bundles the API Lambda function and the web worker (index.mjs and
+ * web-worker.mjs, one ESM file each) plus the generated content they share.
  *
  *   npm run build:lambda -w @pracstack/api      # → services/api/dist/lambda
  *
@@ -20,6 +21,7 @@ const FORBIDDEN = [
   /@electric-sql[\\/]pglite/,
   /packages[\\/]sql-engine[\\/]src[\\/]runtime/,
   /docker-runner\.ts$/,
+  /docker-web-runner\.ts$/,
 ];
 
 export interface LambdaBuild {
@@ -38,8 +40,12 @@ export async function buildLambda(
   mkdirSync(outDir, { recursive: true });
 
   const result = await build({
-    entryPoints: [resolve(here, '../src/lambda/handler.ts')],
-    outfile: join(outDir, 'index.mjs'),
+    entryPoints: {
+      index: resolve(here, '../src/lambda/handler.ts'),
+      'web-worker': resolve(here, '../src/lambda/web-worker.ts'),
+    },
+    outdir: outDir,
+    outExtension: { '.js': '.mjs' },
     bundle: true,
     platform: 'node',
     target: 'node22',

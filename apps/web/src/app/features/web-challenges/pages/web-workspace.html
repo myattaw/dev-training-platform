@@ -60,28 +60,16 @@
             </button>
           }
         }
-        @if (session(); as s) {
-          <app-status-indicator [type]="sessionStatus[s.state]"
-            >App: {{ sessionLabels[s.state] }}</app-status-indicator
-          >
-        }
         <button type="button" class="btn btn--sm" (click)="askReset()" [disabled]="timedOver()">
           <app-icon name="reset" /> Reset
         </button>
-        @if (appReady() || appStarting()) {
-          <button type="button" class="btn btn--sm" (click)="stopApp()">Stop application</button>
-        }
         <button
           type="button"
           class="btn btn--sm"
-          (click)="startApp()"
-          [disabled]="!l.executionAvailable || appStarting() || timedOver()"
-          [title]="
-            stale() ? 'Your code changed since the application started: restart to run it' : ''
-          "
+          (click)="bottomTab.set('http')"
+          [attr.aria-pressed]="bottomTab() === 'http'"
         >
-          <app-icon name="terminal" />
-          {{ appReady() || appStarting() ? 'Restart application' : 'Run application' }}
+          <app-icon name="terminal" /> HTTP client
         </button>
         <button
           type="button"
@@ -142,12 +130,6 @@
           Follow-up practice: the skills listed on the challenge page.
         </app-alert>
       }
-    }
-    @if (stale()) {
-      <app-alert type="warning" class="banner">
-        You changed the code since the application started. Restart the application to run your
-        latest code.
-      </app-alert>
     }
     <p class="narrow-note text-secondary">
       The workspace is easiest to use on a larger screen. Panels stack on small screens.
@@ -299,21 +281,24 @@
                   aria-labelledby="bottom-tab-http"
                   class="bottom-panel"
                 >
-                  @if (sessionError(); as e) {
+                  @if (requestError(); as e) {
                     <app-alert type="error">{{ e }}</app-alert>
                   }
                   <app-http-client
                     [endpoints]="l.challenge.endpoints"
-                    [ready]="appReady()"
-                    [busy]="httpBusy()"
-                    [response]="httpResponse()"
-                    [notReadyMessage]="
-                      session()?.message ??
-                      (appStarting()
-                        ? 'The application is starting…'
-                        : 'Start the application with Run application to send requests.')
+                    [initial]="savedRequests()"
+                    [busy]="running()"
+                    [run]="requestRun()"
+                    [disabledMessage]="
+                      !l.executionAvailable
+                        ? 'Running applications is not available on this server yet.'
+                        : timedOver()
+                          ? 'The timed session has ended.'
+                          : ''
                     "
-                    (send)="sendRequest($event)"
+                    (send)="sendRequests($event)"
+                    (changed)="saveRequests($event)"
+                    (openDiagnostic)="openDiagnostic($event)"
                   />
                 </div>
               } @else {
@@ -323,30 +308,12 @@
                   aria-labelledby="bottom-tab-output"
                   class="bottom-panel output"
                 >
-                  @if (session(); as s) {
-                    @if (s.message) {
-                      <p class="output-message">{{ s.message }}</p>
-                    }
-                    @for (d of s.diagnostics; track $index) {
-                      <p class="diag">
-                        @if (d.file) {
-                          <button type="button" class="btn btn--link" (click)="openDiagnostic(d)">
-                            {{ d.file }}:{{ d.line }}
-                          </button>
-                        }
-                        {{ d.message }}
-                      </p>
-                    }
-                    <pre class="logs">{{ s.logs.join('\n') || 'No output yet.' }}</pre>
-                    <p class="text-secondary small">
-                      Requests used: {{ s.requestsUsed }}/{{ s.requestLimit }} · stops automatically
-                      when idle.
-                    </p>
-                  } @else if (run()?.result?.logs?.length) {
-                    <pre class="logs">{{ run()?.result?.logs?.join('\n') }}</pre>
+                  @if (outputRun()?.result?.logs?.length) {
+                    <pre class="logs">{{ outputRun()?.result?.logs?.join('\n') }}</pre>
                   } @else {
                     <p class="text-secondary">
-                      Application output appears here after Run application or Run tests.
+                      Application output appears here after Send requests or Run tests (graded
+                      submissions show none).
                     </p>
                   }
                 </div>

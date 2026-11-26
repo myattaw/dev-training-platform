@@ -49,13 +49,19 @@ The API function's timeout is 29 s (API Gateway allows 30 s): enough for a Java 
 a cold runner.
 
 **Kill switch.** When actual spend passes the monthly budget, AWS Budgets attaches the
-`StopRunnersPolicy` (deny invoking the runners) to the API function's role. Learners then see
-"busy" for submissions and SQL; everything else keeps working. To resume after reviewing the
-costs, detach it:
+`StopRunnersPolicy` (deny invoking the runners) to the API function's role, and, with web
+execution on, to the web worker's role. Learners then see "busy" for submissions and SQL, and
+web-challenge runs end at once as infrastructure errors; everything else keeps working. To resume
+after reviewing the costs, detach it from each role it was attached to:
 
 ```bash
 aws iam detach-role-policy --role-name <ApiFunctionRole name> --policy-arn <StopRunnersPolicy ARN>
+# With web execution (-c webExecution=true): also the worker's role (output WebWorkerRoleName)
+aws iam detach-role-policy --role-name <WebWorkerRole name> --policy-arn <StopRunnersPolicy ARN>
 ```
+
+Attaching the policy to the API function's role alone is enough to stop everything by hand: the
+API can then neither invoke a code runner nor start the web worker.
 
 Budget data lags actual usage by several hours, so the switch limits a runaway; it does not
 prevent all spend.

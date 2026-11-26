@@ -11,12 +11,16 @@
   "dependencies": {
     "@pracstack/challenge-runtime": "*",
     "@pracstack/code-runner": "*",
-    "@pracstack/sql-engine": "*"
+    "@pracstack/sql-engine": "*",
+    "@pracstack/web-runner": "*"
   },
   "devDependencies": {
+    "@pracstack/content": "*",
+    "@pracstack/content-model": "*",
     "esbuild": "^0.28.2"
   },
   "exports": {
-    "./probes": "./src/probes.ts"
+    "./probes": "./src/probes.ts",
+    "./web-verify": "./src/web-verify.ts"
   }
 }

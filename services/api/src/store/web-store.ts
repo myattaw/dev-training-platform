@@ -1,6 +1,8 @@
 import type {
   WebChallengeProgress,
   WebDraft,
+  WebHttpRequest,
+  WebRun,
   WebSubmissionSummary,
   WebTimedSession,
 } from '@pracstack/api-contracts';
@@ -31,7 +33,44 @@ export interface WebTimedSessionRecord extends WebTimedSession {
   readonly revision: number;
 }
 
+/**
+ * A run (visible tests or a graded submission) from acceptance to result. The
+ * API creates it (`queued`); the web worker claims it, runs it and completes
+ * it. Kept for a day, so the browser can poll it from any API instance.
+ */
+export interface WebRunRecord extends WebRun {
+  readonly userId: string;
+  /** The submitted editable files (validated by the API). */
+  readonly files: Readonly<Record<string, string>>;
+  /** HTTP-client runs: the requests to send (validated by the API). */
+  readonly requests?: readonly WebHttpRequest[];
+  /** Milliseconds since the epoch after which the record may be deleted. */
+  readonly expiresAt: number;
+}
+
 export interface WebStore {
+  createWebRun(run: WebRunRecord): Promise<void>;
+  getWebRun(userId: string, id: string): Promise<WebRunRecord | undefined>;
+  /**
+   * Writes `run` if the stored run's status is still `expectedStatus`; false
+   * otherwise (another worker claimed it, or it is already completed).
+   */
+  updateWebRun(run: WebRunRecord, expectedStatus: WebRun['status']): Promise<boolean>;
+
+  /**
+   * Takes one of `limit` slots of the lease `name` for `holder` until
+   * `untilMs` (holders past their time no longer count). Atomic: concurrent
+   * callers never exceed the limit. True if taken (or already held).
+   */
+  acquireWebLease(
+    name: string,
+    holder: string,
+    limit: number,
+    nowMs: number,
+    untilMs: number,
+  ): Promise<boolean>;
+  releaseWebLease(name: string, holder: string): Promise<void>;
+
   /**
    * Stores a graded submission and updates progress: attempts +1, the
    * framework is attempted, and (if accepted) solved for that framework.
@@ -97,8 +136,18 @@ export function nextWebProgress(
   };
 }
 
+/** Lease holders still within their time. */
+export function liveHolders(
+  holders: Readonly<Record<string, number>> | undefined,
+  nowMs: number,
+): Record<string, number> {
+  return Object.fromEntries(Object.entries(holders ?? {}).filter(([, until]) => until > nowMs));
+}
+
 /** Serializable snapshot (part of the local store file). */
 export interface WebData {
+  runs: Record<string, WebRunRecord>;
+  leases: Record<string, Record<string, number>>;
   submissions: Record<string, WebSubmissionRecord>;
   progress: Record<string, WebProgressRecord>;
   drafts: Record<string, WebDraftRecord>;
@@ -107,6 +156,8 @@ export interface WebData {
 }
 
 export const emptyWebData = (): WebData => ({
+  runs: {},
+  leases: {},
   submissions: {},
   progress: {},
   drafts: {},
@@ -120,6 +171,53 @@ export class InMemoryWebStore implements WebStore {
     private readonly data: () => WebData,
     private readonly persist: () => Promise<void>,
   ) {}
+
+  async createWebRun(run: WebRunRecord): Promise<void> {
+    const d = this.data();
+    // The API's clock (the new run's acceptance), not this machine's: they can differ in tests.
+    const now = Date.parse(run.acceptedAt);
+    for (const [key, old] of Object.entries(d.runs)) if (old.expiresAt < now) delete d.runs[key];
+    d.runs[`${run.userId}#${run.id}`] = run;
+    await this.persist();
+  }
+
+  getWebRun(userId: string, id: string): Promise<WebRunRecord | undefined> {
+    return Promise.resolve(this.data().runs[`${userId}#${id}`]);
+  }
+
+  async updateWebRun(run: WebRunRecord, expectedStatus: WebRun['status']): Promise<boolean> {
+    const key = `${run.userId}#${run.id}`;
+    const current = this.data().runs[key];
+    if (!current || current.status !== expectedStatus) return false;
+    this.data().runs[key] = run;
+    await this.persist();
+    return true;
+  }
+
+  async acquireWebLease(
+    name: string,
+    holder: string,
+    limit: number,
+    nowMs: number,
+    untilMs: number,
+  ): Promise<boolean> {
+    const d = this.data();
+    const holders = liveHolders(d.leases[name], nowMs);
+    if (!(holder in holders) && Object.keys(holders).length >= limit) {
+      d.leases[name] = holders;
+      return false;
+    }
+    d.leases[name] = { ...holders, [holder]: untilMs };
+    await this.persist();
+    return true;
+  }
+
+  async releaseWebLease(name: string, holder: string): Promise<void> {
+    const holders = { ...this.data().leases[name] };
+    delete holders[holder];
+    this.data().leases[name] = holders;
+    await this.persist();
+  }
 
   async recordWebSubmission(submission: WebSubmissionRecord): Promise<WebProgressRecord> {
     const d = this.data();

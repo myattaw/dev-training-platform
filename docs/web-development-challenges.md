@@ -11,7 +11,9 @@ requests. Distinct from algorithm [Coding Challenges](content.md). Security: see
 3. Pick a framework and open the workspace (`/web-challenges/<id>/<framework>/workspace`):
    - file explorer (read-only template files marked with a lock, edited files with a dot),
    - Monaco editor with tabs (one model per file; cursor, scroll and undo kept per file),
-   - **Run application** builds and starts the project; the **HTTP client** sends requests to it,
+   - the **HTTP client** takes a list of up to 20 requests; **Send requests** builds the project,
+     starts a fresh application, sends them in order (state carries over between them), shows
+     every response and stops the application (one run; not graded, never an attempt),
    - **Run tests** runs the visible tests (not recorded),
    - **Submit** runs visible and hidden tests; an accepted submission marks the framework solved,
    - compiler errors link to file and line; application output in the Output tab.
@@ -94,18 +96,17 @@ format, and allow it in `web-validate.ts`.
 
 ## API
 
-| Method and path                                                               | Purpose                                                                         |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `GET /api/web-challenges/:id`                                                 | Challenge (access-checked) and the caller's progress                            |
-| `GET /api/web-challenges/:id/frameworks/:framework/project`                   | Starter project                                                                 |
-| `POST /api/web-challenges/:id/runs`                                           | `{ framework, files, mode: visible \| submit, timedSessionId? }` → run (queued) |
-| `GET /api/web-runs/:id`                                                       | Poll a run (owner only)                                                         |
-| `GET /api/web-challenges/:id/submissions`, `GET /api/web-challenges/progress` | History and progress                                                            |
-| `POST /api/web-sessions`, `GET/DELETE /api/web-sessions/:id`                  | Interactive application session                                                 |
-| `POST /api/web-sessions/:id/requests`                                         | HTTP-client request (relative path, approved headers)                           |
-| `GET/PUT/DELETE /api/me/web-drafts/:id/:framework`                            | Account drafts                                                                  |
-| `GET /api/me/web-usage`                                                       | Executions used today and limits                                                |
-| `POST /api/web-timed-sessions`, `GET .../:id`, `POST .../:id/finish`          | Timed mode                                                                      |
+| Method and path                                                               | Purpose                                                                                                                                               |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/web-challenges/:id`                                                 | Challenge (access-checked) and the caller's progress                                                                                                  |
+| `GET /api/web-challenges/:id/frameworks/:framework/project`                   | Starter project                                                                                                                                       |
+| `POST /api/web-challenges/:id/runs`                                           | `{ framework, files, mode: visible \| submit, timedSessionId? }` → run (queued)                                                                       |
+| `POST /api/web-challenges/:id/runs` with `mode: requests`                     | HTTP client: `requests` (1–20; relative paths, approved headers, bodies ≤ 16 KB, 64 KB in all) → run; the result lists each request with its response |
+| `GET /api/web-runs/:id`                                                       | Poll a run (owner only)                                                                                                                               |
+| `GET /api/web-challenges/:id/submissions`, `GET /api/web-challenges/progress` | History and progress                                                                                                                                  |
+| `GET/PUT/DELETE /api/me/web-drafts/:id/:framework`                            | Account drafts                                                                                                                                        |
+| `GET /api/me/web-usage`                                                       | Executions used today and limits                                                                                                                      |
+| `POST /api/web-timed-sessions`, `GET .../:id`, `POST .../:id/finish`          | Timed mode                                                                                                                                            |
 
 Verdicts: accepted, tests failed, compilation error, application startup error, time limit
 exceeded, resource limit exceeded, infrastructure error (never counted against the learner).

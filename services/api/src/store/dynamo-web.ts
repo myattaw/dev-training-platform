@@ -1,3 +1,4 @@
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { ConditionalCheckFailedException, DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DeleteCommand,
@@ -9,9 +10,11 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { documentClient } from './dynamo-store';
 import {
+  liveHolders,
   nextWebProgress,
   type WebDraftRecord,
   type WebProgressRecord,
+  type WebRunRecord,
   type WebStore,
   type WebSubmissionRecord,
   type WebTimedSessionRecord,
@@ -27,9 +30,63 @@ import {
  *   USER#<user>  WEBUSAGE#<day>                               { used } (expires via TTL)
  *   USER#<user>  WEBTIMED#<startedAt>#<id>                    { revision, data: WebTimedSessionRecord }
  *   USER#<user>  WEBTIMEDID#<id>                              { sk of the session item }
+ *   USER#<user>  WEBRUN#<id>                                  { status, blob: gzip(WebRunRecord) } (TTL)
+ *   WEBLEASE#<name>  LEASE                                    { revision, holders: { holder: untilMs } }
  *
- * Every item lives in its owner's partition: no query can cross users.
+ * Every user item lives in its owner's partition: no query can cross users.
+ * Leases (global and per-user execution slots) hold run ids only.
  */
+
+/** DynamoDB's item limit is 400 KB; keep run items well below it. */
+const MAX_RUN_BLOB_BYTES = 300_000;
+const SHRUNK_BODY_CHARS = 2_000;
+
+/**
+ * A run record, gzipped; shrunk if needed (logs, then HTTP-client response
+ * bodies, then the files once the run is done).
+ */
+export function encodeRun(run: WebRunRecord): Buffer {
+  const candidates: WebRunRecord[] = [run];
+  if (run.result) {
+    candidates.push({ ...run, result: { ...run.result, logs: run.result.logs.slice(-20) } });
+    candidates.push({ ...run, result: { ...run.result, logs: [] } });
+    const exchanges = run.result.exchanges;
+    if (exchanges) {
+      // HTTP-client responses: keep the start of each body.
+      const last = candidates[candidates.length - 1] as WebRunRecord;
+      candidates.push({
+        ...last,
+        result: {
+          ...(last.result as NonNullable<WebRunRecord['result']>),
+          exchanges: exchanges.map((x) =>
+            x.response.body.length > SHRUNK_BODY_CHARS
+              ? {
+                  ...x,
+                  response: {
+                    ...x.response,
+                    body: x.response.body.slice(0, SHRUNK_BODY_CHARS),
+                    truncated: true,
+                  },
+                }
+              : x,
+          ),
+        },
+      });
+    }
+  }
+  if (run.status === 'completed') {
+    const last = candidates[candidates.length - 1] as WebRunRecord;
+    candidates.push({ ...last, files: {} });
+  }
+  for (const candidate of candidates) {
+    const blob = gzipSync(JSON.stringify(candidate));
+    if (blob.length <= MAX_RUN_BLOB_BYTES) return blob;
+  }
+  throw new Error('The run record is too large to store.');
+}
+
+export const decodeRun = (blob: Uint8Array): WebRunRecord =>
+  JSON.parse(gunzipSync(blob).toString('utf8')) as WebRunRecord;
 
 const user = (userId: string) => `USER#${userId}`;
 const DAY_S = 24 * 60 * 60;
@@ -41,6 +98,106 @@ export class DynamoWebStore implements WebStore {
   constructor(options: { readonly tableName: string; readonly client?: DynamoDBClient }) {
     this.db = documentClient(options.client ?? new DynamoDBClient({}));
     this.table = options.tableName;
+  }
+
+  async createWebRun(run: WebRunRecord): Promise<void> {
+    await this.db.send(
+      new PutCommand({
+        TableName: this.table,
+        Item: {
+          pk: user(run.userId),
+          sk: `WEBRUN#${run.id}`,
+          status: run.status,
+          blob: encodeRun(run),
+          ttl: Math.floor(run.expiresAt / 1000),
+        },
+        ConditionExpression: 'attribute_not_exists(pk)',
+      }),
+    );
+  }
+
+  async getWebRun(userId: string, id: string): Promise<WebRunRecord | undefined> {
+    const item = await this.get(user(userId), `WEBRUN#${id}`);
+    const blob = item?.['blob'];
+    return blob instanceof Uint8Array ? decodeRun(blob) : undefined;
+  }
+
+  async updateWebRun(run: WebRunRecord, expectedStatus: WebRunRecord['status']): Promise<boolean> {
+    try {
+      await this.db.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: {
+            pk: user(run.userId),
+            sk: `WEBRUN#${run.id}`,
+            status: run.status,
+            blob: encodeRun(run),
+            ttl: Math.floor(run.expiresAt / 1000),
+          },
+          ConditionExpression: '#status = :expected',
+          ExpressionAttributeNames: { '#status': 'status' },
+          ExpressionAttributeValues: { ':expected': expectedStatus },
+        }),
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof ConditionalCheckFailedException) return false;
+      throw err;
+    }
+  }
+
+  async acquireWebLease(
+    name: string,
+    holder: string,
+    limit: number,
+    nowMs: number,
+    untilMs: number,
+  ): Promise<boolean> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const current = await this.get(`WEBLEASE#${name}`, 'LEASE');
+      const revision = typeof current?.['revision'] === 'number' ? current['revision'] : 0;
+      const holders = liveHolders(
+        current?.['holders'] as Record<string, number> | undefined,
+        nowMs,
+      );
+      if (!(holder in holders) && Object.keys(holders).length >= limit) return false;
+      if (await this.writeLease(name, { ...holders, [holder]: untilMs }, revision)) return true;
+    }
+    return false;
+  }
+
+  async releaseWebLease(name: string, holder: string): Promise<void> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const current = await this.get(`WEBLEASE#${name}`, 'LEASE');
+      if (!current) return;
+      const revision = typeof current['revision'] === 'number' ? current['revision'] : 0;
+      const holders = { ...(current['holders'] as Record<string, number> | undefined) };
+      if (!(holder in holders)) return;
+      delete holders[holder];
+      if (await this.writeLease(name, holders, revision)) return;
+    }
+  }
+
+  /** Writes the lease if its revision is still `revision` (0: it does not exist yet). */
+  private async writeLease(
+    name: string,
+    holders: Record<string, number>,
+    revision: number,
+  ): Promise<boolean> {
+    try {
+      await this.db.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: { pk: `WEBLEASE#${name}`, sk: 'LEASE', revision: revision + 1, holders },
+          ConditionExpression: revision === 0 ? 'attribute_not_exists(pk)' : 'revision = :revision',
+          ...(revision === 0 ? {} : { ExpressionAttributeValues: { ':revision': revision } }),
+        }),
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof ConditionalCheckFailedException) return false;
+      throw err;
+    }
   }
 
   async recordWebSubmission(submission: WebSubmissionRecord): Promise<WebProgressRecord> {

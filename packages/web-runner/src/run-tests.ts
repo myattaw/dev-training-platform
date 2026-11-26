@@ -1,6 +1,12 @@
 import { gradeWebTest, type WebTest, type WebTestResult } from '@pracstack/content-model';
 import type { DockerWebRunner, WebApp } from './docker-web-runner';
-import type { AppState, BuildDiagnostic, ProbeRequest, WebProject } from './protocol';
+import type {
+  AppState,
+  BuildDiagnostic,
+  ProbeRequest,
+  ProbeResponse,
+  WebProject,
+} from './protocol';
 
 /** The outcome of building a project and running tests against it. */
 export type WebTestRun =
@@ -24,6 +30,32 @@ export type WebTestRun =
   /** Docker, an image or the probe failed: never the learner's fault, never graded. */
   | { readonly kind: 'unavailable'; readonly message: string };
 
+/**
+ * The outcome of one batch (build, start, send request sequences), before
+ * grading: raw responses, or why there are none. Docker and Lambda runs both
+ * produce it; the trusted side grades it (gradeBatch).
+ */
+export type BatchRun =
+  | {
+      readonly kind: 'completed';
+      /** One list of responses per sequence (untrusted data). */
+      readonly responses: readonly (readonly ProbeResponse[])[];
+      readonly logs: readonly string[];
+      readonly durationMs: number;
+    }
+  | Exclude<WebTestRun, { readonly kind: 'completed' }>;
+
+/** Grades a batch whose sequences were `tests.map(toProbeRequests)`. */
+export function gradeBatch(run: BatchRun, tests: readonly WebTest[]): WebTestRun {
+  if (run.kind !== 'completed') return run;
+  return {
+    kind: 'completed',
+    results: tests.map((test, i) => gradeWebTest(test, run.responses[i] ?? [])),
+    logs: run.logs,
+    durationMs: run.durationMs,
+  };
+}
+
 /** Turns test steps into probe requests (requests only: no expectations leave the API). */
 export function toProbeRequests(test: WebTest): ProbeRequest[] {
   return test.steps.map((step) => ({
@@ -33,6 +65,48 @@ export function toProbeRequests(test: WebTest): ProbeRequest[] {
     ...(step.request.body !== undefined ? { body: step.request.body } : {}),
     ...(step.capture ? { capture: step.capture } : {}),
   }));
+}
+
+/** Where a batch is, for progress display. */
+export type BatchPhase = 'building' | 'starting' | 'testing';
+
+/**
+ * Builds and starts the project in a throwaway container, sends the request
+ * sequences in order against that one application instance, and always stops
+ * the container. Never throws for learner mistakes.
+ */
+export async function runBatch(
+  runner: DockerWebRunner,
+  project: WebProject,
+  sequences: readonly (readonly ProbeRequest[])[],
+  options: { readonly onApp?: (app: WebApp) => void } = {},
+): Promise<BatchRun> {
+  const started = Date.now();
+  const app = runner.start(project, { lifetimeMs: 5 * 60_000 });
+  options.onApp?.(app);
+  try {
+    const state = await app.settled();
+    if (state !== 'ready') return notReady(app, state);
+    const result = await app.send(sequences);
+    if (result.kind === 'unavailable') return { kind: 'unavailable', message: result.message };
+    if (result.kind === 'not-ready') {
+      // The application died while the requests ran (e.g. it exited on a request).
+      const final = app.state === 'ready' ? 'startup-failed' : app.state;
+      return notReady(
+        app,
+        final === 'resource-limit' ? final : 'startup-failed',
+        'The application stopped while the tests were running.',
+      );
+    }
+    return {
+      kind: 'completed',
+      responses: result.results,
+      logs: app.logs(),
+      durationMs: Date.now() - started,
+    };
+  } finally {
+    await app.stop('stopped');
+  }
 }
 
 /**
@@ -46,31 +120,10 @@ export async function runWebTests(
   tests: readonly WebTest[],
   options: { readonly onApp?: (app: WebApp) => void } = {},
 ): Promise<WebTestRun> {
-  const started = Date.now();
-  const app = runner.start(project, { lifetimeMs: 5 * 60_000 });
-  options.onApp?.(app);
-  try {
-    const state = await app.settled();
-    if (state !== 'ready') return notReady(app, state);
-    const result = await app.send(tests.map(toProbeRequests));
-    if (result.kind === 'unavailable') return { kind: 'unavailable', message: result.message };
-    if (result.kind === 'not-ready') {
-      // The application died while the tests ran (e.g. it exited on a request).
-      const final = app.state === 'ready' ? 'startup-failed' : app.state;
-      return notReady(
-        app,
-        final === 'resource-limit' ? final : 'startup-failed',
-        'The application stopped while the tests were running.',
-      );
-    }
-    const results = tests.map((test, i) => gradeWebTest(test, result.results[i] ?? []));
-    return { kind: 'completed', results, logs: app.logs(), durationMs: Date.now() - started };
-  } finally {
-    await app.stop('stopped');
-  }
+  return gradeBatch(await runBatch(runner, project, tests.map(toProbeRequests), options), tests);
 }
 
-function notReady(app: WebApp, state: AppState, message?: string): WebTestRun {
+function notReady(app: WebApp, state: AppState, message?: string): BatchRun {
   const logs = app.logs();
   switch (state) {
     case 'build-failed':

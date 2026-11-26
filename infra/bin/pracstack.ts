@@ -13,6 +13,8 @@
  *   retainData         "true": keep users and progress on destroy (default false)
  *   signUpAllowlist    comma-separated emails or @domains allowed to sign up (default: anyone)
  *   runnerConcurrency  reserved concurrency per runner (default none; needs a raised quota)
+ *   webExecution       "true": run Web Development Challenges (three web runner functions and the
+ *                      web worker; docs/lambda-web-runner.md). Default: browse-only, none created
  *   googleClientId     enables "Continue with Google" (OAuth client ID from Google Cloud)
  *   githubClientId     enables "Continue with GitHub" (GitHub OAuth App client ID; its secret is in
  *                      Secrets Manager, the bridge's signing key in SSM; see docs/accounts-and-auth.md)
@@ -118,6 +120,7 @@ if (certificateFor) {
     alertEmail,
     monthlyBudgetUsd,
     retainData: context('retainData') === 'true',
+    webExecution: context('webExecution') === 'true',
     signUpAllowlist: (context('signUpAllowlist') ?? '').split(','),
     ...(runnerConcurrency !== undefined ? { runnerConcurrency } : {}),
     ...(googleClientId
@@ -160,6 +163,11 @@ if (certificateFor) {
         java: join(BUILD_DIR, 'runners', 'java'),
         csharp: join(BUILD_DIR, 'runners', 'csharp'),
         sql: join(BUILD_DIR, 'runners', 'sql'),
+      },
+      webRunners: {
+        aspnetcore: join(BUILD_DIR, 'runners', 'web-aspnetcore'),
+        'spring-boot': join(BUILD_DIR, 'runners', 'web-spring-boot'),
+        django: join(BUILD_DIR, 'runners', 'web-django'),
       },
     },
     description: `PracStack (${stage}): web app, sign-in, API and progress storage.`,

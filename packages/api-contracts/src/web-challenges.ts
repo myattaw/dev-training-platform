@@ -8,11 +8,13 @@ import type {
 /*
  * Web Development Challenges: HTTP contract between the web app and the API.
  *
- * Long builds never hold a request open: a run (visible tests or a graded
- * submission) is created with POST and then polled with GET. An interactive
- * application session (for the HTTP client) is created, polled, sent requests,
- * and stopped. Every id is checked against the caller: users only ever see
- * their own runs, sessions, drafts and submissions.
+ * Long builds never hold a request open: a run is created with POST and then
+ * polled with GET. A run is one batch: build the project, start a fresh
+ * application, send requests in order, stop it. Its requests are the visible
+ * tests, the visible and hidden tests (a graded submission), or the learner's
+ * own requests from the HTTP client. Nothing keeps running between runs.
+ * Every id is checked against the caller: users only ever see their own runs,
+ * drafts and submissions.
  */
 
 /** GET /api/web-challenges/:id — the challenge, access-checked, with the caller's progress. */
@@ -44,7 +46,9 @@ export type WebVerdict =
   | 'startup-error'
   | 'time-limit-exceeded'
   | 'resource-limit-exceeded'
-  | 'infrastructure-error';
+  | 'infrastructure-error'
+  /** HTTP-client runs only: the application ran and the requests were sent (not graded). */
+  | 'responded';
 
 export const WEB_VERDICT_LABELS: Readonly<Record<WebVerdict, string>> = {
   accepted: 'Accepted',
@@ -54,6 +58,7 @@ export const WEB_VERDICT_LABELS: Readonly<Record<WebVerdict, string>> = {
   'time-limit-exceeded': 'Time limit exceeded',
   'resource-limit-exceeded': 'Resource limit exceeded',
   'infrastructure-error': 'Infrastructure error',
+  responded: 'Responses received',
 };
 
 export interface WebDiagnostic {
@@ -77,18 +82,27 @@ export interface WebRunResult {
   readonly visible: readonly WebTestResult[];
   /** Hidden tests (submissions only): categories and pass/fail, never inputs. */
   readonly hidden: readonly HiddenTestOutcome[];
-  /** Recent application output (visible-test runs only; never for submissions). */
+  /** Recent application output (visible-test and HTTP-client runs; never for submissions). */
   readonly logs: readonly string[];
   readonly durationMs?: number;
+  /** HTTP-client runs: each request with what came back, in order. */
+  readonly exchanges?: readonly WebHttpExchange[];
 }
+
+/**
+ * `visible`: run the visible tests (not recorded). `submit`: graded and recorded.
+ * `requests`: send the learner's own requests (HTTP client; not graded, not recorded).
+ */
+export type WebRunMode = 'visible' | 'submit' | 'requests';
 
 /** POST /api/web-challenges/:id/runs */
 export interface CreateWebRunRequest {
   readonly framework: WebFramework;
   /** Editable files only: path → content. Others come from the trusted template. */
   readonly files: Readonly<Record<string, string>>;
-  /** `visible`: run the visible tests (not recorded). `submit`: graded, recorded. */
-  readonly mode: 'visible' | 'submit';
+  readonly mode: WebRunMode;
+  /** Mode `requests` only: the requests to send, in order, to one fresh application. */
+  readonly requests?: readonly WebHttpRequest[];
   /** Submit within a timed session (deadline enforced by the server). */
   readonly timedSessionId?: string;
 }
@@ -97,7 +111,7 @@ export interface WebRun {
   readonly id: string;
   readonly challengeId: string;
   readonly framework: WebFramework;
-  readonly mode: 'visible' | 'submit';
+  readonly mode: WebRunMode;
   readonly status: WebRunStatus;
   /** When the server accepted the run (used for timed-session deadlines). */
   readonly acceptedAt: string;
@@ -112,47 +126,16 @@ export interface WebRunResponse {
   readonly run: WebRun;
 }
 
-/* ---------- Interactive application sessions (HTTP client) ---------- */
+/* ---------- HTTP client (runs in mode `requests`) ---------- */
 
-export type WebSessionState =
-  | 'queued'
-  | 'building'
-  | 'starting'
-  | 'ready'
-  | 'build-failed'
-  | 'startup-failed'
-  | 'resource-limit'
-  | 'expired'
-  | 'stopped'
-  | 'unavailable';
+/** Limits of one HTTP-client run (also enforced by the API). */
+export const WEB_REQUEST_LIMITS = {
+  maxRequests: 20,
+  maxHeaders: 10,
+  maxBodyBytes: 16 * 1024,
+  maxTotalBodyBytes: 64 * 1024,
+} as const;
 
-/** POST /api/web-sessions */
-export interface CreateWebSessionRequest {
-  readonly challengeId: string;
-  readonly framework: WebFramework;
-  readonly files: Readonly<Record<string, string>>;
-}
-
-export interface WebSession {
-  readonly id: string;
-  readonly challengeId: string;
-  readonly framework: WebFramework;
-  readonly state: WebSessionState;
-  readonly message?: string;
-  readonly diagnostics: readonly WebDiagnostic[];
-  readonly logs: readonly string[];
-  readonly createdAt: string;
-  /** The session is stopped at this time, or earlier after being idle. */
-  readonly expiresAt: string;
-  readonly requestsUsed: number;
-  readonly requestLimit: number;
-}
-
-export interface WebSessionResponse {
-  readonly session: WebSession;
-}
-
-/** POST /api/web-sessions/:id/requests */
 export interface WebHttpRequest {
   readonly method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** Relative path and query, e.g. `/api/employees?page=2`. Never a URL. */
@@ -172,9 +155,9 @@ export interface WebHttpResponse {
   readonly error?: string;
 }
 
-export interface WebHttpExchangeResponse {
+export interface WebHttpExchange {
+  readonly request: WebHttpRequest;
   readonly response: WebHttpResponse;
-  readonly session: WebSession;
 }
 
 /* ---------- Progress, history, drafts, quotas ---------- */
