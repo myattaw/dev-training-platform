@@ -17,7 +17,7 @@ import { DynamoWebStore } from '../store/dynamo-web';
 import { DynamoProgressStore } from '../store/dynamo-store';
 import { createLambdaHandler } from './adapter';
 import { GloballyLimitedCodeRunner, GloballyLimitedSqlEngine } from './global-limit';
-import { lambdaInvoke } from './invoke';
+import { lambdaInvoke, lambdaInvokeAsync } from './invoke';
 import { InvokedCodeRunner } from '@pracstack/code-runner';
 import { InvokedSqlEngine } from '@pracstack/sql-engine';
 
@@ -59,6 +59,13 @@ const sqlEngine = runnerFunctions.sql
     )
   : undefined;
 
+// Web challenge runs go to the web worker function (web-worker.ts), when deployed.
+const webWorkerFunction = process.env['WEB_WORKER_FUNCTION'];
+const invokeAsync = lambdaInvokeAsync();
+const webDispatch = webWorkerFunction
+  ? (userId: string, runId: string) => invokeAsync(webWorkerFunction, { userId, runId })
+  : undefined;
+
 const api = createApi({
   ...(codeRunner ? { codeRunner } : {}),
   ...(sqlEngine ? { sqlEngine } : {}),
@@ -70,8 +77,9 @@ const api = createApi({
   content: loadContentSource(fileURLToPath(new URL('./content', import.meta.url))),
   store: new DynamoProgressStore({ tableName }),
   accounts: new DynamoAccountStore({ tableName }),
-  // Web challenges are browse-only on AWS: no web runner is deployed (docs/execution-security.md).
+  // Without the web worker, web challenges are browse-only (docs/lambda-web-runner.md).
   webStore: new DynamoWebStore({ tableName }),
+  ...(webDispatch ? { webDispatch } : {}),
   rateLimiter: limiter('api', 120),
   sqlRateLimiter: limiter('sql', 30),
   codeRateLimiter: limiter('code', 10),

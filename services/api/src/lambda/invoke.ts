@@ -41,3 +41,24 @@ export function lambdaInvoke(client = new LambdaClient({ maxAttempts: 1 })): Inv
     }
   };
 }
+
+/**
+ * Starts a function asynchronously (InvocationType "Event"): Lambda queues the
+ * event and returns at once. Used to hand a stored run to the web worker; the
+ * worker's claim makes a repeated delivery harmless. Throws if Lambda refused
+ * the event (the caller then ends the run as an infrastructure error).
+ */
+export function lambdaInvokeAsync(
+  client = new LambdaClient({ maxAttempts: 2 }),
+): (functionName: string, payload: unknown) => Promise<void> {
+  return async (functionName, payload) => {
+    const res = await client.send(
+      new InvokeCommand({
+        FunctionName: functionName,
+        InvocationType: 'Event',
+        Payload: new TextEncoder().encode(JSON.stringify(payload)),
+      }),
+    );
+    if (res.StatusCode !== 202) throw new Error(`Async invoke returned ${String(res.StatusCode)}.`);
+  };
+}

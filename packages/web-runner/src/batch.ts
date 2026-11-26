@@ -1,5 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { gradeWebTest, type WebTest } from '@pracstack/content-model';
+import type { WebTest } from '@pracstack/content-model';
 import { parseDiagnostics } from './diagnostics';
 import {
   HTTP_METHODS,
@@ -10,7 +10,7 @@ import {
   WEB_RUNNER_FRAMEWORKS,
   type WebRunnerFramework,
 } from './protocol';
-import type { WebTestRun } from './run-tests';
+import { type BatchRun, gradeBatch, type WebTestRun } from './run-tests';
 
 /*
  * Batch runs on AWS Lambda: one invocation of a framework's runner function
@@ -186,18 +186,17 @@ function isProbeRequest(step: unknown): boolean {
   return true;
 }
 
-/** A verified batch as a graded test run (the same outcome the Docker runner gives). */
-export function batchToTestRun(
-  framework: WebRunnerFramework,
-  body: WebBatchBody,
-  tests: readonly WebTest[],
-): WebTestRun {
+/** A verified batch as the runner-neutral outcome (the same the Docker runner gives). */
+export function batchBodyToRun(framework: WebRunnerFramework, body: WebBatchBody): BatchRun {
   const logs = body.logs;
   switch (body.kind) {
-    case 'completed': {
-      const results = tests.map((test, i) => gradeWebTest(test, body.results?.[i] ?? []));
-      return { kind: 'completed', results, logs, durationMs: body.timings['total'] ?? 0 };
-    }
+    case 'completed':
+      return {
+        kind: 'completed',
+        responses: body.results ?? [],
+        logs,
+        durationMs: body.timings['total'] ?? 0,
+      };
     case 'build-failed':
     case 'project-invalid': {
       const diagnostics: BuildDiagnostic[] = parseDiagnostics(framework, body.buildLogs);
@@ -223,4 +222,13 @@ export function batchToTestRun(
         message: body.message ?? 'The application runner is not available.',
       };
   }
+}
+
+/** A verified batch whose sequences were `tests.map(toProbeRequests)`, graded. */
+export function batchToTestRun(
+  framework: WebRunnerFramework,
+  body: WebBatchBody,
+  tests: readonly WebTest[],
+): WebTestRun {
+  return gradeBatch(batchBodyToRun(framework, body), tests);
 }

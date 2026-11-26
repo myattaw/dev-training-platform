@@ -21,9 +21,14 @@ export {
 } from './files';
 export type { FileLimits, FileValidation } from './files';
 export * from './protocol';
-export { runWebTests, toProbeRequests } from './run-tests';
-export type { WebTestRun } from './run-tests';
+export { gradeBatch, runBatch, runWebTests, toProbeRequests } from './run-tests';
+export type { BatchPhase, BatchRun, WebTestRun } from './run-tests';
+export { DockerWebExecutor } from './executor';
+export type { WebExecutor } from './executor';
+export { LambdaWebExecutor } from './lambda-executor';
+export type { WebInvoke, WebInvokeOutcome } from './lambda-executor';
 export {
+  batchBodyToRun,
   batchToTestRun,
   newBatchKey,
   parseWebBatchEvent,

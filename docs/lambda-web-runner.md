@@ -1,7 +1,7 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phase 0 (local feasibility) and Phase 1 (runner images) done on 2026-11-26.** Nothing is
-deployed.
+Status: **Phases 0–2 (local feasibility, runner images, trusted worker) done on 2026-11-26.**
+Nothing is deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
 Lambda container images, one image per framework, in the existing isolated runner VPC (no route
@@ -110,10 +110,60 @@ and file are gone by the next run; an application that exits on start is a start
 that never listens hits the startup limit, one that allocates 3 GB is stopped for memory; and the
 environment still works afterwards.
 
+## Phase 2: the trusted web worker
+
+```
+browser ─POST /runs─▶ API ── store run (queued) ──▶ DynamoDB
+                       │        ▲                     ▲
+                       └─dispatch(userId, runId)      │ claim, phases, result, progress
+                                │                     │
+                                ▼                     │
+                        web worker ── global slot (lease of 2) ──┘
+                                │
+                                └─ sync invoke, signed batch ─▶ web runner function (framework)
+browser ─GET /web-runs/:id (poll)─▶ API ── read run ──▶ DynamoDB
+```
+
+| Piece                                                                | Where                                                       |
+| -------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Run records and leases (memory/file store, DynamoDB)                 | `services/api/src/store/web-store.ts`, `dynamo-web.ts`      |
+| API side: validate, per-user slot, quota, store, dispatch, serve     | `services/api/src/web/web-challenge-service.ts`             |
+| Worker: claim, global slot, run, grade, record, complete, free slots | `services/api/src/web/web-run-worker.ts`                    |
+| Shared: project assembly, learner-visible results, timed sessions    | `services/api/src/web/web-shared.ts`                        |
+| Executors: Docker (local) and Lambda (signed batches)                | `packages/web-runner/src/executor.ts`, `lambda-executor.ts` |
+| Worker function entry (bundled next to the API, same content)        | `services/api/src/lambda/web-worker.ts` → `web-worker.mjs`  |
+| API → worker on AWS (`WEB_WORKER_FUNCTION`, async invoke)            | `services/api/src/lambda/handler.ts`, `invoke.ts`           |
+
+- **Stateless API.** A run is stored as soon as it is accepted (`queued`), so any API instance
+  can serve `GET /api/web-runs/:id`. Records expire after a day (DynamoDB TTL). A run item is
+  gzipped and kept under 300 KB (logs, then the files of a finished run, are dropped if needed).
+- **Limits.** Per user: one run at a time, a lease `user-runs#<user>` taken by the API (409
+  otherwise) and freed by the worker. Globally: at most 2 runs build or run at once, a lease
+  `web-runs` taken by the worker; others wait (`queued`) up to 2 minutes on AWS (5 locally) and
+  then end as "busy" (infrastructure error, not an attempt). Lease holders expire after 10
+  minutes, so a crashed worker cannot block anyone for long. Plus the daily quota as before.
+- **Exactly once.** The worker claims the run (`queued` → `building`, conditional); a repeated
+  dispatch finds it claimed and does nothing, and only the claiming worker frees the user's slot.
+- **Trust.** The worker rebuilds the project from trusted content and the stored editable files,
+  sends requests only, verifies the signed response with the run's key, and grades it itself. A
+  response that fails verification is an infrastructure error and logs an `alarm` line
+  (`web-runner-unverified`) for a metric filter.
+- **Locally** the same worker runs inside the API process with the Docker executor; nothing
+  changes for the browser.
+- **Browse-only** remains the default on AWS until the worker function is deployed
+  (`WEB_WORKER_FUNCTION` unset → `executionAvailable: false`). The API bundle is checked to contain
+  no Docker runner code (`build-lambda.ts`).
+
+Tests: `web-run-worker.spec.ts` (global limit of 2 across users, trusted grading and progress,
+infrastructure errors not counted, the busy path, a repeated dispatch runs once, the Lambda
+executor's signature checks and failure mapping), `store/web-store.spec.ts` (runs and leases on
+the memory store and DynamoDB Local, concurrent acquisitions, item size), and
+`lambda/web-bundle.spec.ts`: the real API and worker bundles with DynamoDB Local and the real
+Django runner image, through the AWS SDK. A reference submission is accepted and recorded; a
+response altered on its way back is an infrastructure error.
+
 ## Next phases
 
-2. Trusted worker: queued run in DynamoDB, async worker invokes the runner, grades, stores; global
-   limit of 2 through a DynamoDB lease.
 3. Batch HTTP client in the web app (local and AWS).
 4. CDK: three functions in the runner VPC with no permissions, the worker, config flag, kill
    switch, alarms.
