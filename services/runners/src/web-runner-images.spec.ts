@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+﻿import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
 import { WEB_CHALLENGES } from '@pracstack/content/web-challenges';
@@ -39,8 +39,8 @@ const FAKE_SECRETS = {
 };
 /** Lambda memory per function (CPU is proportional: 1,769 MB = 1 vCPU). */
 const MEMORY_MB: Record<WebRunnerFramework, number> = {
-  aspnetcore: 3072,
-  'spring-boot': 3072,
+  aspnetcore: 3008,
+  'spring-boot': 3008,
   django: 2048,
 };
 
@@ -65,6 +65,9 @@ async function startWebFunction(framework: WebRunnerFramework): Promise<WebFn> {
     '--user',
     '993:990',
     '--read-only',
+    // Lambda's limits: 1,024 open files (hard), 3,008 MB at most.
+    '--ulimit',
+    'nofile=1024:1024',
     '--tmpfs',
     '/tmp:rw,exec,size=1024m',
     '--memory',

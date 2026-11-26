@@ -1,6 +1,6 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phases 0–5 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack, post-deployment checks) done on 2026-11-26; one known finding to measure on staging (Phase 5).**
+Status: **Phases 0–5 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack, post-deployment checks) done on 2026-11-26; Phase 6: live on production 2026-11-26, with the runtime API finding confirmed as "own event only" and awaiting a decision.**
 Nothing is deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
@@ -208,8 +208,9 @@ browse-only. On, the stack adds:
 | API function                               | Additionally starts the worker (`WEB_WORKER_FUNCTION`); it never invokes a web runner                                                                       |
 | Metric filter + 2 alarms                   | Worker errors, and any `{"level":"alarm"}` line the worker logs (e.g. `web-runner-unverified`)                                                              |
 
-Sizes (`WEB_RUNNER_SIZES`, `WEB_WORKER`): ASP.NET Core and Spring Boot 4,096 MB, Django 2,048 MB
-(Phase 0 measurements; to be checked on staging), 300 s timeout (the handler stops before it:
+Sizes (`WEB_RUNNER_SIZES`, `WEB_WORKER`): ASP.NET Core and Spring Boot 3,008 MB (this
+account's Lambda memory limit; the first production deploy at 4,096 MB was refused on
+2026-11-26), Django 2,048 MB (Phase 0 measurements at 4,096 MB; checked again on AWS), 300 s timeout (the handler stops before it:
 build at most 120 s, startup at most 60 s), 1,024 MB `/tmp`. The worker: 512 MB, 480 s timeout =
 2 minutes waiting for a slot + one runner + margin, below the 10-minute run lease.
 
@@ -279,7 +280,41 @@ flagged); on staging, `verify-runners` shows whether real Lambda behaves like th
 Then decide: accept "own event only" as a stated limit (and narrow the check to other runs'
 events), or harden the design.
 
-## Next phases
+## Phase 6: on AWS (production, 2026-11-26)
 
-6. Staging (`-c webExecution=true`), run `verify-runners` (including the runtime API
-   measurement), measure sizes and timings, then production with approval.
+By the owner's choice, staging was skipped (no users yet) and web execution went straight to
+`PracStack-production` (`-c webExecution=true`), each deploy approved after its `cdk diff`.
+
+Two problems the local images did not show, both fixed:
+
+- **Memory limit.** This account allows at most 3,008 MB per function; the first deploy (4,096
+  MB) was refused and rolled back. ASP.NET Core and Spring Boot now use 3,008 MB.
+- **Open files.** Lambda's hard limit is 1,024 open files; the handler asked for 2,048, `prlimit`
+  failed and every run ended as "The runner could not build the project." It now asks for 1,024.
+  The local image tests now run with Lambda's limits (`--ulimit nofile=1024:1024`, 3,008 MB).
+
+`verify-runners` on production after the fixes: every check passes (code runners; web reference
+solutions 15/15 each; no network; no credentials; no leftovers between runs in a reused
+environment) **except the runtime API check, in all three frameworks.** `smoke-test`: 17/17.
+
+Reference solution, 15 tests in one batch, first (cold) run on Lambda:
+
+| Framework    | Memory   | Time   |
+| ------------ | -------- | ------ |
+| Django       | 2,048 MB | 15.9 s |
+| Spring Boot  | 3,008 MB | 23.2 s |
+| ASP.NET Core | 3,008 MB | 41.6 s |
+
+These are several times the Phase 0 local numbers (3–5 s); warm runs are faster (later probe
+runs took about 1–5 s), so a learner's first run after a quiet period is the slow one.
+
+### The runtime API finding, measured
+
+Real Lambda behaves like the emulator: learner code received an event in every framework. On
+Django the event's request ID (`f7d5f4f9…`) was **the probe invocation's own** (CloudWatch START
+line), and the environment's next invocations started normally. So it is "own event only", as
+assessed above: the learner can read their own run's key and could sign a result for their own
+run, which still needs the correct responses to pass. Other users' runs and expected values are
+not exposed.
+
+Decision pending (the owner's): accept "own event only" as a stated limit, or harden.

@@ -186,7 +186,9 @@ export async function handler(raw: unknown, context?: LambdaContext): Promise<We
         maxOutputBytes: 4_000_000,
         maxRssMb: config.maxRssMb,
         maxProcesses: config.maxProcesses,
-        maxOpenFiles: 2_048,
+        // Lambda's own hard limit: a non-root process cannot raise it, and asking for more
+        // makes prlimit fail before anything runs (the local image tests run with it too).
+        maxOpenFiles: 1_024,
         maxFileBytes: 64 * 1024 * 1024,
       },
     },

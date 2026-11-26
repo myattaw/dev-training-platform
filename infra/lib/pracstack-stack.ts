@@ -82,12 +82,16 @@ const WEB_RUNNER_ENV: Readonly<Record<WebRunnerFramework, string>> = {
  * timeout covers the handler's own build and startup deadlines (at most 120 s
  * + 60 s) plus the requests; the handler stops before it. /tmp holds the
  * project and the build output.
+ *
+ * 3,008 MB is this account's Lambda memory limit (newer accounts are capped there
+ * until AWS raises the quota; the first production deploy at 4,096 MB was refused
+ * on 2026-11-26). The local image tests run these two at 3,072 MB.
  */
 export const WEB_RUNNER_SIZES: Readonly<
   Record<WebRunnerFramework, { memoryMb: number; timeoutS: number; tmpMb: number }>
 > = {
-  aspnetcore: { memoryMb: 4096, timeoutS: 300, tmpMb: 1024 },
-  'spring-boot': { memoryMb: 4096, timeoutS: 300, tmpMb: 1024 },
+  aspnetcore: { memoryMb: 3008, timeoutS: 300, tmpMb: 1024 },
+  'spring-boot': { memoryMb: 3008, timeoutS: 300, tmpMb: 1024 },
   django: { memoryMb: 2048, timeoutS: 300, tmpMb: 1024 },
 };
 

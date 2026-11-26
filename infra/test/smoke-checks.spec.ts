@@ -100,6 +100,28 @@ describe('post-deployment smoke checks', () => {
     );
   });
 
+  it('accept the list of code languages in config.json, but only plain names', async () => {
+    const withLanguages = (codeLanguages: unknown) => {
+      const site = healthySite();
+      site[`${SITE}/config.json`] = () =>
+        new Response(
+          JSON.stringify({
+            auth: { mode: 'cognito', domain: COGNITO, clientId: 'abc' },
+            codeLanguages,
+          }),
+          { status: 200, headers: { 'cache-control': 'no-cache' } },
+        );
+      return site;
+    };
+    expect(await failures(withLanguages(['typescript', 'java', 'csharp']))).toEqual([]);
+    expect(await failures(withLanguages('java'))).toEqual([
+      'config.json: Cognito mode, public values only',
+    ]);
+    expect(await failures(withLanguages(['java', 'secret=abc']))).toEqual([
+      'config.json: Cognito mode, public values only',
+    ]);
+  });
+
   it('catch extra (possibly secret) values in config.json', async () => {
     const site = healthySite();
     site[`${SITE}/config.json`] = () =>

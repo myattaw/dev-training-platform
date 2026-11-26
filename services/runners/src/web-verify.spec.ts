@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+﻿import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { WebRunnerFramework } from '@pracstack/web-runner';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -19,8 +19,8 @@ import { verifyWebRunners, WEB_VERIFY_FRAMEWORKS, type WebCheck } from './web-ve
 const skip = process.env['PRACSTACK_SKIP_DOCKER_TESTS'] === '1';
 const exec = promisify(execFile);
 const MEMORY_MB: Record<WebRunnerFramework, number> = {
-  aspnetcore: 3072,
-  'spring-boot': 3072,
+  aspnetcore: 3008,
+  'spring-boot': 3008,
   django: 2048,
 };
 
@@ -46,6 +46,8 @@ describe.skipIf(skip)('web runner verification checks (local images)', { timeout
         '--user',
         '993:990',
         '--read-only',
+        '--ulimit',
+        'nofile=1024:1024',
         '--tmpfs',
         '/tmp:rw,exec,size=1024m',
         '--memory',
