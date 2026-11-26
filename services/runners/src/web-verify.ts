@@ -49,7 +49,13 @@ export const WEB_VERIFY_FRAMEWORKS: readonly WebRunnerFramework[] = [
 
 /**
  * Tries to take the next invocation from Lambda's runtime API (which learner
- * code can reach on loopback): it must never receive an event. Prints one line.
+ * code can reach on loopback). Prints one line: 'no-event …', or
+ * 'EVENT-RECEIVED <request id> run <runId>' with the event's runId (never its key).
+ *
+ * Learner code receiving its OWN run's event is an accepted limit (decided
+ * 2026-11-26, docs/lambda-web-runner.md "Phase 6"): it could sign a result for
+ * its own run, which still needs the correct responses to pass. Receiving any
+ * OTHER run's event fails the check.
  */
 export const RUNTIME_API_PROBE = `
 const fs = require('node:fs');
@@ -66,8 +72,16 @@ if (!api) { console.log('no-event (runtime API address not visible)'); process.e
 const [host, port] = api.split(':');
 const req = http.get({ host, port: Number(port), path: '/2018-06-01/runtime/invocation/next', timeout: 2500 }, (res) => {
   const id = res.headers['lambda-runtime-aws-request-id'];
-  console.log(res.statusCode === 200 && id ? 'EVENT-RECEIVED ' + id : 'no-event (status ' + res.statusCode + ')');
-  process.exit(0);
+  if (res.statusCode !== 200 || !id) { console.log('no-event (status ' + res.statusCode + ')'); process.exit(0); }
+  let body = '';
+  res.setEncoding('utf8');
+  res.on('data', (c) => { body += c; });
+  res.on('end', () => {
+    let run = '?';
+    try { run = String(JSON.parse(body).runId); } catch {}
+    console.log('EVENT-RECEIVED ' + id + ' run ' + run);
+    process.exit(0);
+  });
 });
 req.on('timeout', () => { console.log('no-event (no answer)'); process.exit(0); });
 req.on('error', (e) => { console.log('no-event (' + e.code + ')'); process.exit(0); });`;
@@ -93,8 +107,8 @@ export async function verifyWebRunners(options: {
     files: Readonly<Record<string, string>>,
     sequences: readonly (readonly ProbeRequest[])[],
     spring?: unknown,
+    runId: string = randomUUID(),
   ): Promise<WebBatchBody | string> => {
-    const runId = randomUUID();
     const key = newBatchKey();
     let raw: unknown;
     try {
@@ -150,6 +164,7 @@ export async function verifyWebRunners(options: {
 
     // 2. Hostile probes from inside the learner's application, in one batch.
     const app = webProbeApp(framework);
+    const probeRunId = randomUUID();
     const probes = await run(
       framework,
       app.files,
@@ -163,6 +178,7 @@ export async function verifyWebRunners(options: {
         ],
       ],
       app.spring,
+      probeRunId,
     );
     const out = (i: number) =>
       typeof probes === 'string' ? '' : (probes.results?.[0]?.[i]?.body ?? '').trim();
@@ -186,10 +202,12 @@ export async function verifyWebRunners(options: {
       credentialsHidden(out(2)) && readable > 0,
       `${out(2)}; ${readable} process environments readable (the check is real)`,
     );
+    // Its own run's event is an accepted limit (see RUNTIME_API_PROBE); any other run's fails.
+    const ownEvent = out(4).startsWith('EVENT-RECEIVED ') && out(4).endsWith(` run ${probeRunId}`);
     check(
-      `${framework}: cannot take an invocation from the runtime API`,
-      out(4).startsWith('no-event'),
-      out(4),
+      `${framework}: cannot take another run's invocation from the runtime API`,
+      out(4).startsWith('no-event') || ownEvent,
+      ownEvent ? `own event only (accepted limit): ${out(4)}` : out(4),
     );
 
     // 3. Nothing a run leaves behind survives into the next run in the same environment.

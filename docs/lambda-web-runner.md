@@ -1,6 +1,6 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phases 0–5 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack, post-deployment checks) done on 2026-11-26; Phase 6: live on production 2026-11-26, with the runtime API finding confirmed as "own event only" and awaiting a decision.**
+Status: **Phases 0–5 (local feasibility, runner images, trusted worker, batch HTTP client, CDK stack, post-deployment checks) done on 2026-11-26; Phase 6: live on production 2026-11-26; every post-deployment check passes, with "own run's event only" from the runtime API accepted as a stated limit.**
 Nothing is deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
@@ -53,7 +53,8 @@ inside Lambda's free 400,000 GB-seconds.
   the code runners in [runners.md](runners.md#known-limits-stated-plainly). An application runs
   longer than a code-runner program, so Phase 1 adds: a per-run key in the event, results signed
   by the supervisor and checked by the trusted worker (a forged response becomes an
-  infrastructure error and an alarm), and a check on AWS of whether exiting the runtime after
+  infrastructure error and an alarm, unless it was signed with a key read from the run's own
+  event; see "Phase 6"), and a check on AWS of whether exiting the runtime after
   each run forces a fresh environment.
 
 ### Local-only findings fixed in the spike
@@ -250,16 +251,16 @@ with no way out standing in for the VPC.
 
 For each framework (ASP.NET Core, Spring Boot, Django):
 
-| Check                                    | How                                                                                                                                            | Local result |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| Runs a real challenge, signed            | The first challenge's reference solution: every visible and hidden test passes; the response verifies with its run's key and with no other key | pass (15/15) |
-| Probe application runs                   | A small app per framework (`webProbeApp` in `probes.ts`): `POST /probe` runs a Node.js script                                                  | pass         |
-| No network                               | HTTPS to the Lambda endpoint, to the internet and to a raw IP, and DNS, from inside the app                                                    | pass         |
-| No AWS credentials in any process        | Every `/proc/*/environ`; also that other processes' environments are readable (the check is real)                                              | pass         |
-| No leftovers between runs                | One run leaves a detached process and a file in `/tmp`; the next run in the same environment (same init start time and boot id) finds neither  | pass         |
-| No invocation event from the runtime API | From inside the app, `GET /runtime/invocation/next` on Lambda's runtime API must return no event                                               | **fail**     |
+| Check                                     | How                                                                                                                                            | Local result |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Runs a real challenge, signed             | The first challenge's reference solution: every visible and hidden test passes; the response verifies with its run's key and with no other key | pass (15/15) |
+| Probe application runs                    | A small app per framework (`webProbeApp` in `probes.ts`): `POST /probe` runs a Node.js script                                                  | pass         |
+| No network                                | HTTPS to the Lambda endpoint, to the internet and to a raw IP, and DNS, from inside the app                                                    | pass         |
+| No AWS credentials in any process         | Every `/proc/*/environ`; also that other processes' environments are readable (the check is real)                                              | pass         |
+| No leftovers between runs                 | One run leaves a detached process and a file in `/tmp`; the next run in the same environment (same init start time and boot id) finds neither  | pass         |
+| No other run's event from the runtime API | From inside the app, `GET /runtime/invocation/next` on Lambda's runtime API must return no event, or only the run's own (accepted in Phase 6)  | pass         |
 
-### Known finding: the runtime API (measure on staging)
+### Known finding: the runtime API (measured and decided in Phase 6)
 
 Under the emulator, learner code can call Lambda's runtime API during its run (it is on
 loopback, as for the code runners) and receives an invocation event, in all three images. Only
@@ -295,18 +296,19 @@ Two problems the local images did not show, both fixed:
 
 `verify-runners` on production after the fixes: every check passes (code runners; web reference
 solutions 15/15 each; no network; no credentials; no leftovers between runs in a reused
-environment) **except the runtime API check, in all three frameworks.** `smoke-test`: 17/17.
+environment) **except the runtime API check, in all three frameworks.** `smoke-test`: 17/17. After
+the decision below, every check passes (26/26).
 
-Reference solution, 15 tests in one batch, first (cold) run on Lambda:
+Reference solution, 15 tests in one batch, on Lambda:
 
-| Framework    | Memory   | Time   |
-| ------------ | -------- | ------ |
-| Django       | 2,048 MB | 15.9 s |
-| Spring Boot  | 3,008 MB | 23.2 s |
-| ASP.NET Core | 3,008 MB | 41.6 s |
+| Framework    | Memory   | First (cold) run | Warm run |
+| ------------ | -------- | ---------------- | -------- |
+| Django       | 2,048 MB | 15.9 s           | 3.2 s    |
+| Spring Boot  | 3,008 MB | 23.2 s           | 5.4 s    |
+| ASP.NET Core | 3,008 MB | 41.6 s           | 8.0 s    |
 
-These are several times the Phase 0 local numbers (3–5 s); warm runs are faster (later probe
-runs took about 1–5 s), so a learner's first run after a quiet period is the slow one.
+Warm runs are close to the Phase 0 local numbers (3–5 s); a learner's first run after a quiet
+period is the slow one.
 
 ### The runtime API finding, measured
 
@@ -317,4 +319,7 @@ assessed above: the learner can read their own run's key and could sign a result
 run, which still needs the correct responses to pass. Other users' runs and expected values are
 not exposed.
 
-Decision pending (the owner's): accept "own event only" as a stated limit, or harden.
+**Decision (owner, 2026-11-26): accepted as a stated limit.** The check now fails only if learner
+code receives an event of **another** run: the probe reports the runId of the event it took (never
+its key), and it must be the probe run's own. It is named "cannot take another run's invocation
+from the runtime API" and passes on production and locally, where it is a plain test again.

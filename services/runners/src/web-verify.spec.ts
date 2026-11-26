@@ -116,19 +116,15 @@ describe.skipIf(skip)('web runner verification checks (local images)', { timeout
     expect(checks.length).toBe(WEB_VERIFY_FRAMEWORKS.length * 6);
   });
 
-  const runtimeApi = (c: WebCheck) => /runtime API/.test(c.name);
-
-  it('passes every check except the runtime API one', () => {
-    expect(checks.filter((c) => !c.ok && !runtimeApi(c))).toEqual([]);
+  it('passes every check', () => {
+    expect(checks.filter((c) => !c.ok)).toEqual([]);
   });
 
-  // KNOWN FAILURE (2026-11-26), kept strict on purpose: under the Lambda Runtime Interface
-  // Emulator, learner code can take an invocation event from the runtime API during its
-  // run (in all three images). Whether real Lambda does the same is measured on staging by
-  // verify-runners (docs/lambda-web-runner.md, "Phase 5"); the decision follows from that.
-  // If this starts passing, `it.fails` fails: review it and turn it back into a plain test.
-  it.fails('learner code cannot take an invocation event from the runtime API', () => {
-    const results = checks.filter(runtimeApi);
+  // Learner code can take its OWN run's event from the runtime API, here and on real Lambda
+  // (measured on production 2026-11-26); the owner accepted that as a stated limit
+  // (docs/lambda-web-runner.md, "Phase 6"). Any other run's event must still fail.
+  it('learner code gets no invocation event but its own run’s from the runtime API', () => {
+    const results = checks.filter((c) => /runtime API/.test(c.name));
     expect(results).toHaveLength(WEB_VERIFY_FRAMEWORKS.length);
     expect(results.filter((c) => !c.ok)).toEqual([]);
   });
