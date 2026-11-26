@@ -1,7 +1,7 @@
 # Runner image for TypeScript submissions. Built by `npm run runners:build`.
 # Only the harness, the TypeScript compiler and the shared test executor are
 # inside; no secrets, no expected values, no network at run time.
-FROM node:22.17-alpine3.22
+FROM node:22.22-alpine3.22
 
 WORKDIR /harness
 COPY package.json ./
