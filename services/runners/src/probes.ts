@@ -82,3 +82,69 @@ export const networkBlocked = (output: string): boolean =>
   output.includes('blocked') && !output.includes('REACHED') && !output.includes('PROBE-FAILED');
 
 export const credentialsHidden = (output: string): boolean => output.trim() === 'none';
+
+/**
+ * A minimal Django project for the web runner functions: POST /probe runs the
+ * request body as a Node.js script (the runner images have Node.js) and
+ * answers with its output, so the same probes as above run inside a web runner.
+ * `manage.py` honors two test switches in the project itself (`STARTUP`):
+ * "exit" (runserver exits at once) and "hang" (runserver never listens).
+ */
+export function webProbeProject(
+  startup: 'normal' | 'exit' | 'hang' = 'normal',
+): Record<string, string> {
+  return {
+    'manage.py': [
+      'import os, sys, time',
+      `STARTUP = ${JSON.stringify(startup)}`,
+      "if __name__ == '__main__':",
+      "    if 'runserver' in sys.argv and STARTUP == 'exit':",
+      '        sys.exit(3)',
+      "    if 'runserver' in sys.argv and STARTUP == 'hang':",
+      '        time.sleep(3600)',
+      "    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')",
+      '    from django.core.management import execute_from_command_line',
+      '    execute_from_command_line(sys.argv)',
+      '',
+    ].join('\n'),
+    'config/__init__.py': '',
+    'config/settings.py': [
+      "SECRET_KEY = 'probe-only'",
+      'DEBUG = False',
+      "ALLOWED_HOSTS = ['*']",
+      "ROOT_URLCONF = 'config.urls'",
+      'INSTALLED_APPS = []',
+      'MIDDLEWARE = []',
+      "DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': '/tmp/probe.sqlite3'}}",
+      'USE_TZ = True',
+      '',
+    ].join('\n'),
+    'config/urls.py': [
+      'import subprocess',
+      'from django.http import HttpResponse',
+      'from django.urls import path',
+      '',
+      'def probe(request):',
+      '    try:',
+      "        out = subprocess.run(['node', '-e', request.body.decode()], capture_output=True, timeout=8).stdout.decode()",
+      '    except Exception as e:',
+      "        out = 'PROBE-FAILED ' + str(e)",
+      "    return HttpResponse(out, content_type='text/plain')",
+      '',
+      'def memory(request):',
+      "    hog = b'x' * (3 * 1024 * 1024 * 1024)  # written, so it is resident",
+      '    return HttpResponse(str(len(hog)))',
+      '',
+      "urlpatterns = [path('probe', probe), path('memory', memory), path('', lambda r: HttpResponse('ok'))]",
+      '',
+    ].join('\n'),
+  };
+}
+
+/** The request that runs `script` in a webProbeProject application. */
+export const webProbeRequest = (script: string) => ({
+  method: 'POST' as const,
+  path: '/probe',
+  headers: { 'content-type': 'text/plain' },
+  body: script,
+});

@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./probe-lib": "./docker/probe/probe-lib.mjs"
   },
   "scripts": {
     "test": "vitest run",

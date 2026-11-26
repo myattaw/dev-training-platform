@@ -28,7 +28,7 @@ export const WEB_RUNNER_IMAGES: Readonly<Record<WebRunnerFramework | 'probe', st
   aspnetcore: 'pracstack-web-aspnetcore:1',
   'spring-boot': 'pracstack-web-spring-boot:1',
   django: 'pracstack-web-django:1',
-  probe: 'pracstack-web-probe:2',
+  probe: 'pracstack-web-probe:3',
 };
 
 /** The port every application listens on, on 127.0.0.1 inside its container. */

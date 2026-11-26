@@ -1,6 +1,7 @@
 # Web Development Challenges on AWS Lambda
 
-Status: **Phase 0 (local feasibility) passed on 2026-11-26.** Nothing is deployed.
+Status: **Phase 0 (local feasibility) and Phase 1 (runner images) done on 2026-11-26.** Nothing is
+deployed.
 
 The chosen design: graded runs, visible-test runs and the HTTP client all run as **batches** on
 Lambda container images, one image per framework, in the existing isolated runner VPC (no route
@@ -68,9 +69,49 @@ inside Lambda's free 400,000 GB-seconds.
 - Real cold starts of 1.1–1.6 GB images, and Lambda's real CPU speed (this PC may be faster).
 - Memory size: peak use suggests 2 GB may be enough for every framework; measure on staging.
 
+## Phase 1: the runner functions
+
+| Piece                                                     | Where                                                                                                |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Handler (one per image, `WEB_FRAMEWORK`)                  | `services/runners/src/web-handler.ts`                                                                |
+| Images                                                    | `services/runners/docker/web-{aspnetcore,spring-boot,django}.Dockerfile`, `web-entrypoint.sh`        |
+| Build contexts / local images                             | `npm run build -w @pracstack/runners -- --web-images` (`dist/web-*`, `pracstack-lambda-web-*:local`) |
+| Batch protocol, signing, grading                          | `packages/web-runner/src/batch.ts`                                                                   |
+| Probe logic (shared with the local probe image, now `:3`) | `packages/web-runner/docker/probe/probe-lib.mjs`                                                     |
+| Tests                                                     | `services/runners/src/web-runner-images.spec.ts`, `packages/web-runner/src/batch.spec.ts`            |
+
+How a batch runs:
+
+1. The worker sends `{ runId, key, framework, tar, spring?, sequences, limits? }`. `key` is 32
+   random bytes, new for every run. The handler validates everything (`parseWebBatchEvent`).
+2. The handler empties `/tmp` and kills leftovers, then runs the framework's unchanged `run.sh`
+   through `startIsolated` (`isolate.ts`): clean environment (no credentials, nothing from the
+   function's environment), `prlimit` on processes, files and file size, a memory watch and an
+   output cap, its own process group.
+3. The probe runs **inside the handler process** (no separate probe process whose pipes learner
+   code could reach): it waits for HTTP on 127.0.0.1:8080, then sends the sequences.
+4. The handler returns `{ body, signature }`: the body JSON (with `runId`) and its HMAC-SHA256
+   with the key. The key never leaves the handler's memory: it is in no environment, file or
+   command line. The worker accepts only a body that verifies with the run's key and names the
+   run (`verifyBatch`); anything else, such as a response learner code posts to the runtime API,
+   is an infrastructure error.
+5. The handler stops the application's process group, waits for it to exit (no zombies), and
+   cleans up again.
+
+Limits match the local runner: build 120 / 90 / 60 s and startup 30 / 60 / 30 s (ASP.NET Core /
+Spring Boot / Django), 2,048 / 2,048 / 1,024 MB of application memory, 5 s per request, 4 MB of
+output, and the function's remaining time. The worker may lower them (tests do), never raise them.
+Learner-visible outcomes are those of the Docker runner (`batchToTestRun`).
+
+Tested locally under the emulator (15 tests): the reference solution passes and the starter
+fails for each framework in a reused environment; compilation errors give diagnostics; and with a
+hostile Django project: no credentials readable from any process; a planted background process
+and file are gone by the next run; an application that exits on start is a startup failure, one
+that never listens hits the startup limit, one that allocates 3 GB is stopped for memory; and the
+environment still works afterwards.
+
 ## Next phases
 
-1. Production runner images and handler (reuse `isolate.ts`, sign results).
 2. Trusted worker: queued run in DynamoDB, async worker invokes the runner, grades, stores; global
    limit of 2 through a DynamoDB lease.
 3. Batch HTTP client in the web app (local and AWS).
