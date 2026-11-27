@@ -13,8 +13,9 @@
  *   retainData         "true": keep users and progress on destroy (default false)
  *   signUpAllowlist    comma-separated emails or @domains allowed to sign up (default: anyone)
  *   runnerConcurrency  reserved concurrency per runner (default none; needs a raised quota)
- *   webExecution       "true": run Web Development Challenges (three web runner functions and the
- *                      web worker; docs/lambda-web-runner.md). Default: browse-only, none created
+ *   webExecution       run Web Development Challenges (three web runner functions and the web
+ *                      worker; docs/lambda-web-runner.md). Default ON: a deploy that forgot the
+ *                      flag deleted production's runners (2026-11-27). "false": browse-only
  *   googleClientId     enables "Continue with Google" (OAuth client ID from Google Cloud)
  *   githubClientId     enables "Continue with GitHub" (GitHub OAuth App client ID; its secret is in
  *                      Secrets Manager, the bridge's signing key in SSM; see docs/accounts-and-auth.md)
@@ -110,6 +111,9 @@ if (certificateFor) {
     throw new Error(
       'domain needs certificateArn: the us-east-1 ACM certificate (see docs/production.md).',
     );
+  const webExecution = context('webExecution') ?? 'true';
+  if (webExecution !== 'true' && webExecution !== 'false')
+    throw new Error('webExecution must be "true" (the default) or "false" (browse-only).');
   const googleClientId = context('googleClientId');
   if (googleClientId && !/^[0-9]+-[a-z0-9]+.apps.googleusercontent.com$/.test(googleClientId))
     throw new Error('googleClientId must look like 1234-abc.apps.googleusercontent.com.');
@@ -120,7 +124,7 @@ if (certificateFor) {
     alertEmail,
     monthlyBudgetUsd,
     retainData: context('retainData') === 'true',
-    webExecution: context('webExecution') === 'true',
+    webExecution: webExecution === 'true',
     signUpAllowlist: (context('signUpAllowlist') ?? '').split(','),
     ...(runnerConcurrency !== undefined ? { runnerConcurrency } : {}),
     ...(googleClientId

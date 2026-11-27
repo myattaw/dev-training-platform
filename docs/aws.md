@@ -56,7 +56,7 @@ after reviewing the costs, detach it from each role it was attached to:
 
 ```bash
 aws iam detach-role-policy --role-name <ApiFunctionRole name> --policy-arn <StopRunnersPolicy ARN>
-# With web execution (-c webExecution=true): also the worker's role (output WebWorkerRoleName)
+# With web execution (the default): also the worker's role (output WebWorkerRoleName)
 aws iam detach-role-policy --role-name <WebWorkerRole name> --policy-arn <StopRunnersPolicy ARN>
 ```
 

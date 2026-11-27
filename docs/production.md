@@ -50,12 +50,13 @@ AWS_PROFILE=main-admin npx cdk diff|deploy PracStack-production -c stage=product
   -c domain=pracstack.com -c certificateArn=<CertificateArn> \
   -c googleClientId=<id> -c googleClientSecretName=pracstack/staging/google-client-secret \
   -c githubClientId=<id> -c githubClientSecretName=pracstack/staging/github-client-secret \
-  -c githubSigningKeyParameter=/pracstack/staging/github-oidc-signing-key \
-  -c webExecution=true
+  -c githubSigningKeyParameter=/pracstack/staging/github-oidc-signing-key
 ```
 
-`-c webExecution=true` (since 2026-11-26) keeps the web challenge runners: leaving it out
-removes them. After a deploy, run `npx tsx scripts/verify-runners.ts PracStack-production` and
+Web execution (the web challenge runners) is on by default; only `-c webExecution=false` removes
+the runners. It used to be opt-in, and on 2026-11-27 a deploy without the flag deleted
+production's runners. Still read the diff for `Web*Runner` / `WebWorker` resources being added or
+removed. After a deploy, run `npx tsx scripts/verify-runners.ts PracStack-production` and
 `npx tsx scripts/smoke-test.ts --stack PracStack-production`.
 
 Production reuses the staging Google client, GitHub OAuth App and their secrets (one app each,

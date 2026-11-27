@@ -198,8 +198,9 @@ requests in the browser, see 200 and 404, the output, and the list after a reloa
 
 ## Phase 4: the stack (CDK)
 
-Everything is behind one flag, off by default: `-c webExecution=true` (`PracStackProps.webExecution`).
-Off, the template is byte-for-byte what it was before Phase 4, and web challenges stay
+Everything is behind one flag, `PracStackProps.webExecution`. The CDK app turns it on unless
+`-c webExecution=false` is given (it was opt-in until 2026-11-27, when a deploy that left out
+`-c webExecution=true` deleted production's runners). Off, the template is byte-for-byte what it was before Phase 4, and web challenges stay
 browse-only. On, the stack adds:
 
 | Resource                                   | What it may do                                                                                                                                              |

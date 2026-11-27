@@ -95,15 +95,15 @@ Existing AWS resources are **not** modified, except the account-wide CDK bootstr
 
 ## 4. Configuration (CDK context)
 
-| Context             | Required | Default               | Example                                                |
-| ------------------- | -------- | --------------------- | ------------------------------------------------------ |
-| `stage`             |          | `dev`                 | `staging`                                              |
-| `alertEmail`        | yes      |                       | `you@example.com` (budget, alarms, kill switch)        |
-| `budgetUsd`         |          | `10`                  | `10`                                                   |
-| `signUpAllowlist`   |          | anyone may sign up    | `ada@example.com,@yourteam.dev`                        |
-| `runnerConcurrency` |          | none                  | `3` (only after the quota increase)                    |
-| `retainData`        |          | `false`               | `true` for production                                  |
-| `webExecution`      |          | `false` (browse-only) | `true`: web challenges run (docs/lambda-web-runner.md) |
+| Context             | Required | Default                     | Example                                          |
+| ------------------- | -------- | --------------------------- | ------------------------------------------------ |
+| `stage`             |          | `dev`                       | `staging`                                        |
+| `alertEmail`        | yes      |                             | `you@example.com` (budget, alarms, kill switch)  |
+| `budgetUsd`         |          | `10`                        | `10`                                             |
+| `signUpAllowlist`   |          | anyone may sign up          | `ada@example.com,@yourteam.dev`                  |
+| `runnerConcurrency` |          | none                        | `3` (only after the quota increase)              |
+| `retainData`        |          | `false`                     | `true` for production                            |
+| `webExecution`      |          | `true` (web challenges run) | `false`: browse-only (docs/lambda-web-runner.md) |
 
 There are **no secrets** to configure: Cognito is a public PKCE client, the API uses its IAM
 role, and `config.json` holds public values only (checked by the smoke test).
