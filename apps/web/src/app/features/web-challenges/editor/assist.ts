@@ -133,10 +133,16 @@ export function registerProjectAssist(monaco: MonacoApi): void {
                 ? Kind.EnumMember
                 : m.kind === 'property'
                   ? Kind.Property
-                  : Kind.Field,
+                  : m.kind === 'type'
+                    ? Kind.Class
+                    : Kind.Field,
             insertText: method ? (m.params ? `${m.name}($0)` : `${m.name}()`) : m.name,
             ...(method && m.params ? { insertTextRules: Rule.InsertAsSnippet } : {}),
-            detail: method ? `${m.type} ${m.name}(${m.params})` : `${m.type} ${m.name}`.trim(),
+            detail: method
+              ? `${m.type} ${m.name}(${m.params})`
+              : m.kind === 'type'
+                ? `nested type ${owner}.${m.name}`
+                : `${m.type} ${m.name}`.trim(),
             sortText: `0${m.name}`,
             range,
           };

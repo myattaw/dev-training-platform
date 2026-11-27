@@ -1,4 +1,4 @@
-import { membersAt, parseClass, receiverChain } from './members';
+import { findJavaMemberProblems, membersAt, parseClass, receiverChain } from './members';
 
 const REQUEST = `package com.pracstack.employees.model;
 
@@ -214,5 +214,98 @@ describe('membersAt', () => {
   it('gives up on library types and unknown names', () => {
     expect(namesAfter('request.name().')).toBeUndefined();
     expect(namesAfter('unknown.')).toBeUndefined();
+  });
+});
+
+const RESULT = `package com.pracstack.employees.service;
+
+public sealed interface CreateResult {
+    record Created(Employee employee) implements CreateResult {}
+    record Invalid(Map<String, List<String>> errors) implements CreateResult {}
+    record Duplicate() implements CreateResult {}
+}
+`;
+
+const CONTROLLER_PATH = 'src/main/java/com/pracstack/employees/web/EmployeeController.java';
+const controller = (body: string): Record<string, string> => ({
+  ...files(''),
+  'src/main/java/com/pracstack/employees/service/CreateResult.java': RESULT,
+  [SERVICE_PATH]: `package com.pracstack.employees.service;
+
+public class EmployeeService {
+    public CreateResult create(CreateEmployeeRequest request) { return null; }
+}
+`,
+  [CONTROLLER_PATH]: `package com.pracstack.employees.web;
+
+public class EmployeeController {
+    private final EmployeeService employees;
+
+    public void other(Employee result) {}
+
+    public CreateResult addEmployee(CreateEmployeeRequest request) {
+        ${body}
+    }
+}
+`,
+});
+
+const problemsIn = (body: string) =>
+  findJavaMemberProblems(controller(body), CONTROLLER_PATH).map((p) => p.message);
+
+describe('nested types and scope', () => {
+  const after = (body: string) => {
+    const all = controller(body);
+    const text = all[CONTROLLER_PATH]!;
+    return membersAt(all, CONTROLLER_PATH, text.indexOf(body) + body.lastIndexOf('.'))?.members.map(
+      (m) => m.name,
+    );
+  };
+
+  it('offers nested types after the outer class name', () => {
+    expect(after('CreateResult.')).toEqual(['Created', 'Invalid', 'Duplicate']);
+  });
+
+  it('reads a pattern variable’s type', () => {
+    expect(after('if (r instanceof CreateResult.Created created) { created.')).toEqual([
+      'employee',
+    ]);
+  });
+
+  it('uses the declaration in scope, not one in another method', () => {
+    // `result` is an Employee parameter in other(), a CreateResult here.
+    expect(after('CreateResult result = employees.create(request); result.')).toEqual([]);
+  });
+});
+
+describe('findJavaMemberProblems', () => {
+  it('flags a method the class does not have, with the closest one', () => {
+    const all = controller('CreateResult result = employees.createx(request);');
+    const [problem, ...rest] = findJavaMemberProblems(all, CONTROLLER_PATH);
+    expect(rest).toEqual([]);
+    expect(problem?.message).toBe('EmployeeService has no method createx(…). Did you mean create?');
+    expect(problem?.fix).toEqual({ kind: 'replace', with: 'create' });
+    const line = all[CONTROLLER_PATH]!.split('\n')[(problem?.line ?? 0) - 1]!;
+    expect(line.slice(problem!.startColumn - 1, problem!.endColumn - 1)).toBe('createx');
+  });
+
+  it('flags a record component used without ()', () => {
+    expect(problemsIn('String n = request.name;')).toEqual([
+      'CreateEmployeeRequest.name is a method: call it as name().',
+    ]);
+  });
+
+  it('accepts correct code: calls, nested types, new Outer.Inner, Object methods', () => {
+    expect(
+      problemsIn(`CreateResult result = employees.create(request);
+        if (result instanceof CreateResult.Created created) { created.employee().getEmail(); }
+        result = new CreateResult.Duplicate();
+        request.name().trim();
+        result.toString();`),
+    ).toEqual([]);
+  });
+
+  it('flags private members of another class', () => {
+    expect(problemsIn('Employee e = null; e.secret();')).toEqual(['Employee.secret is private.']);
   });
 });

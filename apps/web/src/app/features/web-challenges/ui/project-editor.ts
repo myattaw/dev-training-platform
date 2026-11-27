@@ -17,6 +17,7 @@ import { loadMonaco, MONACO_THEME, type MonacoApi } from '../../../shared/editor
 import { hasSyntaxCheck, SyntaxChecker } from '../../../shared/editor/syntax-checker';
 import { attachModel, registerProjectAssist, setFix } from '../editor/assist';
 import type { ExplainedDiagnostic } from '../editor/hints';
+import { findJavaMemberProblems } from '../editor/members';
 import { findJavaNameProblems } from '../editor/names';
 import { projectSymbols } from '../editor/project-symbols';
 import { monacoLanguage } from './labels';
@@ -314,9 +315,13 @@ export class ProjectEditor {
     const code = model.getValue();
     const version = model.getVersionId();
 
+    const files = { ...this.contents(), [path]: code };
     const problems =
       language === 'java'
-        ? findJavaNameProblems(code, projectSymbols({ ...this.contents(), [path]: code }).symbols)
+        ? [
+            ...findJavaNameProblems(code, projectSymbols(files).symbols),
+            ...findJavaMemberProblems(files, path),
+          ]
         : [];
     const markers = problems.map((p): Monaco.editor.IMarkerData => ({
       severity:

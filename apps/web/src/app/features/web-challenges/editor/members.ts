@@ -1,4 +1,4 @@
-import { blankJava } from './names';
+import { blankJava, closestName, type NameProblem } from './names';
 import { languageOfPath } from './project-symbols';
 
 /*
@@ -13,7 +13,8 @@ export interface ClassMember {
   readonly name: string;
   /** Declared type (a method's return type); '' when unknown. */
   readonly type: string;
-  readonly kind: 'field' | 'property' | 'method' | 'constant';
+  /** `type`: a nested class, record, interface or enum (reached through the outer class). */
+  readonly kind: 'field' | 'property' | 'method' | 'constant' | 'type';
   /** Method parameters as written (`String name, int age`); '' for none. */
   readonly params: string;
   readonly isStatic: boolean;
@@ -23,6 +24,8 @@ export interface ClassMember {
 export interface ClassInfo {
   readonly name: string;
   readonly path: string;
+  /** `class`, `interface`, `enum`, `record` or `struct`. */
+  readonly keyword: string;
   readonly members: readonly ClassMember[];
   /** Base classes and interfaces named in the declaration. */
   readonly supertypes: readonly string[];
@@ -125,7 +128,22 @@ function parseMember(
 ): ClassMember[] {
   const { mods, rest: afterMods } = modifiers(stripAnnotations(raw));
   const rest = afterMods.replace(/^<[^>]*>\s*/, ''); // generic method `<T> T foo()`
-  if (!rest || /^(?:class|interface|enum|record|struct|@interface)\b/.test(rest)) return [];
+  if (!rest) return [];
+  const nested = new RegExp(`^(?:class|interface|enum|record|struct)\\s+(${IDENT})`).exec(rest);
+  if (nested) {
+    const name = nested[1]!;
+    return [
+      {
+        name,
+        type: name,
+        kind: 'type',
+        params: '',
+        isStatic: true,
+        isPrivate: mods.has('private'),
+      },
+    ];
+  }
+  if (/^@interface\b/.test(rest)) return [];
   const isStatic = mods.has('static') || mods.has('const');
   const isPrivate =
     mods.has('private') ||
@@ -297,7 +315,7 @@ export function parseClass(path: string, source: string, name: string): ClassInf
       ...bodyMembers(code.slice(open + 1, close < 0 ? undefined : close), name, language, keyword),
     );
   }
-  return { name, path, members, supertypes };
+  return { name, path, keyword, members, supertypes };
 }
 
 /** The project's declaration of a class by simple name (this file first). */
@@ -306,19 +324,42 @@ export function findClass(
   name: string,
   preferPath?: string,
 ): ClassInfo | undefined {
+  // Cached per project snapshot: the live check looks up the same classes for every dot.
+  let cache = classCache.get(files);
+  if (!cache) classCache.set(files, (cache = new Map()));
+  const key = `${preferPath ?? ''}\n${name}`;
+  if (cache.has(key)) return cache.get(key);
   const paths = Object.keys(files).filter((p) => p.endsWith('.java') || p.endsWith('.cs'));
   if (preferPath) paths.sort((a, b) => (a === preferPath ? -1 : b === preferPath ? 1 : 0));
   const decl = new RegExp(
     `\\b(?:class|interface|enum|record|struct)\\s+${name.replace(/\$/g, '\\$')}\\b`,
   );
+  let found: ClassInfo | undefined;
   for (const path of paths) {
     const text = files[path]!;
     if (decl.test(text)) {
-      const info = parseClass(path, text, name);
-      if (info) return info;
+      found = parseClass(path, text, name);
+      if (found) break;
     }
   }
-  return undefined;
+  cache.set(key, found);
+  return found;
+}
+
+const classCache = new WeakMap<object, Map<string, ClassInfo | undefined>>();
+const blankCache = new WeakMap<object, Map<string, string>>();
+
+/** `blankJava` of a project file, cached per project snapshot. */
+function blankedFile(
+  files: Readonly<Record<string, string>>,
+  path: string,
+  source: string,
+): string {
+  let cache = blankCache.get(files);
+  if (!cache) blankCache.set(files, (cache = new Map()));
+  let code = cache.get(path);
+  if (code === undefined) cache.set(path, (code = blankJava(source)));
+  return code;
 }
 
 /** A class's members with the ones it inherits from project classes (theirs after its own). */
@@ -356,11 +397,61 @@ function enclosingClass(code: string, offset: number): string | undefined {
   return best?.name;
 }
 
+/** The innermost `{ … }` around `at`: [open, close] (the whole file at the top level). */
+function blockAround(code: string, at: number): [number, number] {
+  let depth = 0;
+  for (let k = at - 1; k >= 0; k--) {
+    if (code[k] === '}') depth++;
+    else if (code[k] === '{') {
+      if (depth === 0) {
+        const end = matching(code, k, '{', '}');
+        return [k, end < 0 ? code.length : end];
+      }
+      depth--;
+    }
+  }
+  return [-1, code.length];
+}
+
+/** Whether a declaration at `at` is visible at `offset` (same block, or a parameter's body). */
+function inScope(code: string, at: number, offset: number): boolean {
+  // A parameter (of a method, lambda, `for` or `catch`): an unclosed `(` since the statement began.
+  let k = at - 1;
+  let parens = 0;
+  while (k >= 0 && !';{}'.includes(code[k]!)) {
+    if (code[k] === '(') parens++;
+    else if (code[k] === ')') parens--;
+    k--;
+  }
+  if (parens <= 0) {
+    const [open, close] = blockAround(code, at);
+    return open < offset && offset <= close;
+  }
+  if (offset < at) return false;
+  let j = at;
+  for (let d = 0; j < code.length; j++) {
+    if (code[j] === '(') d++;
+    else if (code[j] === ')' && d-- === 0) break;
+  }
+  let n = j + 1;
+  while (/\s/.test(code[n] ?? '')) n++;
+  if (code.startsWith('->', n)) {
+    n += 2;
+    while (/\s/.test(code[n] ?? '')) n++;
+  }
+  if (code[n] === '{') {
+    const end = matching(code, n, '{', '}');
+    return offset > n && (end < 0 || offset <= end);
+  }
+  // A lambda's expression body: to the end of the statement.
+  return !code.slice(at, offset).includes(';');
+}
+
 /** The declared type of a local, parameter or field named `name`, seen from `offset`. */
 export function declaredType(code: string, offset: number, name: string): string | undefined {
   const escaped = name.replace(/\$/g, '\\$');
   const pattern = new RegExp(
-    `([A-Za-z_$][\\w$.]*(?:\\s*<[^;{}()=]*?>)?(?:\\s*\\[\\s*\\])*\\??)\\s+${escaped}\\s*(?=[=;,):]|$|\\bin\\b)`,
+    `([A-Za-z_$][\\w$.]*(?:\\s*<[^;{}()=]*?>)?(?:\\s*\\[\\s*\\])*\\??)\\s+${escaped}\\s*(?=[=;,):]|->|$|\\bin\\b)`,
     'gm',
   );
   let before: { type: string; at: number } | undefined;
@@ -370,6 +461,7 @@ export function declaredType(code: string, offset: number, name: string): string
     if (NOT_TYPES.has(type) || /^(?:public|private|protected|final|static)$/.test(type)) continue;
     // `name =` after `this.` is an assignment, not a declaration.
     if (/\.\s*$/.test(code.slice(0, m.index))) continue;
+    if (!inScope(code, m.index, offset)) continue;
     if (m.index < offset) before = { type, at: m.index };
     else after ??= { type, at: m.index };
   }
@@ -434,7 +526,7 @@ export function membersAt(
 ): MemberLookup | undefined {
   const source = files[path];
   if (source === undefined) return undefined;
-  const code = blankJava(source);
+  const code = blankedFile(files, path, source);
   const chain = receiverChain(code, dot);
   if (!chain || chain.parts.length === 0) return undefined;
   const here = enclosingClass(code, dot);
@@ -447,14 +539,16 @@ export function membersAt(
     if (!info) return { type: name, isStatic, members: [] };
     const members = allMembers(files, info).filter(
       (m) =>
-        (!m.isPrivate || info.path === path) && (isStatic ? m.isStatic : m.kind !== 'constant'),
+        (!m.isPrivate || info.path === path) &&
+        (isStatic ? m.isStatic : m.kind !== 'constant' && m.kind !== 'type'),
     );
     return { info, type: name, isStatic, members };
   };
 
   const [head, ...rest] = chain.parts;
   let current: MemberLookup | undefined;
-  if (chain.isNew) current = lookup(head!.name, false);
+  // `new Outer.Inner(…)`: a qualified type name; `new Foo().` an instance.
+  if (chain.isNew) current = lookup(head!.name, !head!.call);
   else if (head!.name === 'this') current = lookup(here, false);
   else if (head!.call) {
     const m = here
@@ -478,7 +572,113 @@ export function membersAt(
     const named = current.members.filter((x) => x.name === part.name);
     const m = named.find((x) => (x.kind === 'method') === part.call) ?? named[0];
     if (!m) return undefined;
-    current = lookup(m.type, false);
+    current = lookup(m.type, m.kind === 'type');
   }
   return current;
+}
+
+/** Members every Java object has, and those every enum has. */
+const JAVA_OBJECT = ['equals', 'hashCode', 'toString', 'getClass', 'wait', 'notify', 'notifyAll'];
+const JAVA_ENUM = ['name', 'ordinal', 'compareTo', 'values', 'valueOf', 'describeConstable'];
+
+/** Whether every supertype of a class is a project class (so its members are all known). */
+function fullyKnown(
+  files: Readonly<Record<string, string>>,
+  info: ClassInfo,
+  seen = new Set<string>(),
+): boolean {
+  seen.add(info.name);
+  return info.supertypes.every((s) => {
+    if (seen.has(s)) return true;
+    const base = findClass(files, s);
+    return base !== undefined && fullyKnown(files, base, seen);
+  });
+}
+
+/**
+ * Java: `x.name` / `x.name(…)` where `x` is a project class that has no such
+ * member (`employees.createx(request)`), with "did you mean" when one is close.
+ * Only when the class and all its supertypes are the project's own, so no
+ * library member can be missing from what is known.
+ */
+export function findJavaMemberProblems(
+  files: Readonly<Record<string, string>>,
+  path: string,
+): NameProblem[] {
+  const source = files[path];
+  if (source === undefined || !path.endsWith('.java')) return [];
+  const code = blankedFile(files, path, source);
+  const problems: NameProblem[] = [];
+  const lineStarts = [0];
+  for (let i = 0; i < code.length; i++) if (code[i] === '\n') lineStarts.push(i + 1);
+  const position = (offset: number) => {
+    let line = 0;
+    while (line + 1 < lineStarts.length && lineStarts[line + 1]! <= offset) line++;
+    return { line: line + 1, column: offset - lineStarts[line]! + 1 };
+  };
+
+  for (const m of code.matchAll(new RegExp(`\\.\\s*(${IDENT})(\\s*\\()?`, 'g'))) {
+    const name = m[1]!;
+    const dot = m.index;
+    const start = dot + m[0].indexOf(name, 1);
+    const lineText = code.slice(lineStarts[position(dot).line - 1], dot);
+    if (/^\s*(?:package|import)\s/.test(lineText) || /^(?:class|this|super|new)$/.test(name)) {
+      continue;
+    }
+    const found = membersAt(files, path, dot);
+    if (!found?.info || !fullyKnown(files, found.info)) continue;
+    const call = m[2] !== undefined;
+    const named = found.members.filter((x) => x.name === name);
+    const builtIn =
+      (!found.isStatic && JAVA_OBJECT.includes(name)) ||
+      (found.info.keyword === 'enum' && JAVA_ENUM.includes(name));
+    if (builtIn) continue;
+    const at = position(start);
+    const range = { line: at.line, startColumn: at.column, endColumn: at.column + name.length };
+    const owner = found.info.name;
+    if (named.length > 0) {
+      if (named.some((x) => (x.kind === 'method') === call || x.kind === 'type')) continue;
+      problems.push({
+        ...range,
+        name,
+        severity: 'error',
+        message: call
+          ? `${owner}.${name} is a ${named[0]!.kind}, not a method: remove the ( ).`
+          : `${owner}.${name} is a method: call it as ${name}().`,
+      });
+      continue;
+    }
+    const candidates = found.members
+      .filter((x) => (x.kind === 'method') === call)
+      .map((x) => x.name);
+    const suggestion = closestName(name, candidates);
+    const what = call ? 'method' : 'field';
+    // A member that exists but is out of reach (private, or not static).
+    const hidden = allMembers(files, found.info).find((x) => x.name === name);
+    if (hidden) {
+      const why = hidden.isPrivate
+        ? 'private'
+        : found.isStatic && !hidden.isStatic
+          ? 'not static: use it on an object, not on the class'
+          : undefined;
+      // Anything else (say, a nested type through an object) is left to the compiler.
+      if (why) {
+        problems.push({
+          ...range,
+          name,
+          severity: 'error',
+          message: `${owner}.${name} is ${why}.`,
+        });
+      }
+      continue;
+    }
+    problems.push({
+      ...range,
+      name,
+      severity: 'error',
+      message: `${owner} has no ${what} ${name}${call ? '(…)' : ''}.${suggestion ? ` Did you mean ${suggestion}?` : ''}`,
+      ...(suggestion ? { fix: { kind: 'replace' as const, with: suggestion } } : {}),
+    });
+  }
+  return problems;
 }
