@@ -2,6 +2,7 @@ import type * as Monaco from 'monaco-editor';
 import { BASIC_WORDS, projectModels } from '../../../shared/editor/completions';
 import type { MonacoApi } from '../../../shared/editor/monaco-loader';
 import { importEdit, importLine, type TextEdit } from './imports';
+import { type ClassMember, membersAt } from './members';
 import type { NameFix } from './names';
 import { projectSymbols } from './project-symbols';
 import {
@@ -71,6 +72,12 @@ function projectOf(
   return { path: p.path, files: { ...p.files(), [p.path]: model.getValue() } };
 }
 
+/** Members every object has, offered after a project class's own. */
+const OBJECT_METHODS: Readonly<Record<'java' | 'csharp', readonly string[]>> = {
+  java: ['equals', 'hashCode', 'toString'],
+  csharp: ['Equals', 'GetHashCode', 'ToString'],
+};
+
 const toRange = (e: TextEdit): Monaco.IRange => ({
   startLineNumber: e.startLine,
   startColumn: e.startColumn,
@@ -113,6 +120,36 @@ export function registerProjectAssist(monaco: MonacoApi): void {
         const index = SYMBOLS[language];
         const { symbols, globalUsings } = projectSymbols(project.files);
 
+        const classMemberItem = (
+          m: ClassMember,
+          owner: string,
+        ): Monaco.languages.CompletionItem => {
+          const method = m.kind === 'method';
+          return {
+            label: { label: m.name, description: owner },
+            kind: method
+              ? Kind.Method
+              : m.kind === 'constant'
+                ? Kind.EnumMember
+                : m.kind === 'property'
+                  ? Kind.Property
+                  : Kind.Field,
+            insertText: method ? (m.params ? `${m.name}($0)` : `${m.name}()`) : m.name,
+            ...(method && m.params ? { insertTextRules: Rule.InsertAsSnippet } : {}),
+            detail: method ? `${m.type} ${m.name}(${m.params})` : `${m.type} ${m.name}`.trim(),
+            sortText: `0${m.name}`,
+            range,
+          };
+        };
+        const objectItem = (name: string): Monaco.languages.CompletionItem => ({
+          label: { label: name, description: 'Object' },
+          kind: Kind.Method,
+          insertText: name === 'equals' || name === 'Equals' ? `${name}($0)` : `${name}()`,
+          insertTextRules: Rule.InsertAsSnippet,
+          sortText: `1${name}`,
+          range,
+        });
+
         const memberItem = (m: SymbolMember, owner: string): Monaco.languages.CompletionItem => ({
           label: { label: m.name, description: owner },
           kind: m.method ? Kind.Method : Kind.Field,
@@ -121,16 +158,30 @@ export function registerProjectAssist(monaco: MonacoApi): void {
           range,
         });
 
-        // After `Name.`: that class's (or module's) members.
-        const owner = /([A-Za-z_$][\w$]*)\s*\.\s*$/.exec(before)?.[1];
-        if (owner !== undefined) {
+        if (/\.\s*$/.test(before)) {
+          // After `expression.`: the members of the project class it is, when its
+          // type can be read from the declarations (`request.` → the record's components).
+          if (language !== 'python') {
+            let dot =
+              model.getOffsetAt({ lineNumber: position.lineNumber, column: word.startColumn }) - 1;
+            while (dot > 0 && /\s/.test(text[dot] ?? '')) dot--;
+            const found = membersAt(project.files, project.path, dot);
+            if (found?.info) {
+              const items = found.members.map((m) => classMemberItem(m, found.type ?? ''));
+              if (!found.isStatic) items.push(...OBJECT_METHODS[language].map(objectItem));
+              return { suggestions: items };
+            }
+          }
+
+          // After `Name.`: a library class's (or module's) members.
+          const owner = /([A-Za-z_$][\w$]*)\s*\.\s*$/.exec(before)?.[1];
           const entries = index.filter((s) => s.name === owner && s.members.length > 0);
-          if (entries.length > 0) {
+          if (owner !== undefined && entries.length > 0) {
             return {
               suggestions: entries.flatMap((e) => e.members.map((m) => memberItem(m, owner))),
             };
           }
-          // Anything else (a variable): the common members, as before.
+          // Anything else (a library type, an unknown one): the common members.
           const basic = language === 'python' ? undefined : BASIC_WORDS[language];
           return {
             suggestions: (basic?.members ?? []).map((label) => ({
