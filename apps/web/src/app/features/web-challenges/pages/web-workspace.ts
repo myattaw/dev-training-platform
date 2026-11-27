@@ -42,6 +42,8 @@ import {
   writeLocalDraft,
   writeLocalRequests,
 } from '../data-access/web-challenges.service';
+import { explainDiagnostic } from '../editor/hints';
+import { projectSymbols } from '../editor/project-symbols';
 import { FileTree } from '../ui/file-tree';
 import { HttpClient } from '../ui/http-client';
 import { ProjectEditor } from '../ui/project-editor';
@@ -194,8 +196,17 @@ export class WebWorkspace {
     return `${h > 0 ? `${h}:` : ''}${String(m).padStart(h > 0 ? 2 : 1, '0')}:${String(s).padStart(2, '0')}`;
   });
 
+  /**
+   * The runs as shown, with a hint added to build errors about unknown names
+   * (the import that is missing, or "did you mean …"), from the project as it is now.
+   */
+  protected readonly runShown = computed(() => this.withHints(this.run()));
+  protected readonly requestRunShown = computed(() => this.withHints(this.requestRun()));
+
   protected readonly diagnostics = computed<readonly WebDiagnostic[]>(
-    () => this.outputRun()?.result?.diagnostics ?? [],
+    () =>
+      (this.latest() === 'requests' ? this.requestRunShown() : this.runShown())?.result
+        ?.diagnostics ?? [],
   );
 
   constructor() {
@@ -223,6 +234,20 @@ export class WebWorkspace {
       clearTimeout(this.pollTimers.requests);
       clearTimeout(this.accountTimer);
     });
+  }
+
+  private withHints(run: WebRun | undefined): WebRun | undefined {
+    const diagnostics = run?.result?.diagnostics;
+    if (!run?.result || !diagnostics || diagnostics.length === 0) return run;
+    const files = this.contents();
+    const { symbols } = projectSymbols(files);
+    return {
+      ...run,
+      result: {
+        ...run.result,
+        diagnostics: diagnostics.map((d) => explainDiagnostic(d, files, symbols)),
+      },
+    };
   }
 
   private async load(id: string, framework: string, timedId: string | undefined): Promise<void> {

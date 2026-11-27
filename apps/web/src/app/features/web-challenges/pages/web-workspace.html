@@ -269,7 +269,7 @@
                     <app-alert type="error">{{ e }}</app-alert>
                   }
                   <app-run-results
-                    [run]="run()"
+                    [run]="runShown()"
                     [tests]="l.challenge.visibleTests"
                     (openDiagnostic)="openDiagnostic($event)"
                   />
@@ -288,7 +288,7 @@
                     [endpoints]="l.challenge.endpoints"
                     [initial]="savedRequests()"
                     [busy]="running()"
-                    [run]="requestRun()"
+                    [run]="requestRunShown()"
                     [disabledMessage]="
                       !l.executionAvailable
                         ? 'Running applications is not available on this server yet.'

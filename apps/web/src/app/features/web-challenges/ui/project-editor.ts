@@ -13,8 +13,12 @@ import {
   viewChild,
 } from '@angular/core';
 import type * as Monaco from 'monaco-editor';
-import type { WebDiagnostic } from '@pracstack/api-contracts';
 import { loadMonaco, MONACO_THEME, type MonacoApi } from '../../../shared/editor/monaco-loader';
+import { hasSyntaxCheck, SyntaxChecker } from '../../../shared/editor/syntax-checker';
+import { attachModel, registerProjectAssist, setFix } from '../editor/assist';
+import type { ExplainedDiagnostic } from '../editor/hints';
+import { findJavaNameProblems } from '../editor/names';
+import { projectSymbols } from '../editor/project-symbols';
 import { monacoLanguage } from './labels';
 
 export interface EditorFile {
@@ -23,13 +27,20 @@ export interface EditorFile {
 }
 
 const MARKER_OWNER = 'pracstack-build';
+/** Markers of the checks run as you type: class names (Java) and syntax (Java, C#). */
+const NAMES_OWNER = 'pracstack-names';
+const SYNTAX_OWNER = 'pracstack-syntax';
+const CHECK_DELAY_MS = 400;
 
 /**
  * A Monaco editor over a whole project: one model per file, with a stable URI
  * (`file:///<namespace>/<path>`), its own undo history, and its own cursor and
  * scroll position (view state) when switching files. Read-only files cannot be
  * changed. Build errors from the server are shown as markers in their file.
- * Syntax highlighting only: there is no language server.
+ *
+ * No language server: suggestions (with automatic imports), quick fixes and the
+ * checks while typing (unknown or unimported class names in Java, syntax in
+ * Java and C#) run in the browser from a fixed list (see ../editor/).
  *
  * Models are created for every file up front and all disposed when the
  * component is destroyed (or the namespace changes), so nothing leaks.
@@ -78,7 +89,7 @@ export class ProjectEditor {
   readonly contents = input.required<Readonly<Record<string, string>>>();
   readonly activePath = input.required<string>();
   readonly readOnly = input(false);
-  readonly diagnostics = input<readonly WebDiagnostic[]>([]);
+  readonly diagnostics = input<readonly ExplainedDiagnostic[]>([]);
   /** A line to reveal in the active file (e.g. after clicking a build error). */
   readonly revealLine = input<number | undefined>(undefined);
 
@@ -95,6 +106,8 @@ export class ProjectEditor {
   private current: string | undefined;
   private destroyed = false;
   private applying = false;
+  private checkTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly syntax = inject(SyntaxChecker);
 
   constructor() {
     afterNextRender(() => void this.init());
@@ -161,6 +174,7 @@ export class ProjectEditor {
 
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
+      clearTimeout(this.checkTimer);
       this.disposeModels();
       this.editor?.dispose();
     });
@@ -187,6 +201,7 @@ export class ProjectEditor {
     }
     if (this.destroyed) return;
     this.monaco = monaco;
+    registerProjectAssist(monaco);
     this.editor = monaco.editor.create(this.host().nativeElement, {
       theme: MONACO_THEME,
       automaticLayout: true,
@@ -205,6 +220,7 @@ export class ProjectEditor {
       if (this.applying || !this.current) return;
       const model = this.editor?.getModel();
       if (model) this.changed.emit({ path: this.current, content: model.getValue() });
+      this.scheduleCheck();
     });
     this.editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
       this.runRequested.emit(),
@@ -234,10 +250,13 @@ export class ProjectEditor {
       const uri = this.uri(ns, file.path);
       // A model left over (e.g. a previous visit) is replaced: content comes from the draft.
       monaco.editor.getModel(uri)?.dispose();
-      this.models.set(
-        file.path,
-        monaco.editor.createModel(contents[file.path] ?? '', monacoLanguage(file.path), uri),
+      const model = monaco.editor.createModel(
+        contents[file.path] ?? '',
+        monacoLanguage(file.path),
+        uri,
       );
+      attachModel(model, file.path, () => this.contents());
+      this.models.set(file.path, model);
     }
   }
 
@@ -251,29 +270,93 @@ export class ProjectEditor {
     const state = this.viewStates.get(path);
     if (state) editor.restoreViewState(state);
     this.showDiagnostics(this.diagnostics());
+    this.scheduleCheck();
   }
 
-  private showDiagnostics(diagnostics: readonly WebDiagnostic[]): void {
+  private showDiagnostics(diagnostics: readonly ExplainedDiagnostic[]): void {
     const monaco = this.monaco;
     if (!monaco) return;
     for (const [path, model] of this.models) {
-      const markers = diagnostics
-        .filter((d) => d.file === path && d.line !== undefined)
-        .map((d): Monaco.editor.IMarkerData => {
-          const line = Math.min(Math.max(1, d.line ?? 1), model.getLineCount());
-          const column = Math.min(Math.max(1, d.column ?? 1), model.getLineMaxColumn(line));
-          const word = model.getWordAtPosition({ lineNumber: line, column });
-          return {
-            severity: monaco.MarkerSeverity.Error,
-            message: d.message,
-            startLineNumber: line,
-            startColumn: word?.startColumn ?? 1,
-            endLineNumber: line,
-            endColumn: word?.endColumn ?? model.getLineMaxColumn(line),
-          };
-        });
+      const shown = diagnostics.filter((d) => d.file === path && d.line !== undefined);
+      const markers = shown.map((d): Monaco.editor.IMarkerData => {
+        const line = Math.min(Math.max(1, d.line ?? 1), model.getLineCount());
+        const column = Math.min(Math.max(1, d.column ?? 1), model.getLineMaxColumn(line));
+        const word = model.getWordAtPosition({ lineNumber: line, column });
+        return {
+          severity: monaco.MarkerSeverity.Error,
+          message: d.message,
+          startLineNumber: line,
+          startColumn: word?.startColumn ?? 1,
+          endLineNumber: line,
+          endColumn: word?.endColumn ?? model.getLineMaxColumn(line),
+        };
+      });
       monaco.editor.setModelMarkers(model, MARKER_OWNER, markers);
+      markers.forEach((marker, i) => {
+        const fix = shown[i]?.fix;
+        if (fix) setFix(model, marker, fix);
+      });
     }
+  }
+
+  private scheduleCheck(): void {
+    clearTimeout(this.checkTimer);
+    this.checkTimer = setTimeout(() => void this.checkActive(), CHECK_DELAY_MS);
+  }
+
+  /** The checks while typing, on the visible file, once typing pauses. */
+  private async checkActive(): Promise<void> {
+    const monaco = this.monaco;
+    const path = this.current;
+    const model = path ? this.models.get(path) : undefined;
+    if (!monaco || !path || !model) return;
+    const language = model.getLanguageId();
+    const code = model.getValue();
+    const version = model.getVersionId();
+
+    const problems =
+      language === 'java'
+        ? findJavaNameProblems(code, projectSymbols({ ...this.contents(), [path]: code }).symbols)
+        : [];
+    const markers = problems.map((p): Monaco.editor.IMarkerData => ({
+      severity:
+        p.severity === 'error' ? monaco.MarkerSeverity.Error : monaco.MarkerSeverity.Warning,
+      message: p.message,
+      source: 'PracStack',
+      startLineNumber: p.line,
+      startColumn: p.startColumn,
+      endLineNumber: p.line,
+      endColumn: p.endColumn,
+    }));
+    monaco.editor.setModelMarkers(model, NAMES_OWNER, markers);
+    problems.forEach((p, i) => {
+      if (p.fix && markers[i]) setFix(model, markers[i], p.fix);
+    });
+
+    if (!hasSyntaxCheck(language)) return;
+    // Syntax errors only: the file's own declarations are not all its names here.
+    const errors = await this.syntax.check(language, code, { names: false });
+    // Only if nothing changed meanwhile (a newer check is on its way otherwise).
+    if (this.destroyed || model.isDisposed() || model.getVersionId() !== version) return;
+    monaco.editor.setModelMarkers(
+      model,
+      SYNTAX_OWNER,
+      errors.map((d) => {
+        const line = Math.min(Math.max(1, d.line), model.getLineCount());
+        const column = Math.min(Math.max(1, d.column), model.getLineMaxColumn(line));
+        const word = model.getWordAtPosition({ lineNumber: line, column });
+        const end = Math.min(column + 1, model.getLineMaxColumn(line));
+        return {
+          severity: monaco.MarkerSeverity.Error,
+          message: d.message,
+          source: 'syntax',
+          startLineNumber: line,
+          startColumn: word?.startColumn ?? (end > column ? column : Math.max(1, column - 1)),
+          endLineNumber: line,
+          endColumn: word?.endColumn ?? (end > column ? end : column),
+        };
+      }),
+    );
   }
 
   private disposeModels(): void {

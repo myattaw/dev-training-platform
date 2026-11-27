@@ -47,7 +47,8 @@ async function handle(request: SyntaxRequest): Promise<SyntaxResponse> {
     const diagnostics: { line: number; column: number; message: string }[] = [];
     collect(tree.rootNode, diagnostics);
     // Names used but declared nowhere (`return ew;`): see undefined-names.ts.
-    diagnostics.push(...undefinedNames(tree.rootNode, request.language));
+    if (request.names !== false)
+      diagnostics.push(...undefinedNames(tree.rootNode, request.language));
     return { id: request.id, ok: true, diagnostics };
   } finally {
     tree.delete();

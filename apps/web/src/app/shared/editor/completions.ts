@@ -10,7 +10,7 @@ type MonacoApi = typeof Monaco;
  * Monaco adds the words already in the file (your own variables and methods).
  */
 
-interface LanguageWords {
+export interface LanguageWords {
   readonly keywords: readonly string[];
   readonly types: readonly string[];
   readonly members: readonly string[];
@@ -103,6 +103,18 @@ const JAVA: LanguageWords = {
   ],
 };
 
+/** The word lists, also used by the web-challenge project editor's own suggestions. */
+export const BASIC_WORDS: Readonly<Record<'csharp' | 'java', LanguageWords>> = {
+  csharp: CSHARP,
+  java: JAVA,
+};
+
+/**
+ * Models of a multi-file web-challenge project: they get the project editor's
+ * suggestions (with automatic imports) instead of these.
+ */
+export const projectModels = new WeakSet<Monaco.editor.ITextModel>();
+
 let registered = false;
 
 /** Registers the C# and Java suggestions once per page. */
@@ -116,6 +128,7 @@ export function registerCompletions(monaco: MonacoApi): void {
     monaco.languages.registerCompletionItemProvider(id, {
       triggerCharacters: ['.'],
       provideCompletionItems(model, position) {
+        if (projectModels.has(model)) return { suggestions: [] };
         const word = model.getWordUntilPosition(position);
         const range = {
           startLineNumber: position.lineNumber,

@@ -31,7 +31,11 @@ export class SyntaxChecker {
   private readonly downloads = new Map<string, Promise<ArrayBuffer>>();
 
   /** Syntax errors in `code`; empty when it parses (or when checking is unavailable). */
-  async check(language: SyntaxLanguage, code: string): Promise<readonly CompileDiagnostic[]> {
+  async check(
+    language: SyntaxLanguage,
+    code: string,
+    options: { readonly names?: boolean } = {},
+  ): Promise<readonly CompileDiagnostic[]> {
     try {
       const runtime = this.runtimeSent ? undefined : await this.download(FILES.runtime);
       const grammar = this.grammarsSent.has(language)
@@ -41,6 +45,7 @@ export class SyntaxChecker {
         id: this.nextId++,
         language,
         code,
+        ...(options.names === false ? { names: false } : {}),
         ...(runtime ? { runtime } : {}),
         ...(grammar ? { grammar } : {}),
       });

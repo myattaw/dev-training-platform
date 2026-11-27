@@ -26,6 +26,77 @@ async function openFile(page: Page, name: string): Promise<void> {
   await expect(page.locator('.tab.active')).toContainText(name);
 }
 
+/*
+ * Editor help in the browser (no runner needed): an unknown or unimported
+ * class name is marked while typing, a quick fix corrects it and adds the
+ * import, and a suggestion adds its import when picked.
+ */
+test.describe('web challenge editor help', () => {
+  test('marks the ResponseBody typo, fixes it, and imports on completion', async ({ page }) => {
+    await page.goto('/web-challenges/employee-rest-api/spring-boot/workspace');
+    await expect(page.locator('.tab.active')).toContainText('EmployeeController.java');
+    await setEditor(
+      page,
+      [
+        'package com.pracstack.employees.web;',
+        '',
+        'import com.pracstack.employees.model.Employee;',
+        'import com.pracstack.employees.service.EmployeeService;',
+        'import org.springframework.web.bind.annotation.RestController;',
+        '',
+        '@RestController',
+        'public class EmployeeController {',
+        '    private final EmployeeService employees;',
+        '',
+        '    public EmployeeController(EmployeeService employees) {',
+        '        this.employees = employees;',
+        '    }',
+        '',
+        '    public Object first() {',
+        '        return ResponseBody.ok(employees);',
+        '    }',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    const lines = page.locator('app-project-editor .monaco-editor .view-lines');
+
+    // Marked while typing, before any run.
+    await expect(page.locator('app-project-editor .squiggly-warning')).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Quick fix (Ctrl+.): "Change to ResponseEntity", which also adds the import.
+    await page.locator('.monaco-editor .view-line', { hasText: 'ResponseBody.ok' }).click();
+    await page.keyboard.press('End');
+    for (let i = 0; i < 'ResponseBody.ok(employees);'.length - 3; i++) {
+      await page.keyboard.press('ArrowLeft');
+    }
+    await page.keyboard.press('ControlOrMeta+.');
+    const fix = page.locator('.action-widget', { hasText: 'Change to ResponseEntity' });
+    await expect(fix).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(lines).toContainText('return ResponseEntity.ok(employees);');
+    await expect(lines).toContainText('import org.springframework.http.ResponseEntity;');
+    await expect(page.locator('app-project-editor .squiggly-warning')).toHaveCount(0, {
+      timeout: 10_000,
+    });
+
+    // A suggestion adds its import: "HttpSta" → HttpStatus.
+    await page.locator('.monaco-editor .view-line', { hasText: 'return ResponseEntity' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Object status = HttpSta');
+    const suggestion = page.locator('.monaco-editor .suggest-widget .monaco-list-row', {
+      hasText: 'HttpStatus',
+    });
+    await expect(suggestion.first()).toBeVisible();
+    await page.keyboard.press('Enter');
+    await expect(lines).toContainText('import org.springframework.http.HttpStatus;');
+    await expect(lines).toContainText('Object status = HttpStatus');
+  });
+});
+
 test.describe('web development challenges', () => {
   test.skip(skip, 'needs Docker and the web runner images');
   test.setTimeout(300_000);

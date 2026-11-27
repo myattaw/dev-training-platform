@@ -10,7 +10,22 @@ requests. Distinct from algorithm [Coding Challenges](content.md). Security: see
 2. Open a challenge: scenario, HTTP contract, objectives, per-framework status, history.
 3. Pick a framework and open the workspace (`/web-challenges/<id>/<framework>/workspace`):
    - file explorer (read-only template files marked with a lock, edited files with a dot),
-   - Monaco editor with tabs (one model per file; cursor, scroll and undo kept per file),
+   - Monaco editor with tabs (one model per file; cursor, scroll and undo kept per file), with
+     editor help that runs in the browser (`features/web-challenges/editor/`, no server, no cost):
+     - suggestions of the framework's classes, annotations and modules and the project's own
+       classes; picking one adds its `import` / `using` / `from … import` line;
+       `ResponseEntity.`, `status.`, `models.` and the like suggest their members,
+     - while typing (Java): a known class that is not imported is an error with a quick fix
+       (Ctrl+.) that adds the import; an unknown name is a warning, with "Did you mean …?" and
+       a quick fix when a known name is close (`ResponseBody.ok` → `ResponseEntity`); syntax
+       errors in Java and C# (the Tree-sitter check, without its single-file name check),
+     - build errors name what the compiler could not find (`cannot find symbol: ResponseBody`,
+       at its column) and get the same hint and quick fix.
+
+     A fixed list (`editor/symbols.ts`), not a language server: it covers what the challenges use.
+     `content/src/checks/web-editor-checks.spec.ts` keeps every starter and reference project
+     free of findings, so correct code is never flagged.
+
    - the **HTTP client** takes a list of up to 20 requests; **Send requests** builds the project,
      starts a fresh application, sends them in order (state carries over between them), shows
      every response and stops the application (one run; not graded, never an attempt),
@@ -122,5 +137,5 @@ Boot implementation of the web challenges.
 
 Angular frontend challenges and previews, full-stack (frontend + backend) projects, database
 engines other than SQLite/H2 for web challenges, adding/renaming files in the workspace, language
-servers (the editor highlights syntax; C# and Java also get the existing live syntax check only in
-the algorithm workspace).
+servers (the editor help above is a fixed list in the browser: it does not know a variable's type,
+and the live name check is Java only), compiling on the server while typing.
